@@ -1,0 +1,31 @@
+# Python cache files — auto-generated, safe to delete and recreate
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments — local install folders, not part of the project itself
+.venv/
+venv/
+env/
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor settings — personal workspace preferences
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Generated output — redacted files produced when you run the app
+data/output/
+
+# Local secrets — never commit API keys or passwords
+.env
+.env.*

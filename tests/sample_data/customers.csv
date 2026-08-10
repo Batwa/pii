@@ -1,0 +1,4 @@
+customer_id,name,email,phone,notes
+C001,John Doe,john.doe@email.com,555-123-4567,Called customer at john.doe@email.com
+C002,Jane Smith,jane.smith@company.org,(555) 987-6543,Meeting scheduled
+C003,Bob Johnson,bob@example.net,555.555.5555,Phone: 555-999-8888

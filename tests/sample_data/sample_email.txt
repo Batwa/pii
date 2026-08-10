@@ -1,0 +1,9 @@
+From: john.smith@company.com
+To: sarah.johnson@partner.org
+
+Dear Sarah,
+
+Please call me at 555-123-4567 or email john.smith@company.com.
+
+Best regards,
+John Smith

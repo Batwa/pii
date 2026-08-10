@@ -1,0 +1,16 @@
+presidio-analyzer
+presidio-anonymizer
+spacy
+pandas
+numpy
+streamlit
+opencv-python>=4.8,<5
+Pillow
+pytesseract
+python-dotenv
+pytest
+openpyxl
+mediapipe>=0.10.0
+
+# After installing, download the spaCy language model:
+#   python -m spacy download en_core_web_lg

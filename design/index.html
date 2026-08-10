@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Sandbox (PII Identifier) — Detect &amp; redact PII before you share data</title>
+<meta name="description" content="Privacy Sandbox automatically detects and redacts personally identifiable information from CSV files, text documents and images. All processing runs locally on your machine.">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<!-- ============================ HEADER ============================ -->
+<header class="site-header">
+  <div class="shell site-header__inner">
+    <button class="brand" data-goto="welcome" aria-label="Privacy Sandbox — go to welcome page">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5eaf73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z"></path>
+          <path d="M9 12h6"></path>
+        </svg>
+      </span>
+      <span class="brand__text">
+        <span class="brand__name">Privacy Sandbox</span>
+        <span class="brand__sub">PII Identifier</span>
+      </span>
+    </button>
+
+    <nav class="nav" aria-label="Primary">
+      <button class="nav__link" data-goto="welcome" aria-current="page">Welcome</button>
+      <button class="nav__link" data-goto="select">Choose file type</button>
+      <button class="nav__link" data-goto="about">About</button>
+      <button class="btn btn--primary btn--sm" data-goto="select">Start</button>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ======================= PAGE 1 — WELCOME ======================= -->
+<section class="view is-active" id="view-welcome" aria-labelledby="welcome-title">
+
+  <div class="hero">
+    <div class="shell hero__grid">
+      <div>
+        <p class="eyebrow">Local-first privacy tooling</p>
+        <h1 id="welcome-title">Find every piece of personal data.<br>Redact it before you share.</h1>
+        <p class="lead">
+          Privacy Sandbox scans your CSV files, documents and images for personally identifiable
+          information — then redacts it automatically, so you can publish, collaborate and train
+          models without exposing anyone's identity.
+        </p>
+
+        <div class="hero__actions">
+          <button class="btn btn--primary btn--lg" data-goto="select" id="start-button">
+            Start &nbsp;→
+          </button>
+          <button class="btn btn--ghost" data-goto="about">How it works</button>
+        </div>
+
+        <p class="hero__note">
+          No account. No upload to a server. Your files never leave this machine.
+        </p>
+
+        <div class="annotation">
+          <b>User flow</b> — “Start” is the single primary action on this page. It routes the user to
+          <em>Page 2 — File type selection</em> and advances the progress stepper to step 1 of 4.
+        </div>
+      </div>
+
+      <div class="sample" aria-label="Example of data before and after redaction">
+        <div class="sample__bar">
+          <span class="sample__dot" aria-hidden="true"></span>
+          <span class="sample__dot" aria-hidden="true"></span>
+          <span class="sample__dot" aria-hidden="true"></span>
+          <span class="sample__title">customers.csv — scan preview</span>
+        </div>
+        <div class="sample__body">
+          <div class="sample__row"><span class="sample__label">name</span><span class="sample__before">John Doe</span></div>
+          <div class="sample__row"><span class="sample__label">email</span><span class="sample__before">john.doe@email.com</span></div>
+          <div class="sample__row"><span class="sample__label">phone</span><span class="sample__before">555-123-4567</span></div>
+          <div class="sample__flow">↓ redacting locally ↓</div>
+          <div class="sample__row"><span class="sample__label">name</span><span class="sample__after">Michael Bennett</span></div>
+          <div class="sample__row"><span class="sample__label">email</span><span class="sample__after">****@****.com</span></div>
+          <div class="sample__row"><span class="sample__label">phone</span><span class="sample__after">***-***-4567</span></div>
+          <div class="sample__row"><span class="sample__label">customer_id</span><span class="sample__after">C001 &nbsp;(kept — not personal)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What it detects -->
+  <div class="section section--tight">
+    <div class="shell">
+      <div class="panel">
+        <div class="panel__head">
+          <div>
+            <h2>What it looks for</h2>
+            <p class="panel__hint">Detected automatically in every supported file type.</p>
+          </div>
+          <span class="badge-lock">🔒 Runs on your device</span>
+        </div>
+        <ul class="chips">
+          <li class="chip">👤 Names</li>
+          <li class="chip">📧 Email addresses</li>
+          <li class="chip">📱 Phone numbers</li>
+          <li class="chip">💳 Credit card numbers</li>
+          <li class="chip">🆔 Social Security numbers</li>
+          <li class="chip">🏠 Home addresses</li>
+          <li class="chip">🎂 Dates of birth</li>
+          <li class="chip">🌐 IP addresses</li>
+          <li class="chip">🙂 Faces in images</li>
+          <li class="chip">＋ Other personal identifiers</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="section" id="how-it-works">
+    <div class="shell">
+      <p class="eyebrow">How it works</p>
+      <h2>Four steps, start to clean file.</h2>
+      <p class="lead mb-2">No configuration required — the defaults are safe. Adjust only if you want to.</p>
+
+      <ol class="steps" style="list-style:none; padding:0;">
+        <li class="step">
+          <h3>Choose your file type</h3>
+          <p>Pick CSV/tabular data, text documents or images. Each track is tuned for that format.</p>
+        </li>
+        <li class="step">
+          <h3>Upload your file</h3>
+          <p>Drag and drop, or browse. Multiple files are supported for text and images.</p>
+        </li>
+        <li class="step">
+          <h3>We scan and redact</h3>
+          <p>Presidio, spaCy, custom regex and OCR find the PII; your chosen strategy hides it.</p>
+        </li>
+        <li class="step">
+          <h3>Download clean results</h3>
+          <p>Take the redacted file plus a plain-language privacy report of everything that changed.</p>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Benefits -->
+  <div class="section section--tight">
+    <div class="shell">
+      <div class="panel">
+        <div class="panel__head">
+          <div>
+            <p class="eyebrow">Why teams use it</p>
+            <h2>Benefits</h2>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="card card--flat benefit">
+            <span class="benefit__icon" aria-hidden="true">⚖️</span>
+            <div>
+              <h3>Legal compliance</h3>
+              <p>Meet GDPR, FERPA, HIPAA and CCPA obligations with a documented, repeatable redaction step.</p>
+            </div>
+          </div>
+          <div class="card card--flat benefit">
+            <span class="benefit__icon" aria-hidden="true">🤝</span>
+            <div>
+              <h3>Safe collaboration</h3>
+              <p>Send datasets to classmates, colleagues or external partners without leaking personal details.</p>
+            </div>
+          </div>
+          <div class="card card--flat benefit">
+            <span class="benefit__icon" aria-hidden="true">🧠</span>
+            <div>
+              <h3>ML-ready data</h3>
+              <p>Keep structure, statistics and identifiers intact while personal values are removed — clean training sets.</p>
+            </div>
+          </div>
+          <div class="card card--flat benefit">
+            <span class="benefit__icon" aria-hidden="true">⏱️</span>
+            <div>
+              <h3>Time savings</h3>
+              <p>Thousands of rows reviewed in seconds instead of hours of manual, error-prone checking.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supported file types -->
+  <div class="section section--tight">
+    <div class="shell">
+      <h2>Supported file types</h2>
+      <p class="lead mb-2">Three tracks cover the formats real projects actually use.</p>
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="card__icon" aria-hidden="true">📊</div>
+          <h3>CSV / tabular data</h3>
+          <p class="track__ext">.csv</p>
+          <p>Column-aware scanning that preserves generated IDs such as customer, employee and product numbers.</p>
+        </div>
+        <div class="card">
+          <div class="card__icon" aria-hidden="true">📝</div>
+          <h3>Text documents</h3>
+          <p class="track__ext">.txt &nbsp;.json &nbsp;.md</p>
+          <p>NLP-based detection across free-form writing — emails, notes, transcripts, support tickets.</p>
+        </div>
+        <div class="card">
+          <div class="card__icon" aria-hidden="true">🖼️</div>
+          <h3>Images</h3>
+          <p class="track__ext">.jpg &nbsp;.jpeg &nbsp;.png &nbsp;.bmp</p>
+          <p>Face detection plus OCR to catch text PII printed on badges, forms, receipts and cards.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Privacy promise + final CTA -->
+  <div class="section">
+    <div class="shell">
+      <div class="panel center">
+        <p class="eyebrow" style="justify-content:center;">Local processing</p>
+        <h2>Your files never leave your machine.</h2>
+        <p class="lead" style="margin-inline:auto;">
+          Every scan runs locally in this application. Nothing is sent to an external server, nothing
+          is stored permanently, and temporary working files are deleted as soon as the scan finishes.
+        </p>
+        <div class="row" style="justify-content:center; margin-top:1.2rem;">
+          <button class="btn btn--primary btn--lg" data-goto="select">Start &nbsp;→</button>
+        </div>
+        <p class="small muted mt-1 mb-0">Next step: choose your file type.</p>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== PAGE 2 — FILE TYPE SELECT ==================== -->
+<section class="view" id="view-select" aria-labelledby="select-title">
+  <div class="section">
+    <div class="shell">
+      <ol class="stepper" data-stepper>
+        <li class="is-done"><span class="stepper__dot"></span> Welcome</li>
+        <li aria-current="step"><span class="stepper__dot"></span> Choose file type</li>
+        <li><span class="stepper__dot"></span> Upload</li>
+        <li><span class="stepper__dot"></span> Scan</li>
+        <li><span class="stepper__dot"></span> Results &amp; download</li>
+      </ol>
+
+      <p class="eyebrow">Step 1 of 4</p>
+      <h1 id="select-title">What are you cleaning today?</h1>
+      <p class="lead mb-2">
+        Choose a track. Each one opens the upload and processing screen built for that format —
+        you can switch tracks at any time without losing your place.
+      </p>
+
+      <div class="tracks" role="group" aria-label="Choose a file type track">
+        <button class="track" data-track="csv" aria-pressed="false">
+          <span class="track__icon" aria-hidden="true">📊</span>
+          <h3>CSV / Tabular data</h3>
+          <p class="track__ext">.csv</p>
+          <p>Spreadsheets, exports and datasets with columns of customer or student records.</p>
+          <ul class="track__list">
+            <li>Smart, complete or partial redaction</li>
+            <li>Keeps generated IDs intact</li>
+            <li>Before / after table comparison</li>
+          </ul>
+          <span class="track__cta">Open CSV track →</span>
+        </button>
+
+        <button class="track" data-track="text" aria-pressed="false">
+          <span class="track__icon" aria-hidden="true">📝</span>
+          <h3>Text documents</h3>
+          <p class="track__ext">.txt &nbsp;.json &nbsp;.md</p>
+          <p>Emails, notes, transcripts, tickets and any other free-form writing.</p>
+          <ul class="track__list">
+            <li>Multiple files at once</li>
+            <li>Compare mask, pseudonymize, partial, label</li>
+            <li>Breakdown by detection engine</li>
+          </ul>
+          <span class="track__cta">Open text track →</span>
+        </button>
+
+        <button class="track" data-track="image" aria-pressed="false">
+          <span class="track__icon" aria-hidden="true">🖼️</span>
+          <h3>Images</h3>
+          <p class="track__ext">.jpg &nbsp;.jpeg &nbsp;.png &nbsp;.bmp</p>
+          <p>Photos, ID badges, forms, receipts and screenshots containing faces or printed data.</p>
+          <ul class="track__list">
+            <li>Face detection + OCR text PII</li>
+            <li>Blur, pixelate or black box</li>
+            <li>Visual before / after per image</li>
+          </ul>
+          <span class="track__cta">Open image track →</span>
+        </button>
+      </div>
+
+      <div class="annotation">
+        <b>User flow</b> — Selecting a card sets <code>aria-pressed="true"</code>, advances the stepper to
+        “Upload”, and reveals that track's upload &amp; processing interface (Page 3) directly below.
+        Focus moves to the revealed panel heading so keyboard and screen-reader users follow the change.
+      </div>
+
+      <div class="callout callout--ok mt-2">
+        <span aria-hidden="true">🔒</span>
+        <p><strong>Local processing.</strong> Files are read on this machine only. Nothing is uploaded to an
+        external server and nothing is stored permanently.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE 3 — CSV TRACK ============ -->
+  <div class="section section--tight" id="track-csv" hidden>
+    <div class="shell work">
+
+      <aside class="panel settings" aria-labelledby="csv-settings-title">
+        <h3 id="csv-settings-title">⚙️ Detection settings</h3>
+        <label class="field" for="csv-confidence">
+          <span class="field__label">Detection sensitivity
+            <span class="settings__value" data-conf-out="csv">0.8</span>
+          </span>
+          <input type="range" id="csv-confidence" min="0.1" max="1" step="0.1" value="0.8" data-conf="csv">
+          <span class="settings__scale"><span>0.1 more sensitive</span><span>1.0 stricter</span></span>
+          <span class="field__help">Confidence threshold. Lower catches more, with more false positives.</span>
+        </label>
+        <hr class="divider">
+        <p class="small muted mb-0">Applies to CSV and text scanning. Image detection uses its own models and needs no threshold.</p>
+      </aside>
+
+      <div>
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 2 of 4 — CSV / Tabular data</p>
+              <h2 tabindex="-1" id="csv-title">Upload your CSV</h2>
+              <p class="panel__hint">One file at a time. Accepted extension: <code>.csv</code></p>
+            </div>
+            <button class="btn btn--ghost btn--sm" data-goto="select">← Change file type</button>
+          </div>
+
+          <button class="dropzone" data-upload="csv">
+            <span class="dropzone__icon" aria-hidden="true">📤</span>
+            <span class="dropzone__title">Drag your CSV here, or click to browse</span>
+            <p class="dropzone__hint">Read locally on this machine — never uploaded</p>
+            <span class="dropzone__ext">.csv</span>
+          </button>
+          <input type="file" id="csv-input" accept=".csv" class="sr-only" tabindex="-1">
+
+          <div class="callout callout--warn mt-1" data-upload-error="csv" hidden>
+            <span aria-hidden="true">⚠️</span>
+            <p>That doesn't look like a <code>.csv</code> file. Please choose a CSV file to continue.</p>
+          </div>
+
+          <div class="annotation">
+            <b>User flow</b> — Clicking “browse” (or dropping a file) opens your own file picker. The chosen
+            file is parsed in the browser locally; file stats, a preview table and the “Scan” control
+            appear below. An unsupported file shows the inline error above and waits for a valid one.
+          </div>
+
+          <div data-csv-loaded hidden>
+            <hr class="divider">
+            <div class="metrics">
+              <div class="metric"><span class="metric__label">Rows</span><span class="metric__value" id="csv-rows">1,248</span></div>
+              <div class="metric"><span class="metric__label">Columns</span><span class="metric__value" id="csv-cols">5</span></div>
+              <div class="metric"><span class="metric__label">File size</span><span class="metric__value" id="csv-size">86 KB</span></div>
+              <div class="metric"><span class="metric__label">File</span><span class="metric__value" style="font-size:1rem;" id="csv-filename">customers.csv</span></div>
+            </div>
+
+            <h3 class="mt-2">Original data preview</h3>
+            <p class="small muted">First rows shown. Values likely to contain PII are highlighted.</p>
+            <div class="table-wrap">
+              <table>
+                <caption id="csv-caption">customers.csv — original</caption>
+                <thead id="csv-preview-head"></thead>
+                <tbody id="csv-preview-body"></tbody>
+              </table>
+            </div>
+
+            <hr class="divider">
+            <h3>Choose a redaction method</h3>
+            <div class="radio-cards" role="radiogroup" aria-label="Redaction method">
+              <label class="radio-card">
+                <input type="radio" name="csv-method" value="smart" checked>
+                <span>
+                  <strong>Smart Redaction — recommended</strong>
+                  <span>Redacts real personal data but preserves generated identifiers such as customer,
+                  employee and product IDs, so your dataset stays joinable and analysable.</span>
+                </span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="csv-method" value="mask">
+                <span>
+                  <strong>Complete Masking</strong>
+                  <span>Every detected PII value becomes <code>****</code>. Maximum protection, minimum
+                  residual information.</span>
+                </span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="csv-method" value="partial">
+                <span>
+                  <strong>Partial Redaction</strong>
+                  <span>Hides only part of each value — <code>***-***-4567</code> — when you still need to
+                  match or verify records.</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="row mt-2">
+              <button class="btn btn--primary" data-scan="csv">🔍 Scan CSV for PII</button>
+              <span class="small muted">Threshold <span data-conf-out="csv">0.8</span> · runs locally</span>
+            </div>
+
+            <div data-progress="csv" hidden>
+              <div class="progress"><div class="progress__bar"></div></div>
+              <p class="progress__label">Scanning columns with Presidio, spaCy and regex patterns…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CSV results -->
+        <div class="panel" data-results="csv" hidden>
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 4 of 4 — Results</p>
+              <h2 tabindex="-1" id="csv-results-title">CSV PII detection results</h2>
+              <p class="panel__hint" id="csv-results-hint">customers.csv · Smart Redaction · threshold 0.8</p>
+            </div>
+            <span class="chip chip--green">✓ Scan complete</span>
+          </div>
+
+          <div class="metrics">
+            <div class="metric metric--warn"><span class="metric__label">PII items found</span><span class="metric__value" id="csv-found">3,104</span></div>
+            <div class="metric metric--accent"><span class="metric__label">Affected columns</span><span class="metric__value" id="csv-affected">4</span></div>
+            <div class="metric"><span class="metric__label">Clean columns</span><span class="metric__value" id="csv-clean">1</span></div>
+            <div class="metric"><span class="metric__label">Rows changed</span><span class="metric__value" id="csv-changed">1,248</span></div>
+          </div>
+
+          <div class="callout callout--warn mt-2">
+            <span aria-hidden="true">⚠️</span>
+            <p><strong>PII found in <span id="csv-aff-count">4</span> columns.</strong> Review the breakdown, then download the cleaned
+            file. Generated identifiers (customer, employee, product, …) are preserved automatically.</p>
+          </div>
+
+          <h3 class="mt-2">Findings by column</h3>
+          <div class="table-wrap">
+            <table>
+              <caption>What was detected, and how it was handled</caption>
+              <thead>
+                <tr><th>Column</th><th>PII type</th><th>Items found</th><th>Action taken</th></tr>
+              </thead>
+              <tbody id="csv-findings-body"></tbody>
+            </table>
+          </div>
+
+          <h3 class="mt-3">Before &amp; after comparison</h3>
+          <div class="grid grid-2">
+            <div>
+              <p class="small muted mb-0">Original data</p>
+              <div class="table-wrap mt-1">
+                <table>
+                  <caption>Original</caption>
+                  <thead id="csv-comp-before-head"></thead>
+                  <tbody id="csv-comp-before-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <p class="small muted mb-0">Cleaned data</p>
+              <div class="table-wrap mt-1">
+                <table>
+                  <caption>Cleaned</caption>
+                  <thead id="csv-comp-after-head"></thead>
+                  <tbody id="csv-comp-after-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider">
+          <h3>Download your results</h3>
+          <div class="downloads">
+            <button class="download">
+              <span class="download__icon" aria-hidden="true">📥</span>
+              <span><strong>Download clean CSV</strong><span id="csv-clean-name">clean_customers.csv · 84 KB</span></span>
+            </button>
+            <button class="download">
+              <span class="download__icon" aria-hidden="true">📋</span>
+              <span><strong>Download privacy report</strong><span id="csv-report-name">privacy_report_customers.txt · 6 KB</span></span>
+            </button>
+          </div>
+          <div class="annotation">
+            <b>User flow</b> — Both files are generated in memory from the scan result. The report lists totals,
+            per-column findings, the method used and the threshold, in plain language suitable for a
+            compliance file.
+          </div>
+          <div class="row mt-2">
+            <button class="btn btn--ghost" data-reset="csv">Scan another file</button>
+            <button class="btn btn--ghost" data-goto="select">Choose a different file type</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE 3 — TEXT TRACK ============ -->
+  <div class="section section--tight" id="track-text" hidden>
+    <div class="shell work">
+
+      <aside class="panel settings" aria-labelledby="text-settings-title">
+        <h3 id="text-settings-title">⚙️ Detection settings</h3>
+        <label class="field" for="text-confidence">
+          <span class="field__label">Detection sensitivity
+            <span class="settings__value" data-conf-out="text">0.8</span>
+          </span>
+          <input type="range" id="text-confidence" min="0.1" max="1" step="0.1" value="0.8" data-conf="text">
+          <span class="settings__scale"><span>0.1 more sensitive</span><span>1.0 stricter</span></span>
+          <span class="field__help">Lower values catch borderline names and addresses at the cost of more false positives.</span>
+        </label>
+        <hr class="divider">
+        <h3>Detection engines</h3>
+        <ul class="chips">
+          <li class="chip chip--code">Presidio</li>
+          <li class="chip chip--code">spaCy NER</li>
+          <li class="chip chip--code">custom regex</li>
+        </ul>
+      </aside>
+
+      <div>
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 2 of 4 — Text documents</p>
+              <h2 tabindex="-1" id="text-title">Upload your documents</h2>
+              <p class="panel__hint">Multiple files allowed. Accepted extensions: <code>.txt</code> <code>.json</code> <code>.md</code></p>
+            </div>
+            <button class="btn btn--ghost btn--sm" data-goto="select">← Change file type</button>
+          </div>
+
+          <button class="dropzone" data-upload="text">
+            <span class="dropzone__icon" aria-hidden="true">📤</span>
+            <span class="dropzone__title">Drag documents here, or click to browse</span>
+            <p class="dropzone__hint">Select as many files as you like — each is scanned separately</p>
+            <span class="dropzone__ext">.txt &nbsp;.json &nbsp;.md</span>
+          </button>
+          <input type="file" id="text-input" accept=".txt,.json,.md" multiple class="sr-only" tabindex="-1">
+
+          <div class="callout callout--warn mt-1" data-upload-error="text" hidden>
+            <span aria-hidden="true">⚠️</span>
+            <p>Please choose text files only (extensions: <code>.txt</code> <code>.json</code> <code>.md</code>).</p>
+          </div>
+
+          <div data-text-loaded hidden>
+            <ul class="filelist" id="text-filelist">
+              <li><span aria-hidden="true">📄</span><span class="file__name">email.txt</span><span class="file__meta">2.1 KB</span></li>
+              <li><span aria-hidden="true">📄</span><span class="file__name">customer_support.txt</span><span class="file__meta">4.7 KB</span></li>
+              <li><span aria-hidden="true">📄</span><span class="file__name">medical_notes.json</span><span class="file__meta">3.3 KB</span></li>
+            </ul>
+
+            <hr class="divider">
+            <h3>Choose redaction strategies</h3>
+            <p class="small muted">Pick one or more. Each selected strategy produces its own downloadable version so you can compare them side by side.</p>
+            <div class="grid grid-2">
+              <label class="radio-card"><input type="checkbox" name="text-strategy" value="mask" checked>
+                <span><strong>Mask</strong><span>Replace the value with <code>****</code>.</span></span></label>
+              <label class="radio-card"><input type="checkbox" name="text-strategy" value="pseudonymize" checked>
+                <span><strong>Pseudonymize</strong><span>Swap real names for consistent fake names.</span></span></label>
+              <label class="radio-card"><input type="checkbox" name="text-strategy" value="partial_mask">
+                <span><strong>Partial mask</strong><span>Keep a fragment: <code>j***@e***.com</code>.</span></span></label>
+              <label class="radio-card"><input type="checkbox" name="text-strategy" value="label">
+                <span><strong>Label</strong><span>Replace with the type: <code>[EMAIL_ADDRESS]</code>.</span></span></label>
+            </div>
+
+            <div class="callout callout--warn mt-2" data-text-warning hidden>
+              <span aria-hidden="true">⚠️</span>
+              <p>Select at least one redaction strategy before scanning.</p>
+            </div>
+
+            <div class="row mt-2">
+              <button class="btn btn--primary" data-scan="text">🔍 Scan text files for PII</button>
+              <span class="small muted">Threshold <span data-conf-out="text">0.8</span> · runs locally</span>
+            </div>
+
+            <div data-progress="text" hidden>
+              <div class="progress"><div class="progress__bar"></div></div>
+              <p class="progress__label">Running NLP models over 3 documents…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text results -->
+        <div class="panel" data-results="text" hidden>
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 4 of 4 — Results</p>
+              <h2 tabindex="-1" id="text-results-title">Text PII detection results</h2>
+              <p class="panel__hint" id="text-results-hint">3 files scanned · strategies: mask, pseudonymize · threshold 0.8</p>
+            </div>
+            <span class="chip chip--green">✓ Scan complete</span>
+          </div>
+
+          <h3 id="text-block-heading">📄 email.txt</h3>
+          <div class="metrics">
+            <div class="metric"><span class="metric__label">File size</span><span class="metric__value" id="text-size">2,148 chars</span></div>
+            <div class="metric metric--warn"><span class="metric__label">Total PII found</span><span class="metric__value" id="text-total">14</span></div>
+            <div class="metric metric--accent"><span class="metric__label">PII types</span><span class="metric__value" id="text-types">5</span></div>
+            <div class="metric"><span class="metric__label">Redacted versions</span><span class="metric__value" id="text-versions-count">2</span></div>
+          </div>
+
+          <div class="grid grid-2 mt-2">
+            <div class="card card--flat">
+              <h3>By type</h3>
+              <ul class="chips" id="text-types-chips">
+                <li class="chip">PERSON · 4</li>
+                <li class="chip">EMAIL_ADDRESS · 3</li>
+                <li class="chip">PHONE_NUMBER · 3</li>
+                <li class="chip">US_SSN · 2</li>
+                <li class="chip">LOCATION · 2</li>
+              </ul>
+            </div>
+            <div class="card card--flat">
+              <h3>By detection source</h3>
+              <ul class="chips" id="text-sources-chips">
+                <li class="chip chip--green">Presidio (NLP) · 8</li>
+                <li class="chip chip--green">spaCy NER · 3</li>
+                <li class="chip chip--green">Custom regex · 3</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3 class="mt-3">Redacted versions</h3>
+          <div id="text-versions-status" class="small muted" hidden></div>
+          <div id="text-versions">
+          <div class="tabs" role="tablist" aria-label="Redaction strategies for email.txt">
+            <button class="tab" role="tab" aria-selected="true" data-tab="mask" aria-controls="panel-mask" id="tab-mask">Mask</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="pseudonymize" aria-controls="panel-pseudo" id="tab-pseudo">Pseudonymize</button>
+          </div>
+          <div role="tabpanel" id="panel-mask" aria-labelledby="tab-mask" data-tabpanel="mask">
+            <pre class="preview">From: <mark>****</mark> &lt;<mark>****</mark>&gt;
+To: Records Office
+Subject: Enrollment confirmation
+
+Hello,
+
+Please confirm the enrollment for <mark>****</mark>, born <mark>****</mark>.
+You can reach me at <mark>****</mark> or by phone on <mark>****</mark>.
+Our mailing address is <mark>****</mark>.
+SSN on file: <mark>****</mark>.
+
+Thanks,
+<mark>****</mark></pre>
+            <p class="small muted mt-1">Redactions applied: 14</p>
+            <ul class="kv">
+              <li><span class="kv__type">person</span><span class="kv__from">John Doe</span><span class="kv__arrow">→</span><span class="kv__to">****</span></li>
+              <li><span class="kv__type">email_address</span><span class="kv__from">john.doe@email.com</span><span class="kv__arrow">→</span><span class="kv__to">****</span></li>
+              <li><span class="kv__type">phone_number</span><span class="kv__from">555-123-4567</span><span class="kv__arrow">→</span><span class="kv__to">****</span></li>
+              <li><span class="kv__type">us_ssn</span><span class="kv__from">123-45-6789</span><span class="kv__arrow">→</span><span class="kv__to">****</span></li>
+            </ul>
+            <div class="downloads mt-2">
+              <button class="download"><span class="download__icon" aria-hidden="true">📥</span>
+                <span><strong>Download mask version</strong><span>email_mask.txt</span></span></button>
+            </div>
+          </div>
+
+          <div role="tabpanel" id="panel-pseudo" aria-labelledby="tab-pseudo" data-tabpanel="pseudonymize" hidden>
+            <pre class="preview">From: <mark>Michael Bennett</mark> &lt;<mark>m.bennett@example.com</mark>&gt;
+To: Records Office
+Subject: Enrollment confirmation
+
+Hello,
+
+Please confirm the enrollment for <mark>Michael Bennett</mark>, born <mark>[DATE_OF_BIRTH]</mark>.
+You can reach me at <mark>m.bennett@example.com</mark> or by phone on <mark>555-000-0000</mark>.
+Our mailing address is <mark>84 Maple Street, Springfield</mark>.
+SSN on file: <mark>***-**-0000</mark>.
+
+Thanks,
+<mark>Michael Bennett</mark></pre>
+            <p class="small muted mt-1">Redactions applied: 14 · the same real name always maps to the same fake name</p>
+            <ul class="kv">
+              <li><span class="kv__type">person</span><span class="kv__from">John Doe</span><span class="kv__arrow">→</span><span class="kv__to">Michael Bennett</span></li>
+              <li><span class="kv__type">email_address</span><span class="kv__from">john.doe@email.com</span><span class="kv__arrow">→</span><span class="kv__to">m.bennett@example.com</span></li>
+              <li><span class="kv__type">location</span><span class="kv__from">42 Oak Avenue, Boston</span><span class="kv__arrow">→</span><span class="kv__to">84 Maple Street, Springfield</span></li>
+            </ul>
+            <div class="downloads mt-2">
+              <button class="download"><span class="download__icon" aria-hidden="true">📥</span>
+                <span><strong>Download pseudonymize version</strong><span>email_pseudonymize.txt</span></span></button>
+            </div>
+          </div>
+
+
+
+          <div class="annotation">
+            <b>User flow</b> — Results repeat as a block per uploaded file (email.txt, customer_support.txt,
+            medical_notes.json). Each block carries its own metrics, breakdowns, strategy tabs and download
+            buttons; tabs are arrow-key navigable.
+          </div>
+
+          <hr class="divider">
+          <div class="row">
+            <button class="btn btn--ghost" data-reset="text">Scan more documents</button>
+            <button class="btn btn--ghost" data-goto="select">Choose a different file type</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- ============ PAGE 3 — IMAGE TRACK ============ -->
+  <div class="section section--tight" id="track-image" hidden>
+    <div class="shell work">
+
+      <aside class="panel settings" aria-labelledby="image-settings-title">
+        <h3 id="image-settings-title">⚙️ Detection settings</h3>
+        <p class="small muted">Images do not use a confidence slider — detection is handled by dedicated models.</p>
+        <hr class="divider">
+        <h3>Engines in use</h3>
+        <ul class="chips">
+          <li class="chip chip--code">MediaPipe (dual model)</li>
+          <li class="chip chip--code">Haar cascade fallback</li>
+          <li class="chip chip--code">Tesseract OCR</li>
+          <li class="chip chip--code">Presidio + regex</li>
+        </ul>
+        <p class="small muted mt-1 mb-0">If the primary face detector finds nothing, the Haar cascade runs
+        automatically as a second pass.</p>
+      </aside>
+
+      <div>
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 2 of 4 — Images</p>
+              <h2 tabindex="-1" id="image-title">Upload your images</h2>
+              <p class="panel__hint">Multiple files allowed. Accepted extensions: <code>.jpg</code> <code>.jpeg</code> <code>.png</code> <code>.bmp</code></p>
+            </div>
+            <button class="btn btn--ghost btn--sm" data-goto="select">← Change file type</button>
+          </div>
+
+          <button class="dropzone" data-upload="image">
+            <span class="dropzone__icon" aria-hidden="true">📤</span>
+            <span class="dropzone__title">Drag images here, or click to browse</span>
+            <p class="dropzone__hint">Badges, forms, receipts, screenshots and photographs</p>
+            <span class="dropzone__ext">.jpg &nbsp;.jpeg &nbsp;.png &nbsp;.bmp</span>
+          </button>
+          <input type="file" id="image-input" accept=".jpg,.jpeg,.png,.bmp" multiple class="sr-only" tabindex="-1">
+
+          <div class="callout callout--warn mt-1" data-upload-error="image" hidden>
+            <span aria-hidden="true">⚠️</span>
+            <p>Please choose image files only (extensions: <code>.jpg</code> <code>.jpeg</code> <code>.png</code> <code>.bmp</code>).</p>
+          </div>
+
+          <div data-image-loaded hidden>
+            <ul class="filelist" id="image-filelist">
+              <li><span aria-hidden="true">🖼️</span><span class="file__name">employee_badge.png</span><span class="file__meta">412 KB</span></li>
+              <li><span aria-hidden="true">🖼️</span><span class="file__name">business_card.png</span><span class="file__meta">288 KB</span></li>
+            </ul>
+
+            <hr class="divider">
+            <h3>Detection methods</h3>
+            <p class="small muted">Enable at least one. Each method gets its own redaction style.</p>
+
+            <div class="grid grid-2">
+              <div class="card card--flat">
+                <label class="check-row">
+                  <input type="checkbox" data-img-toggle="faces" checked> 👤 Detect faces
+                </label>
+                <label class="field mt-1" for="face-style">
+                  <span class="field__label">Face redaction style</span>
+                  <select id="face-style">
+                    <option value="blur" selected>Blur</option>
+                    <option value="pixelate">Pixelate</option>
+                    <option value="black">Solid black box</option>
+                  </select>
+                  <span class="field__help">How detected faces are hidden.</span>
+                </label>
+              </div>
+
+              <div class="card card--flat">
+                <label class="check-row">
+                  <input type="checkbox" data-img-toggle="text" checked> 📝 Detect text PII (OCR)
+                </label>
+                <label class="field mt-1" for="text-style">
+                  <span class="field__label">Text redaction style</span>
+                  <select id="text-style">
+                    <option value="black" selected>Solid black box</option>
+                    <option value="blur">Blur</option>
+                    <option value="pixelate">Pixelate</option>
+                  </select>
+                  <span class="field__help">How names, emails, phone numbers and IDs found in the image are hidden.</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="callout callout--warn mt-2" data-image-warning hidden>
+              <span aria-hidden="true">⚠️</span>
+              <p>Select at least one detection method before scanning.</p>
+            </div>
+
+            <div class="row mt-2">
+              <button class="btn btn--primary" data-scan="image">🔍 Scan images for PII</button>
+              <span class="small muted">Runs locally · nothing uploaded</span>
+            </div>
+
+            <div data-progress="image" hidden>
+              <div class="progress"><div class="progress__bar"></div></div>
+              <p class="progress__label">Detecting faces and reading text with OCR…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image results -->
+        <div class="panel" data-results="image" hidden>
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Step 4 of 4 — Results</p>
+              <h2 tabindex="-1" id="image-results-title">Image PII detection results</h2>
+              <p class="panel__hint">2 images · faces blurred · text PII covered with black boxes</p>
+            </div>
+            <span class="chip chip--green">✓ Scan complete</span>
+          </div>
+
+          <h3>📸 employee_badge.png</h3>
+          <div class="metrics">
+            <div class="metric metric--warn"><span class="metric__label">Faces detected</span><span class="metric__value">1</span></div>
+            <div class="metric"><span class="metric__label">Text regions</span><span class="metric__value">9</span></div>
+            <div class="metric metric--accent"><span class="metric__label">PII text regions</span><span class="metric__value">4</span></div>
+          </div>
+
+          <div class="compare mt-2">
+            <figure class="shot" style="margin:0;">
+              <figcaption class="shot__cap"><span>Original</span><span>before</span></figcaption>
+              <div class="shot__frame">
+                <svg viewBox="0 0 320 240" role="img" aria-label="Original badge showing a face, a name, an email address and an employee ID">
+                  <rect width="320" height="240" fill="#0a2472"/>
+                  <circle cx="80" cy="88" r="38" fill="#c9d6ff"/>
+                  <circle cx="68" cy="80" r="5" fill="#0a2472"/><circle cx="92" cy="80" r="5" fill="#0a2472"/>
+                  <path d="M64 100 q16 12 32 0" stroke="#0a2472" stroke-width="4" fill="none"/>
+                  <text x="150" y="70" fill="#ffb3ba" font-family="monospace" font-size="15">John Doe</text>
+                  <text x="150" y="96" fill="#ffb3ba" font-family="monospace" font-size="12">j.doe@corp.com</text>
+                  <text x="150" y="120" fill="#ffb3ba" font-family="monospace" font-size="12">555-123-4567</text>
+                  <text x="150" y="144" fill="#ffb3ba" font-family="monospace" font-size="12">SSN 123-45-6789</text>
+                  <text x="30" y="205" fill="#8296c9" font-family="monospace" font-size="12">EMP-4471 · Engineering</text>
+                </svg>
+              </div>
+            </figure>
+
+            <figure class="shot" style="margin:0;">
+              <figcaption class="shot__cap"><span>Redacted — blur + black box</span><span>after</span></figcaption>
+              <div class="shot__frame">
+                <svg viewBox="0 0 320 240" role="img" aria-label="Redacted badge with the face blurred and personal text covered by black boxes">
+                  <defs><filter id="blurf"><feGaussianBlur stdDeviation="7"/></filter></defs>
+                  <rect width="320" height="240" fill="#0a2472"/>
+                  <g filter="url(#blurf)">
+                    <circle cx="80" cy="88" r="38" fill="#c9d6ff"/>
+                    <circle cx="68" cy="80" r="5" fill="#0a2472"/><circle cx="92" cy="80" r="5" fill="#0a2472"/>
+                  </g>
+                  <rect x="146" y="56" width="120" height="20" fill="#000"/>
+                  <rect x="146" y="82" width="140" height="18" fill="#000"/>
+                  <rect x="146" y="106" width="110" height="18" fill="#000"/>
+                  <rect x="146" y="130" width="150" height="18" fill="#000"/>
+                  <text x="30" y="205" fill="#8296c9" font-family="monospace" font-size="12">EMP-4471 · Engineering</text>
+                </svg>
+              </div>
+            </figure>
+          </div>
+
+          <h3 class="mt-3">Text PII found in this image</h3>
+          <ul class="kv">
+            <li><span class="kv__type">person</span><span class="kv__from">John Doe</span><span class="kv__arrow">→</span><span class="kv__to">black box</span><span class="small muted">confidence 0.95</span></li>
+            <li><span class="kv__type">email_address</span><span class="kv__from">j.doe@corp.com</span><span class="kv__arrow">→</span><span class="kv__to">black box</span><span class="small muted">confidence 1.00</span></li>
+            <li><span class="kv__type">phone_number</span><span class="kv__from">555-123-4567</span><span class="kv__arrow">→</span><span class="kv__to">black box</span><span class="small muted">confidence 0.85</span></li>
+            <li><span class="kv__type">us_ssn</span><span class="kv__from">123-45-6789</span><span class="kv__arrow">→</span><span class="kv__to">black box</span><span class="small muted">confidence 0.90</span></li>
+          </ul>
+
+          <div class="downloads mt-2">
+            <button class="download"><span class="download__icon" aria-hidden="true">📥</span>
+              <span><strong>Download blurred faces version</strong><span>employee_badge_blur_faces.png</span></span></button>
+            <button class="download"><span class="download__icon" aria-hidden="true">📥</span>
+              <span><strong>Download text-redacted version</strong><span>employee_badge_redact_text.png</span></span></button>
+          </div>
+
+          <div class="annotation">
+            <b>User flow</b> — One results block per image, each with its counts, a side-by-side before/after
+            view, the OCR findings list and a download per redaction version produced.
+          </div>
+
+          <hr class="divider">
+          <div class="row">
+            <button class="btn btn--ghost" data-reset="image">Scan more images</button>
+            <button class="btn btn--ghost" data-goto="select">Choose a different file type</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ========================= ABOUT ========================= -->
+<section class="view" id="view-about" aria-labelledby="about-title">
+  <div class="section">
+    <div class="shell">
+      <p class="eyebrow">About</p>
+      <h1 id="about-title">About Privacy Sandbox</h1>
+      <p class="lead mb-2">A local-first privacy tool for anyone who has to work with real data.</p>
+
+      <div class="panel">
+        <h2>🎯 Project mission</h2>
+        <p class="mb-0">Privacy Sandbox helps researchers, students, developers and business users work safely
+        with real-world datasets that contain sensitive personal information. The tool automatically detects
+        and redacts PII so teams can collaborate, publish and train models while staying compliant with
+        privacy regulations.</p>
+      </div>
+
+      <div class="panel">
+        <h2>🛠️ Technology behind it</h2>
+        <div class="grid grid-2">
+          <div class="card card--flat">
+            <h3>Detection</h3>
+            <ul class="chips mt-1">
+              <li class="chip chip--code">Microsoft Presidio</li>
+              <li class="chip chip--code">spaCy NER</li>
+              <li class="chip chip--code">custom regex patterns</li>
+              <li class="chip chip--code">Tesseract OCR</li>
+            </ul>
+            <p class="small muted mt-1 mb-0">Faces are found by a dual-model MediaPipe detector with an
+            automatic Haar-cascade fallback if the primary pass returns nothing.</p>
+          </div>
+          <div class="card card--flat">
+            <h3>Processing</h3>
+            <ul class="chips mt-1">
+              <li class="chip chip--code">pandas + NumPy</li>
+              <li class="chip chip--code">OpenCV</li>
+              <li class="chip chip--code">Pillow</li>
+            </ul>
+            <p class="small muted mt-1 mb-0">Supported formats: CSV, TXT, JSON, MD, JPG, JPEG, PNG, BMP.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>📜 Privacy &amp; compliance</h2>
+        <p>An automated, documented redaction step helps you meet the requirements of:</p>
+        <ul class="chips">
+          <li class="chip chip--green">GDPR — General Data Protection Regulation</li>
+          <li class="chip chip--green">FERPA — Family Educational Rights and Privacy Act</li>
+          <li class="chip chip--green">HIPAA — Health Insurance Portability and Accountability Act</li>
+          <li class="chip chip--green">CCPA — California Consumer Privacy Act</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>🔒 Data security guarantees</h2>
+        <div class="grid grid-2">
+          <div class="card card--flat"><h3>Local processing</h3><p class="mb-0">Files are processed on your machine. No data is sent to an external server.</p></div>
+          <div class="card card--flat"><h3>No permanent storage</h3><p class="mb-0">Working files exist only for the duration of the scan and are deleted afterwards.</p></div>
+          <div class="card card--flat"><h3>Multiple strategies</h3><p class="mb-0">Choose the level of redaction that fits your risk profile, per file type.</p></div>
+          <div class="card card--flat"><h3>Audit trail</h3><p class="mb-0">Every scan can produce a detailed report of what was found and what was changed.</p></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>✅ Current features</h2>
+        <div class="grid grid-3">
+          <div class="card card--flat">
+            <h3>📊 CSV processing</h3>
+            <ul class="track__list">
+              <li>Smart detection with ID preservation</li>
+              <li>Smart / complete / partial redaction</li>
+              <li>Adjustable confidence threshold</li>
+              <li>Before &amp; after comparison</li>
+              <li>Clean file + privacy report download</li>
+            </ul>
+          </div>
+          <div class="card card--flat">
+            <h3>📝 Text processing</h3>
+            <ul class="track__list">
+              <li>Presidio + spaCy + custom regex</li>
+              <li>Mask, pseudonymize, partial mask, label</li>
+              <li>Multiple files in one run</li>
+              <li>Breakdown by type and by source</li>
+              <li>Download per strategy</li>
+            </ul>
+          </div>
+          <div class="card card--flat">
+            <h3>🖼️ Image processing</h3>
+            <ul class="track__list">
+              <li>Dual-model face detection + fallback</li>
+              <li>OCR text extraction and PII matching</li>
+              <li>Blur, pixelate or black box</li>
+              <li>Visual before / after per image</li>
+              <li>Download each redacted version</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-3">
+        <button class="btn btn--primary btn--lg" data-goto="select">Start &nbsp;→</button>
+        <button class="btn btn--ghost" data-goto="welcome">Back to welcome</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ========================= FOOTER ========================= -->
+<footer class="site-footer">
+  <div class="shell">
+    <div class="site-footer__grid">
+      <div>
+        <span class="brand__text">
+          <span class="brand__name">Privacy Sandbox</span>
+          <span class="brand__sub">PII Identifier</span>
+        </span>
+        <p class="small mt-1">Detect and redact personal data in CSV files, documents and images — locally,
+        before you share anything.</p>
+        <span class="badge-lock">🔒 Nothing leaves this machine</span>
+      </div>
+      <div>
+        <h4>Flow</h4>
+        <ul>
+          <li><button class="linklike" data-goto="welcome">Welcome</button></li>
+          <li><button class="linklike" data-goto="select">Choose file type</button></li>
+          <li><button class="linklike" data-goto="about">About</button></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Supported files</h4>
+        <ul>
+          <li>CSV — .csv</li>
+          <li>Text — .txt, .json, .md</li>
+          <li>Images — .jpg, .jpeg, .png, .bmp</li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__legal">
+      <span>Local-first · CSV, text &amp; images are processed on this machine</span>
+      <label class="check-row" style="padding:0;">
+        <input type="checkbox" id="toggle-annotations" checked> Show design annotations
+      </label>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
