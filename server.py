@@ -2,8 +2,7 @@
 """Privacy Sandbox - local API server for the HTML design site (server.py)
 
 Serves the static HTML design and exposes one API endpoint per track that the
-site uses to run REAL processing through the exact same pipelines that the
-Streamlit app (app.py) uses:
+site uses to run real local processing through the detector pipelines:
 
     POST /api/redact-image
         Request  : JSON
@@ -110,6 +109,11 @@ CORS = [
     (b"access-control-allow-headers", b"Content-Type"),
 ]
 
+# The browser sends uploads as base64 JSON, which is larger than the original
+# file. Keep both the decoded-file and request limits explicit.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_REQUEST_BYTES = 15 * 1024 * 1024
+
 
 def _json_headers():
     return [(b"content-type", b"application/json"), *CORS]
@@ -121,17 +125,37 @@ async def _read_body(receive):
     while more:
         msg = await receive()
         if msg["type"] == "http.request":
-            body += msg.get("body", b"")
+            chunk = msg.get("body", b"")
+            if len(body) + len(chunk) > MAX_REQUEST_BYTES:
+                raise ValueError("Upload is too large. The maximum file size is 10 MB.")
+            body += chunk
             more = msg.get("more_body", False)
     return body
 
 
 def _decode_dataurl(data_url):
+    if not isinstance(data_url, str):
+        raise ValueError("Upload data must be a base64 string.")
     if isinstance(data_url, str) and data_url.startswith("data:"):
         _, b64 = data_url.split(",", 1)
     else:
         b64 = data_url
-    return base64.b64decode(b64)
+    decoded = base64.b64decode(b64, validate=True)
+    if len(decoded) > MAX_UPLOAD_BYTES:
+        raise ValueError("Upload is too large. The maximum file size is 10 MB.")
+    return decoded
+
+
+def _threshold(value):
+    if value is None:
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Threshold must be a number between 0.1 and 1.0.") from error
+    if not 0.1 <= value <= 1.0:
+        raise ValueError("Threshold must be between 0.1 and 1.0.")
+    return value
 
 
 def _encode_png_dataurl(bgr_array):
@@ -142,7 +166,10 @@ def _encode_png_dataurl(bgr_array):
 
 
 async def _redact(receive):
-    raw = await _read_body(receive)
+    try:
+        raw = await _read_body(receive)
+    except ValueError as e:
+        return False, {"error": str(e)}, 413
     try:
         payload = json.loads(raw.decode("utf-8"))
     except Exception:
@@ -159,6 +186,8 @@ async def _redact(receive):
     ocr_on = bool(payload.get("ocr", True))
     face_style = payload.get("faceStyle", "blur")
     text_style = payload.get("textStyle", "black") or "black"
+    if face_style not in FACE_METHODS or text_style not in TEXT_METHODS:
+        return False, {"error": "Unsupported image redaction style."}, 400
     filename = payload.get("filename", "upload.png")
 
     methods = []
@@ -166,9 +195,11 @@ async def _redact(receive):
         methods.append(FACE_METHODS.get(face_style, "blur_faces"))
     if ocr_on:
         methods.append(TEXT_METHODS.get(text_style, "redact_text"))
+    if not methods:
+        return False, {"error": "Select face or text redaction."}, 400
 
     detector = get_detector()
-    results = detector.process_image_bytes(img_bytes, methods or None, filename=filename)
+    results = detector.process_image_bytes(img_bytes, methods, filename=filename)
 
     if results.get("status") != "success":
         return False, {"error": results.get("error", "Image processing failed.")}, 500
@@ -278,7 +309,10 @@ def _build_csv_report(filename, df_original, df_red, pii_results, method, rows, 
     else:
         lines.append("  No PII detected - file was already clean.")
     lines.append("")
-    lines.append("COMPLIANCE STATUS: %s" % ("READY" if pii_results else "CLEAN"))
+    lines.append(
+        "DETECTION STATUS: %s"
+        % ("PII DETECTED — REVIEW REDACTED OUTPUT" if pii_results else "NO PII DETECTED — REVIEW OUTPUT")
+    )
     return "\n".join(lines)
 
 
@@ -308,7 +342,10 @@ def mark_redacted_html(content, redactions):
 
 
 async def _process_csv(receive):
-    raw = await _read_body(receive)
+    try:
+        raw = await _read_body(receive)
+    except ValueError as e:
+        return False, {"error": str(e)}, 413
     try:
         payload = json.loads(raw.decode("utf-8"))
     except Exception:
@@ -318,7 +355,12 @@ async def _process_csv(receive):
 
     filename = payload.get("filename", "upload.csv")
     method = payload.get("method", "smart")
-    threshold = payload.get("threshold")
+    try:
+        threshold = _threshold(payload.get("threshold"))
+    except ValueError as e:
+        return False, {"error": str(e)}, 400
+    if method not in {"smart", "mask", "partial"}:
+        return False, {"error": "Unsupported CSV redaction method."}, 400
 
     try:
         csv_bytes = _decode_dataurl(payload["content"])
@@ -392,7 +434,10 @@ async def _process_csv(receive):
 
 
 async def _process_text(receive):
-    raw = await _read_body(receive)
+    try:
+        raw = await _read_body(receive)
+    except ValueError as e:
+        return False, {"error": str(e)}, 413
     try:
         payload = json.loads(raw.decode("utf-8"))
     except Exception:
@@ -402,7 +447,15 @@ async def _process_text(receive):
 
     filename = payload.get("filename", "document.txt")
     strategies = payload.get("strategies") or ["mask", "pseudonymize"]
-    threshold = payload.get("threshold")
+    if not isinstance(strategies, list) or not all(
+        strategy in {"mask", "pseudonymize", "partial_mask", "label"}
+        for strategy in strategies
+    ):
+        return False, {"error": "Unsupported text redaction strategy."}, 400
+    try:
+        threshold = _threshold(payload.get("threshold"))
+    except ValueError as e:
+        return False, {"error": str(e)}, 400
 
     try:
         data = _decode_dataurl(payload["content"])

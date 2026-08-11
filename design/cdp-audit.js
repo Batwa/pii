@@ -1,8 +1,10 @@
 /* Layout audit: verifies visual design renders correctly at desktop & mobile widths. */
 const { spawn } = require('child_process');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL = 'file:///Users/dentiart/Desktop/PII Identifier/design/index.html';
+const URL = pathToFileURL(path.join(__dirname, 'index.html')).href;
 const PORT = 9334;
 const results = [];
 const step = (name, ok, extra) => {

@@ -1,6 +1,7 @@
-import re, sys
+import re
+from pathlib import Path
 
-html = open('/Users/dentiart/Desktop/PII Identifier/design/index.html').read()
+html = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 # 1. Content coverage
 checks = [

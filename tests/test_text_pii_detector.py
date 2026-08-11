@@ -22,7 +22,7 @@ def test_detects_email_and_phone_in_sample_file(detector):
     entity_types = {result["entity_type"] for result in results}
     texts = {result["text"].lower() for result in results}
 
-    assert "EMAIL_ADDRESS" in entity_types or "email" in {t.upper() for t in entity_types}
+    assert "EMAIL_ADDRESS" in entity_types or "EMAIL" in entity_types
     assert any("john.smith@company.com" in text for text in texts)
     assert any("555" in text for text in texts)
 

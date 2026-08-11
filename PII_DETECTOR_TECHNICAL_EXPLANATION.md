@@ -1,7 +1,7 @@
 # PII Detector - Technical Overview
 
 ## Overview
-A comprehensive **Privacy-Preserving Data Processing System** that automatically detects and redacts Personally Identifiable Information (PII) from structured (CSV), unstructured (text documents), and visual (images) data formats. The system is designed for compliance with GDPR, HIPAA, FERPA, and other privacy regulations.
+A privacy-supporting data-processing system that detects and redacts personally identifiable information (PII) from structured (CSV), unstructured (text documents), and visual (images) data formats. Output must be reviewed before it is shared or used for regulatory decisions.
 
 ## Technical Architecture
 
@@ -77,7 +77,7 @@ The system implements multiple redaction methodologies:
 - **spaCy** - Advanced NLP and NER models
 - **OpenCV** - Computer vision and image processing
 - **Tesseract OCR** - Text extraction from images
-- **Streamlit** - Interactive web interface for user interaction
+- **Uvicorn + HTML/CSS/JavaScript** - Local web interface and processing API
 - **Regex Engine** - Custom pattern matching for domain-specific PII
 
 **Key Algorithms:**
@@ -97,7 +97,7 @@ The system implements multiple redaction methodologies:
 - **No Data Persistence**: Files processed in-memory and temporary storage only
 - **Audit Trails**: Comprehensive logging of all detections and redactions
 - **Multiple Redaction Options**: Flexibility to choose appropriate anonymization method per use case
-- **GDPR/HIPAA/FERPA Ready**: Designed to meet regulatory requirements for data anonymization
+- **Privacy workflow support**: Helps apply repeatable redaction steps, but does not itself establish regulatory compliance
 - **Transparent Reporting**: Detailed reports showing what was detected, where, and how it was redacted
 
 ### 6. Software Engineering Practices
@@ -106,7 +106,7 @@ The system implements multiple redaction methodologies:
 - **Extensible Design**: Easy to add new PII types or redaction strategies
 - **Error Handling**: Comprehensive exception handling with graceful degradation
 - **Configuration Management**: Centralized configuration for thresholds, patterns, and file paths
-- **Web Interface**: User-friendly Streamlit application for non-technical users
+- **Web Interface**: User-friendly local website for non-technical users
 
 ## Skills Demonstrated
 
@@ -116,7 +116,7 @@ The system implements multiple redaction methodologies:
 - **Machine Learning Integration**: Working with ML models (Presidio, spaCy) for production use
 - **Software Architecture**: Modular design, separation of concerns, extensibility
 - **Privacy Engineering**: Understanding of data anonymization, compliance requirements
-- **Full-Stack Development**: Python backend with Streamlit frontend
+- **Full-Stack Development**: Python backend with an HTML/CSS/JavaScript frontend
 - **Algorithm Design**: Overlap detection, deduplication, pseudonymization algorithms
 
 ## Real-World Applications

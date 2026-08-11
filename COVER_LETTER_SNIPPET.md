@@ -2,11 +2,11 @@
 
 ## Short Version (1-2 sentences for brief mentions)
 
-"Developed a production-ready PII detection and redaction system using Python, Microsoft Presidio, spaCy NLP, and OpenCV, implementing multi-engine detection algorithms, pseudonymization strategies, and computer vision techniques for face and OCR-based PII detection in structured, unstructured, and image data formats."
+"Developed a PII detection and redaction system using Python, Microsoft Presidio, spaCy NLP, and OpenCV, implementing multi-engine detection algorithms, pseudonymization strategies, and computer vision techniques for face and OCR-based PII detection in structured, unstructured, and image data formats."
 
 ## Medium Version (1 paragraph - Recommended for cover letters)
 
-"I developed a comprehensive Privacy-Preserving Data Processing System that automatically detects and redacts Personally Identifiable Information (PII) from CSV, text documents, and images. The system employs a hybrid detection framework combining Microsoft Presidio's ML models, spaCy's Named Entity Recognition, and custom regex patterns, with an ensemble method that deduplicates results using spatial overlap algorithms. For image processing, I implemented multi-pass face detection using OpenCV Haar Cascades and integrated Tesseract OCR with Presidio for text-based PII detection in images. The system supports multiple redaction strategies including masking, pseudonymization (using hash-based consistent mapping), partial masking, and computer vision techniques (blur, pixelation, black boxes). Built with a modular architecture in Python using Pandas for data manipulation, the system includes a Streamlit web interface and is designed for GDPR/HIPAA/FERPA compliance with comprehensive audit trails and reporting capabilities."
+"I developed a comprehensive Privacy-Preserving Data Processing System that automatically detects and redacts Personally Identifiable Information (PII) from CSV, text documents, and images. The system employs a hybrid detection framework combining Microsoft Presidio's ML models, spaCy's Named Entity Recognition, and custom regex patterns, with an ensemble method that deduplicates results using spatial overlap algorithms. For image processing, I implemented multi-pass face detection using OpenCV Haar Cascades and integrated Tesseract OCR with Presidio for text-based PII detection in images. The system supports multiple redaction strategies including masking, pseudonymization (using hash-based consistent mapping), partial masking, and computer vision techniques (blur, pixelation, black boxes). Built with a modular Python architecture and a local HTML/CSS/JavaScript web interface, it includes audit trails and reporting capabilities."
 
 ## Detailed Version (2-3 paragraphs - For more technical roles)
 
@@ -14,11 +14,11 @@
 
 For image processing, I developed a computer vision pipeline using OpenCV's Haar Cascade classifiers with multi-scale, multi-pass face detection (three passes with varying sensitivity parameters) to handle faces of different sizes and orientations. The system integrates Tesseract OCR to extract text from images, then analyzes extracted text using both Presidio and regex patterns. I implemented several redaction strategies: Gaussian blur with configurable intensity, pixelation algorithms, and coordinate-based black box overlays, all with intelligent padding calculations to ensure complete coverage.
 
-The system architecture emphasizes modularity and extensibility, with separate components for text, image, and structured data processing. I implemented pseudonymization using MD5 hash-based consistent mapping (ensuring the same entity receives the same pseudonym across files), smart column-aware processing that preserves structural identifiers while redacting sensitive data, and comprehensive error handling with graceful degradation. Built with Python, Pandas, and Streamlit, the system includes detailed audit trails, multiple output format support, and is designed to meet GDPR, HIPAA, and FERPA compliance requirements."
+The system architecture emphasizes modularity and extensibility, with separate components for text, image, and structured data processing. I implemented pseudonymization using MD5 hash-based consistent mapping (ensuring the same entity receives the same pseudonym across files), smart column-aware processing that preserves structural identifiers while redacting sensitive data, and comprehensive error handling with graceful degradation. Built with Python, Pandas, and a local HTML/CSS/JavaScript interface, the system includes detailed audit trails and multiple output formats."
 
 ## Technical Keywords to Highlight
 
-**Technologies:** Python, Pandas, Microsoft Presidio, spaCy, OpenCV, Tesseract OCR, Streamlit, NLP, Computer Vision
+**Technologies:** Python, Pandas, Microsoft Presidio, spaCy, OpenCV, Tesseract OCR, Uvicorn, HTML, CSS, JavaScript, NLP, Computer Vision
 
 **Concepts:** Named Entity Recognition (NER), Machine Learning, Ensemble Methods, Hash-based Pseudonymization, Multi-pass Detection Algorithms, Spatial Overlap Detection, OCR Text Extraction, Haar Cascade Classifiers, Data Anonymization, Privacy Engineering
 

@@ -12,7 +12,7 @@ SAMPLE_DATA = os.path.join(PROJECT_ROOT, "tests", "sample_data")
 # PII Detection settings
 CONFIDENCE_THRESHOLD = 0.8
 SUPPORTED_FILE_TYPES = {
-    'tabular': ['.csv', '.xlsx', '.xls'],
+    'tabular': ['.csv'],
     'text': ['.txt', '.json', '.md'],
     'image': ['.jpg', '.jpeg', '.png', '.bmp']
 }

@@ -10,7 +10,7 @@ annotations"** toggle in the footer to layer user-flow notes onto the screens.
 | `assets/styles.css` | Dark theme, palette, layout, responsive & accessibility styles |
 | `assets/app.js` | View routing, stepper state, simulated upload/scan/results, tabs, validation |
 | `cdp-test.js` / `cdp-audit.js` / `verify.py` | Automated smoke tests used to validate the prototype |
-| `README.md` (root) | Existing project readme for the underlying Streamlit app |
+| `README.md` (root) | Setup and usage guide for the local website |
 
 ---
 
@@ -252,7 +252,7 @@ The prototype was verified in headless Chrome (CDP) at 1440 px and 390 px widths
 
 ## 9. Implementation notes
 
-- The live product is a Streamlit app (`app.py`) with the same three tracks, strategies, thresholds
-  and result shapes; this design is a faithful visual blueprint for restyling or rebuilding it.
+- The live product is served by `server.py`, with the same three tracks, strategies, thresholds,
+  and result shapes described in this design.
 - Hit-highlighting, OCR boxes and redaction previews would be fed by the same data the backend already
   produces (`pii_results`, `redacted_versions`, `pii_by_source`, `text_regions`).

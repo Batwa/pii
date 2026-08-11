@@ -317,7 +317,7 @@ class ImagePIIDetector:
         """Core detection + redaction pipeline shared by process_image() and
         process_image_bytes(). Runs face detection and/or OCR-based PII
         detection, applies the requested redaction methods, and returns a
-        results dict in the same shape app.py expects.
+        results dictionary consumed by the local server.
         """
         results = {}
         try:
@@ -357,7 +357,7 @@ class ImagePIIDetector:
                         text_regions_list = [{'bbox': r['bbox']} for r in pii_regions]
                         redacted_image = self.black_box_regions(redacted_image, text_regions_list, 'text')
 
-            # Format results to match what app.py expects
+            # Format results for the local server response.
             results['faces_detected'] = detections.get('faces', 0)
             results['text_regions'] = text_regions
             results['pii_text_regions'] = pii_regions

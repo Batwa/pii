@@ -1,8 +1,10 @@
 /* CDP smoke test: drives the prototype through the full user flow in headless Chrome. */
 const { spawn } = require('child_process');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL = 'file:///Users/dentiart/Desktop/PII Identifier/design/index.html';
+const URL = pathToFileURL(path.join(__dirname, 'index.html')).href;
 const PORT = 9333;
 const results = [];
 const step = (name, ok) => { results.push((ok ? 'PASS ' : 'FAIL ') + name); };
