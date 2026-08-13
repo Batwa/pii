@@ -1,5 +1,4 @@
 """Tests for text file PII detection"""
-import json
 import os
 import tempfile
 

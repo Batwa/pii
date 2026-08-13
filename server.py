@@ -54,7 +54,6 @@ import zipfile
 from urllib.parse import unquote_to_bytes
 
 import cv2
-import numpy as np
 import pandas as pd
 import uvicorn
 

@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 import os
 import re
-from PIL import Image, ImageDraw, ImageFilter
 import pytesseract
 from presidio_analyzer import AnalyzerEngine
 
@@ -20,7 +19,6 @@ except ImportError:
     mp_vision = None
     MEDIAPIPE_AVAILABLE = False
 
-import json
 from config import DATA_OUTPUT
 
 class ImagePIIDetector:

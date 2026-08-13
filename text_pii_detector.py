@@ -5,12 +5,10 @@ Day 3: Text File PII Detection with advanced NER and pseudonymization
 import os
 import json
 import re
-from datetime import datetime
 import hashlib
 import random
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
-from presidio_anonymizer.entities import OperatorConfig
 import spacy
 from config import (
     CONFIDENCE_THRESHOLD, CUSTOM_NER_MODEL,
@@ -33,7 +31,7 @@ class TextPIIDetector:
     LABELLED_PATTERNS = {"bic", "inn_labelled"}
     PATTERN_ENTITY_TYPES = {"inn_labelled": "INN"}
 
-    def __init__(self, confidence_threshold=0.8):
+    def __init__(self, confidence_threshold=CONFIDENCE_THRESHOLD):
         """Initialize text PII detector with multiple NLP engines"""
         print("📝 Initializing Text PII Detector...")
         
