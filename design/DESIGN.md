@@ -9,7 +9,6 @@ annotations"** toggle in the footer to layer user-flow notes onto the screens.
 | `index.html` | The entire multi-page design as a single HTML shell (4 pages, SPA-style routing) |
 | `assets/styles.css` | Dark theme, palette, layout, responsive & accessibility styles |
 | `assets/app.js` | View routing, stepper state, simulated upload/scan/results, tabs, validation |
-| `cdp-test.js` / `cdp-audit.js` / `verify.py` | Automated smoke tests used to validate the prototype |
 | `README.md` (root) | Setup and usage guide for the local website |
 
 ---

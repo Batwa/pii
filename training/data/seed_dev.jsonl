@@ -1,0 +1,6 @@
+{"text":"Riverside Hospital No. 2 examined Noah Williams.","spans":[{"text":"Riverside Hospital No. 2","label":"SENSITIVE_ORGANIZATION"},{"text":"Noah Williams","label":"PERSON"}]}
+{"text":"The patient was born 08.09.2009.","spans":[{"text":"08.09.2009","label":"DATE_OF_BIRTH"}]}
+{"text":"The room should remain quiet at night.","spans":[]}
+{"text":"Maya Singh received a referral from Lakeside Clinic.","spans":[{"text":"Maya Singh","label":"PERSON"},{"text":"Lakeside Clinic","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Issue date: 12.05.2026.","spans":[]}
+{"text":"Central City Medical Center registered Anton Volkov.","spans":[{"text":"Central City Medical Center","label":"SENSITIVE_ORGANIZATION"},{"text":"Anton Volkov","label":"PERSON"}]}

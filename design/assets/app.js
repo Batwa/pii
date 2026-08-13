@@ -387,6 +387,8 @@
   }
 
   function renderTextBlocks(docs, analyses, strategies, threshold) {
+    // Keep the real response data available for the one-click ZIP download.
+    currentData.text.analyses = analyses;
     var totalPii = 0, totalSize = 0, typeCounts = {}, sourceCounts = {};
     analyses.forEach(function (a) {
       totalPii += (a.total_pii_found || 0);
@@ -410,6 +412,50 @@
     }).join('') || '<li class="chip">no engine matched</li>');
 
     setInner('text-versions', docs.map(function (d, i) { return textBlock(d, analyses[i], i); }).join(''));
+  }
+
+  async function downloadAllTextVersions(button) {
+    var docs = currentData.text && currentData.text.docs;
+    var analyses = currentData.text && currentData.text.analyses;
+    if (!docs || !analyses || !docs.length) { return; }
+
+    var files = [];
+    docs.forEach(function (doc, index) {
+      var versions = (analyses[index] && analyses[index].versions) || {};
+      Object.keys(versions).forEach(function (strategy) {
+        files.push({
+          name: baseName(doc.file.name) + '_' + strategy + '.txt',
+          content: textDataUrl(versions[strategy].content || '', 'text/plain')
+        });
+      });
+    });
+    if (!files.length) { return; }
+
+    var label = button.querySelector('strong');
+    var original = label && label.textContent;
+    button.disabled = true;
+    if (label) { label.textContent = 'Creating ZIP…'; }
+    try {
+      var response = await fetch('/api/create-zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: files, filename: 'privacy-sandbox-results.zip' })
+      });
+      var data = await response.json();
+      if (!response.ok || !data.ok) { throw new Error(data.error || 'Could not create ZIP archive.'); }
+      var a = document.createElement('a');
+      a.href = data.archive;
+      a.download = data.filename || 'privacy-sandbox-results.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      if (label) { label.textContent = '✓ ZIP saved to your downloads folder'; }
+    } catch (err) {
+      if (label) { label.textContent = err.message || 'Could not create ZIP archive'; }
+    } finally {
+      button.disabled = false;
+      setTimeout(function () { if (label) { label.textContent = original; } }, 2200);
+    }
   }
 
   function textBlock(doc, a, idx) {
@@ -520,6 +566,9 @@
     var tab = event.target.closest('[role="tab"]');
     if (tab) { activateTab(tab); return; }
 
+    var downloadAllText = event.target.closest('[data-download-all-text]');
+    if (downloadAllText) { downloadAllTextVersions(downloadAllText); return; }
+
     var download = event.target.closest('.download');
     if (download) {
       var dlKey = download.getAttribute('data-dl');
@@ -570,7 +619,7 @@
     }
   });
 
-  /* Live validation for the two multi-select groups + annotation toggle */
+  /* Live validation for the two multi-select groups */
   document.addEventListener('change', function (event) {
     if (event.target.name === 'text-strategy') {
       var warning = document.querySelector('[data-text-warning]');
@@ -583,9 +632,6 @@
       if (imgWarning) {
         imgWarning.hidden = document.querySelectorAll('[data-img-toggle]:checked').length > 0;
       }
-    }
-    if (event.target.id === 'toggle-annotations') {
-      document.body.classList.toggle('no-annotations', !event.target.checked);
     }
   });
 

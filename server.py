@@ -33,6 +33,10 @@ site uses to run real local processing through the detector pipelines:
               pii_by_type, pii_by_source, detection_details,
               versions: { strategy: { content, marked, redactions } } }
 
+    POST /api/create-zip
+        Request  : JSON { files: [{ name: "x.txt", content: "<dataURL>" }] }
+        Response : JSON { ok: true, filename, archive: "<dataURL>" }
+
 Run:
     python3 server.py          # -> http://localhost:8000
 Then open http://localhost:8000 in your browser and use any track.
@@ -46,6 +50,8 @@ import json
 import base64
 import tempfile
 import mimetypes
+import zipfile
+from urllib.parse import unquote_to_bytes
 
 import cv2
 import numpy as np
@@ -113,21 +119,22 @@ CORS = [
 # file. Keep both the decoded-file and request limits explicit.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_REQUEST_BYTES = 15 * 1024 * 1024
+MAX_ZIP_REQUEST_BYTES = 45 * 1024 * 1024
 
 
 def _json_headers():
     return [(b"content-type", b"application/json"), *CORS]
 
 
-async def _read_body(receive):
+async def _read_body(receive, max_bytes=MAX_REQUEST_BYTES):
     body = b""
     more = True
     while more:
         msg = await receive()
         if msg["type"] == "http.request":
             chunk = msg.get("body", b"")
-            if len(body) + len(chunk) > MAX_REQUEST_BYTES:
-                raise ValueError("Upload is too large. The maximum file size is 10 MB.")
+            if len(body) + len(chunk) > max_bytes:
+                raise ValueError("Request is too large.")
             body += chunk
             more = msg.get("more_body", False)
     return body
@@ -136,11 +143,16 @@ async def _read_body(receive):
 def _decode_dataurl(data_url):
     if not isinstance(data_url, str):
         raise ValueError("Upload data must be a base64 string.")
-    if isinstance(data_url, str) and data_url.startswith("data:"):
-        _, b64 = data_url.split(",", 1)
+    if data_url.startswith("data:"):
+        header, encoded = data_url.split(",", 1)
+        if ";base64" in header.lower():
+            decoded = base64.b64decode(encoded, validate=True)
+        else:
+            # Browser-created text data URLs are percent encoded rather than
+            # base64 encoded. Accept both formats for ZIP downloads.
+            decoded = unquote_to_bytes(encoded)
     else:
-        b64 = data_url
-    decoded = base64.b64decode(b64, validate=True)
+        decoded = base64.b64decode(data_url, validate=True)
     if len(decoded) > MAX_UPLOAD_BYTES:
         raise ValueError("Upload is too large. The maximum file size is 10 MB.")
     return decoded
@@ -163,6 +175,10 @@ def _encode_png_dataurl(bgr_array):
     if not ok or buf is None:
         raise ValueError("Failed to encode redacted image as PNG")
     return "data:image/png;base64," + base64.b64encode(buf.tobytes()).decode("ascii")
+
+
+def _encode_zip_dataurl(contents):
+    return "data:application/zip;base64," + base64.b64encode(contents).decode("ascii")
 
 
 async def _redact(receive):
@@ -515,6 +531,48 @@ async def _process_text(receive):
     }, 200
 
 
+async def _create_zip(receive):
+    """Create a local ZIP archive from browser-generated text results."""
+    try:
+        raw = await _read_body(receive, MAX_ZIP_REQUEST_BYTES)
+        payload = json.loads(raw.decode("utf-8"))
+    except ValueError as e:
+        return False, {"error": str(e)}, 413
+    except Exception:
+        return False, {"error": "Request body must be JSON."}, 400
+
+    files = payload.get("files") if isinstance(payload, dict) else None
+    if not isinstance(files, list) or not files:
+        return False, {"error": "At least one output file is required."}, 400
+    if len(files) > 40:
+        return False, {"error": "Too many files selected for one archive."}, 400
+
+    archive = io.BytesIO()
+    try:
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
+            for item in files:
+                if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+                    raise ValueError("Each output file needs a name.")
+                name = os.path.basename(item["name"])
+                if not name or name in (".", ".."):
+                    raise ValueError("Output file name is invalid.")
+                content = _decode_dataurl(item.get("content"))
+                zipped.writestr(name, content)
+    except ValueError as e:
+        return False, {"error": str(e)}, 400
+    except Exception:
+        return False, {"error": "Could not create the ZIP archive."}, 500
+
+    filename = os.path.basename(str(payload.get("filename", "privacy-sandbox-results.zip")))
+    if not filename.lower().endswith(".zip"):
+        filename += ".zip"
+    return True, {
+        "ok": True,
+        "filename": filename,
+        "archive": _encode_zip_dataurl(archive.getvalue()),
+    }, 200
+
+
 async def app(scope, receive, send):
     if scope["type"] != "http":
         if scope["type"] == "websocket":
@@ -566,11 +624,16 @@ async def app(scope, receive, send):
         await _send_json(send, status, payload)
         return
 
+    if path == "/api/create-zip" and method == "POST":
+        _, payload, status = await _create_zip(receive)
+        await _send_json(send, status, payload)
+        return
+
     await _send_text(send, 404, "Not found")
 
 
 if __name__ == "__main__":
     print("Privacy Sandbox local server  ->  http://localhost:8000")
     print("Serves the design site + real Python processing for all tracks:")
-    print("  /api/redact-image  (OpenCV/Tesseract)  /api/process-csv  /api/process-text")
+    print("  /api/redact-image  /api/process-csv  /api/process-text  /api/create-zip")
     uvicorn.run("server:app", host="127.0.0.1", port=8000, log_level="info")

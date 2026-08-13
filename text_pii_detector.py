@@ -12,19 +12,36 @@ from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 from presidio_anonymizer.entities import OperatorConfig
 import spacy
-from config import DATA_INPUT, DATA_OUTPUT, CONFIDENCE_THRESHOLD
+from config import (
+    CONFIDENCE_THRESHOLD, CUSTOM_NER_MODEL,
+    PRESIDIO_SCORE_FLOOR,
+)
+from recognizers import build_analyzer_registry, passes_entity_threshold
 
 class TextPIIDetector:
     """Advanced text file PII detection with multiple redaction strategies"""
-    
+    CUSTOM_ENTITY_TYPES = {
+        "PERSON", "DATE_OF_BIRTH", "SENSITIVE_ORGANIZATION", "ADDRESS",
+        "PHONE", "PHONE_RU", "SNILS", "INN", "BANK_ACCOUNT",
+        "PAYMENT_CARD", "PASSPORT_NUMBER", "EMAIL", "EMAIL_ADDRESS", "BIC", "VIN",
+        "LICENSE_PLATE", "POLICY_NUMBER", "STUDENT_ID",
+    }
+
+    # A pattern anchored to an explicit label outranks a bare digit-run match over
+    # the same span: a labelled BIC beats a generic 9-digit SSN shape, and a
+    # labelled INN beats Presidio's 12-digit Aadhaar recognizer.
+    LABELLED_PATTERNS = {"bic", "inn_labelled"}
+    PATTERN_ENTITY_TYPES = {"inn_labelled": "INN"}
+
     def __init__(self, confidence_threshold=0.8):
         """Initialize text PII detector with multiple NLP engines"""
         print("📝 Initializing Text PII Detector...")
         
         self.confidence_threshold = confidence_threshold
         
-        # Initialize Presidio (primary detection engine)
-        self.analyzer = AnalyzerEngine()
+        # Initialize Presidio (primary detection engine) with the country ID
+        # recognizers Presidio ships but leaves disabled.
+        self.analyzer = AnalyzerEngine(registry=build_analyzer_registry())
         self.anonymizer = AnonymizerEngine()
         
         # Initialize spaCy for advanced NER
@@ -35,6 +52,17 @@ class TextPIIDetector:
         except OSError:
             print("⚠️  spaCy model not available, using Presidio only")
             self.spacy_available = False
+
+        # A locally trained model is optional. It learns project-specific
+        # entities such as sensitive healthcare organizations without sending
+        # document data anywhere.
+        try:
+            self.custom_nlp = spacy.load(CUSTOM_NER_MODEL)
+            self.custom_model_available = True
+            print("✅ Custom PII model loaded")
+        except OSError:
+            self.custom_nlp = None
+            self.custom_model_available = False
         
         # Supported file types
         self.supported_extensions = {'.txt', '.json', '.md', '.rtf', '.log'}
@@ -48,12 +76,25 @@ class TextPIIDetector:
         
         # Enhanced regex patterns for text-specific PII
         self.text_patterns = {
-            'email': re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
-            'phone': re.compile(r'\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b'),
+            'email_address': re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
+            'phone': re.compile(r'(?<!\w)(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})(?!\w)'),
+            'phone_ru': re.compile(r'(?<!\w)(?:(?:\+7|8)[\s-]?(?:\(\d{3,4}\)|\d{3,4})[\s-]?\d{2,3}[\s-]\d{2}[\s-]\d{2})(?!\w)'),
             'ssn': re.compile(r'\b\d{3}[-.]?\d{2}[-.]?\d{4}\b'),
+            'snils': re.compile(r'\b\d{3}-\d{3}-\d{3}\s\d{2}\b'),
+            'inn': re.compile(r'\b\d{10}(?:\d{2})?\b'),
+            'inn_labelled': re.compile(r'\b(?:INN|ИНН)\s*:?\s*(?P<pii>\d{10}(?:\d{2})?)\b', re.IGNORECASE),
+            'bank_account': re.compile(r'\b[1-9]\d{19}\b'),
+            'payment_card': re.compile(r'\b\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}\b'),
+            'passport_number': re.compile(r'\b\d{2}\s\d{2}\sNo\.\s\d{6}\b', re.IGNORECASE),
+            'bic': re.compile(r'\b(?:BIC|БИК)\s*:?[\s]*(?P<pii>\d{9})\b', re.IGNORECASE),
+            'vin': re.compile(r'\b[A-HJ-NPR-Z0-9]{17}\b'),
+            'license_plate': re.compile(r'\b[A-Z]\s?\d{3}\s?[A-Z]{2}\s?\d{2,3}\b'),
+            'policy_number': re.compile(r'\b(?:policy|insurance\s+policy)\s+No\.?:?\s*(?P<pii>\d{2}(?:\s*\d{4}){3}\s*\d{2})\b', re.IGNORECASE),
+            'student_id': re.compile(r'\bstudent\s+ID\s+No\.?:?\s*(?P<pii>[A-Z]{2,10}-\d{4}-\d{4,})\b', re.IGNORECASE),
             'credit_card': re.compile(r'\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'),
             'ip_address': re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'),
-            'date_of_birth': re.compile(r'\b(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2}\b'),
+            'date_of_birth': re.compile(r'\b(?:date\s+of\s+birth|born|dob)\s*[:,-]?\s*(?P<pii>(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2})\b', re.IGNORECASE),
+            'sensitive_organization': re.compile(r'(?P<pii>(?:[A-Z][A-Za-z-]*\s+){0,5}(?:Hospital|Clinic|Polyclinic|Medical Center)(?:\s+No\.?\s*\d+)?)'),
             'address_line': re.compile(r'\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Place|Pl)\b', re.IGNORECASE)
         }
         
@@ -86,12 +127,19 @@ class TextPIIDetector:
     def detect_pii_presidio(self, text):
         """Detect PII using Microsoft Presidio"""
         try:
+            # Query at a low floor, then apply the per-entity threshold. A single
+            # global threshold would discard every pattern-only country recognizer.
             results = self.analyzer.analyze(
                 text=text,
                 language='en',
-                score_threshold=self.confidence_threshold
+                score_threshold=PRESIDIO_SCORE_FLOOR
             )
-            return results
+            return [
+                result for result in results
+                if passes_entity_threshold(
+                    result.entity_type, result.score, self.confidence_threshold
+                )
+            ]
         except Exception as e:
             print(f"⚠️  Presidio analysis failed: {e}")
             return []
@@ -140,16 +188,42 @@ class TextPIIDetector:
         for pii_type, pattern in self.text_patterns.items():
             matches = pattern.finditer(text)
             for match in matches:
+                # Context patterns retain their surrounding text for matching,
+                # but only the named PII span should be redacted.
+                start, end = match.span('pii') if 'pii' in match.re.groupindex else match.span()
+                if pii_type == 'sensitive_organization':
+                    # Do not include a sentence verb such as “Visit” merely
+                    # because it is capitalized at the beginning of a sentence.
+                    leading = re.match(r'(?i)^(?:visit|at|the|from|to|for)\s+', text[start:end])
+                    if leading:
+                        start += leading.end()
                 regex_results.append({
-                    'entity_type': pii_type.upper(),
-                    'start': match.start(),
-                    'end': match.end(),
-                    'score': 1.0,  # Regex matches are certain
-                    'text': match.group(),
+                    'entity_type': self.PATTERN_ENTITY_TYPES.get(pii_type, pii_type.upper()),
+                    'start': start,
+                    'end': end,
+                    'score': 1.1 if pii_type in self.LABELLED_PATTERNS else 1.0,
+                    'text': text[start:end],
                     'source': 'regex'
                 })
         
         return regex_results
+
+    def detect_pii_custom_model(self, text):
+        """Detect project-specific PII categories using the local custom model."""
+        if not self.custom_model_available:
+            return []
+        try:
+            return [{
+                'entity_type': ent.label_,
+                'start': ent.start_char,
+                'end': ent.end_char,
+                'score': 0.95,
+                'text': ent.text,
+                'source': 'custom_ner',
+            } for ent in self.custom_nlp(text).ents if ent.label_ in self.CUSTOM_ENTITY_TYPES]
+        except Exception as e:
+            print(f"⚠️  Custom PII model analysis failed: {e}")
+            return []
     
     def comprehensive_pii_detection(self, text):
         """Combine all detection methods for comprehensive analysis"""
@@ -167,43 +241,53 @@ class TextPIIDetector:
                 'source': 'presidio'
             })
         
-        # 2. spaCy detection (complementary)
+        # 2. General spaCy detection (complementary)
         spacy_results = self.detect_pii_spacy(text)
         all_results.extend(spacy_results)
-        
-        # 3. Regex detection (catch specific patterns)
+
+        # 3. Locally trained, project-specific entity model.
+        all_results.extend(self.detect_pii_custom_model(text))
+
+        # 4. Regex detection (catch specific patterns)
         regex_results = self.detect_pii_regex(text)
         all_results.extend(regex_results)
-        
-        # 4. Remove duplicates (same entity detected by multiple methods)
+
+        # 5. Remove duplicates (same entity detected by multiple methods)
         unique_results = self.deduplicate_results(all_results, text)
         
         return unique_results
     
     def deduplicate_results(self, results, text):
-        """Remove overlapping detections from different sources"""
-        # Sort by start position
-        results.sort(key=lambda x: x['start'])
-        
-        unique_results = []
+        """Keep the strongest non-overlapping, single-line detections."""
+        candidates = []
         for result in results:
-            # Check if this result overlaps with any existing unique result
-            overlaps = False
-            for unique in unique_results:
-                # Check for overlap
-                if (result['start'] < unique['end'] and result['end'] > unique['start']):
-                    # If overlap, keep the one with higher confidence
-                    if result['score'] > unique['score']:
-                        unique_results.remove(unique)
-                        break
-                    else:
-                        overlaps = True
-                        break
-            
-            if not overlaps:
-                unique_results.append(result)
-        
-        return unique_results
+            start, end = result.get('start'), result.get('end')
+            if not isinstance(start, int) or not isinstance(end, int) or start >= end:
+                continue
+            span = text[start:end]
+            # A span crossing a newline can merge document fields when masked.
+            if '\n' in span or '\r' in span:
+                continue
+            # Generic dates such as “night” or a document issue date are not
+            # redacted. Dates must have an explicit date-of-birth context.
+            if result.get('entity_type') == 'DATE_TIME' and result.get('source') != 'custom_ner':
+                continue
+            if result.get('entity_type') == 'DATE_OF_BIRTH':
+                context = text[max(0, start - 40):start]
+                if not re.search(r'(?i)(?:born|date\s+of\s+birth|birth\s+date|dob)\s*[:,-]?\s*$', context):
+                    continue
+            candidates.append({**result, 'text': span})
+
+        ranked = sorted(candidates, key=lambda item: (
+            -item.get('score', 0),
+            -(item['end'] - item['start']),
+            item['start'],
+        ))
+        selected = []
+        for result in ranked:
+            if not any(result['start'] < item['end'] and result['end'] > item['start'] for item in selected):
+                selected.append(result)
+        return sorted(selected, key=lambda item: item['start'])
     
     def generate_pseudonym(self, original_text, entity_type):
         """Generate consistent pseudonyms for the same entity"""
@@ -399,51 +483,3 @@ PII BY TYPE:
                 report += f"  ... and {len(analysis['detection_details']) - 10} more\n"
         
         return report
-
-def test_text_detector():
-    """Test the text PII detector with sample files"""
-    detector = TextPIIDetector(confidence_threshold=0.7)
-
-    text_dir = os.path.join(DATA_INPUT, "text_files")
-    text_files = []
-
-    if os.path.exists(text_dir):
-        for filename in os.listdir(text_dir):
-            if any(filename.lower().endswith(ext) for ext in detector.supported_extensions):
-                text_files.append(os.path.join(text_dir, filename))
-
-    if not text_files:
-        print("❌ No text files found!")
-        print(f"Add files to {text_dir}, or run: python sample_text_files.py")
-        return
-    
-    print(f"📁 Found {len(text_files)} text file(s)")
-    
-    # Create output directory
-    output_dir = os.path.join(DATA_OUTPUT, "text_files")
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Process each file
-    for file_path in text_files:
-        analysis = detector.process_text_file(
-            file_path,
-            redaction_strategies=['mask', 'pseudonymize', 'partial_mask', 'label']
-        )
-        
-        if analysis:
-            # Save redacted files
-            saved_files = detector.save_redacted_files(analysis, output_dir)
-            
-            # Generate and save summary report
-            summary = detector.generate_summary_report(analysis)
-            summary_path = os.path.join(output_dir, f"{os.path.splitext(analysis['filename'])[0]}_summary.txt")
-            with open(summary_path, 'w', encoding='utf-8') as f:
-                f.write(summary)
-            
-            print(f"📋 Summary report: {os.path.basename(summary_path)}")
-            print(summary)
-        
-        print("-" * 60)
-
-if __name__ == "__main__":
-    test_text_detector()

@@ -21,7 +21,7 @@ except ImportError:
     MEDIAPIPE_AVAILABLE = False
 
 import json
-from config import DATA_INPUT, DATA_OUTPUT
+from config import DATA_OUTPUT
 
 class ImagePIIDetector:
     def __init__(self):

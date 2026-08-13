@@ -206,8 +206,7 @@ a  { color: #b9cbff; }
 }
 .hero__grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: clamp(1.5rem, 4vw, 3rem); align-items: center; }
 @media (max-width: 960px) { .hero__grid { grid-template-columns: 1fr; } }
-.hero__actions { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: 1.6rem 0 1rem; }
-.hero__note { font-size: .88rem; color: var(--text-dim); margin: 0; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: 1.6rem 0 0; }
 
 /* Terminal-ish visual: before/after redaction sample */
 .sample {
@@ -430,15 +429,6 @@ td.raw { color: #ffb3ba; font-family: var(--mono); font-size: .82rem; }
 .view.is-active { display: block; animation: fade .22s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 [hidden] { display: none !important; }
-
-/* ---------- Design annotations ---------- */
-.annotation {
-  border-left: 3px solid var(--green); background: rgba(94,175,115,.09);
-  padding: .55rem .9rem; margin: .9rem 0; font-size: .82rem; color: #bcd6c6;
-  border-radius: 0 var(--radius-s) var(--radius-s) 0;
-}
-.annotation b { color: var(--green); letter-spacing: .06em; text-transform: uppercase; font-size: .72rem; }
-body.no-annotations .annotation { display: none; }
 
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--line); background: rgba(0,5,31,.7); margin-top: 2rem; padding: 2.2rem 0 2.6rem; }

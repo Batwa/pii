@@ -1,0 +1,26 @@
+{"source_file": "intl_au_abn.txt", "must_redact": [{"text": "21067643025", "label": "AU_ABN"}], "must_keep": [{"text": "invoice"}]}
+{"source_file": "intl_au_acn.txt", "must_redact": [{"text": "029157417", "label": "AU_ACN"}], "must_keep": [{"text": "2019"}]}
+{"source_file": "intl_au_medicare.txt", "must_redact": [{"text": "2806423654", "label": "AU_MEDICARE"}], "must_keep": [{"text": "intake"}]}
+{"source_file": "intl_au_tfn.txt", "must_redact": [{"text": "729090105", "label": "AU_TFN"}], "must_keep": [{"text": "employee"}]}
+{"source_file": "intl_ca_sin.txt", "must_redact": [{"text": "628 194 821", "label": "CA_SIN"}], "must_keep": [{"text": "provided"}]}
+{"source_file": "intl_in_aadhaar.txt", "must_redact": [{"text": "628031913696", "label": "IN_AADHAAR"}], "must_keep": [{"text": "account"}]}
+{"source_file": "intl_in_gstin.txt", "must_redact": [{"text": "20DGDFC9787WEZT", "label": "IN_GSTIN"}], "must_keep": [{"text": "tax invoice"}]}
+{"source_file": "intl_in_pan.txt", "must_redact": [{"text": "DFZGS0719M", "label": "IN_PAN"}], "must_keep": [{"text": "return"}]}
+{"source_file": "intl_in_passport.txt", "must_redact": [{"text": "V6936467", "label": "IN_PASSPORT"}], "must_keep": [{"text": "issued"}]}
+{"source_file": "intl_in_vehicle.txt", "must_redact": [{"text": "MH12AB1234", "label": "IN_VEHICLE_REGISTRATION"}], "must_keep": [{"text": "registration"}]}
+{"source_file": "intl_in_voter.txt", "must_redact": [{"text": "QAU8070837", "label": "IN_VOTER"}], "must_keep": [{"text": "booth"}]}
+{"source_file": "intl_ng_nin.txt", "must_redact": [{"text": "64886690562", "label": "NG_NIN"}], "must_keep": [{"text": "enrolment"}]}
+{"source_file": "intl_ng_vehicle.txt", "must_redact": [{"text": "ABC123DE", "label": "NG_VEHICLE_REGISTRATION"}], "must_keep": [{"text": "Lagos"}]}
+{"source_file": "intl_ph_tin.txt", "must_redact": [{"text": "106-201-773", "label": "PH_TIN"}], "must_keep": [{"text": "bureau"}]}
+{"source_file": "intl_ph_umid.txt", "must_redact": [{"text": "4308-5089582-9", "label": "PH_UMID"}], "must_keep": [{"text": "identity"}]}
+{"source_file": "intl_sg_fin.txt", "must_redact": [{"text": "S1982886E", "label": "SG_NRIC_FIN"}], "must_keep": [{"text": "pass record"}]}
+{"source_file": "intl_uk_dl.txt", "must_redact": [{"text": "BNFMO802081EP7HU", "label": "UK_DRIVING_LICENCE"}], "must_keep": [{"text": "DVLA"}]}
+{"source_file": "intl_uk_nino.txt", "must_redact": [{"text": "YZ351819A", "label": "UK_NINO"}], "must_keep": [{"text": "recorded"}]}
+{"source_file": "intl_uk_postcode.txt", "must_redact": [{"text": "BP5 7AF", "label": "UK_POSTCODE"}], "must_keep": [{"text": "delivery"}]}
+{"source_file": "intl_uk_vehicle.txt", "must_redact": [{"text": "AB12CDE", "label": "UK_VEHICLE_REGISTRATION"}], "must_keep": [{"text": "photographed"}]}
+{"source_file": "intl_us_mbi.txt", "must_redact": [{"text": "3RW8K96VG76", "label": "US_MBI"}], "must_keep": [{"text": "claim"}]}
+{"source_file": "intl_us_npi.txt", "must_redact": [{"text": "2511481873", "label": "US_NPI"}], "must_keep": [{"text": "visit"}]}
+{"source_file": "intl_za_id.txt", "must_redact": [{"text": "1008173404288", "label": "ZA_ID_NUMBER"}], "must_keep": [{"text": "captured"}]}
+{"source_file": "intl_neg_invoice.txt", "must_redact": [], "must_keep": [{"text": "1008173404288 cents"}, {"text": "Invoice total"}]}
+{"source_file": "intl_neg_reference.txt", "must_redact": [], "must_keep": [{"text": "standard reference"}, {"text": "shipping lanes"}]}
+{"source_file": "intl_neg_date.txt", "must_redact": [], "must_keep": [{"text": "12.03.2019"}, {"text": "renewed annually"}]}

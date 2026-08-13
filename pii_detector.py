@@ -2,7 +2,6 @@
 Privacy Sandbox - PII Detection Engine
 Tabular (CSV) data PII detection with smart and standard redaction modes
 """
-import os
 import pandas as pd
 import re
 from presidio_analyzer import AnalyzerEngine
@@ -10,8 +9,6 @@ from presidio_anonymizer import AnonymizerEngine
 from config import (
     CONFIDENCE_THRESHOLD,
     REDACTION_METHODS,
-    DATA_INPUT,
-    DATA_OUTPUT,
     PII_COLUMN_KEYWORDS,
 )
 
@@ -232,53 +229,3 @@ class PIIDetector:
         print(f"  Total values changed: {total_changes}")
         print(f"  Columns affected: {len(pii_results)}")
         print(f"  Rows processed: {len(df_original)}")
-
-
-def main():
-    """Test the PII detector with sample data"""
-    print("🚀 Testing PII Detection...")
-
-    sample_data = {
-        'customer_id': ['C001', 'C002', 'C003'],
-        'name': ['John Doe', 'Jane Smith', 'Bob Johnson'],
-        'email': ['john.doe@email.com', 'jane.smith@company.org', 'bob@example.net'],
-        'phone': ['555-123-4567', '(555) 987-6543', '555.555.5555'],
-        'notes': ['Called customer at john.doe@email.com', 'Meeting scheduled', 'Phone: 555-999-8888']
-    }
-
-    df = pd.DataFrame(sample_data)
-    print("\n📊 Original Data:")
-    print(df)
-
-    detector = PIIDetector()
-
-    print("\n--- Smart Redaction ---")
-    df_smart, pii_results = detector.smart_detect_and_redact(df)
-    print(df_smart)
-
-    print("\n--- Complete Masking ---")
-    pii_results = detector.detect_pii_in_dataframe(df)
-    df_clean = detector.redact_dataframe(df, pii_results, method='mask')
-    print(df_clean)
-
-
-def test_with_csv():
-    """Test smart redaction on customers.csv if available"""
-    filepath = os.path.join(DATA_INPUT, "customers.csv")
-    if not os.path.exists(filepath):
-        print(f"No sample CSV at {filepath} — run with built-in sample data instead.")
-        return
-
-    detector = PIIDetector()
-    df = pd.read_csv(filepath)
-    df_smart, pii_results = detector.smart_detect_and_redact(df)
-    detector.generate_smart_report(df, df_smart, pii_results)
-
-    output_path = os.path.join(DATA_OUTPUT, "customers_smart_redacted.csv")
-    os.makedirs(DATA_OUTPUT, exist_ok=True)
-    df_smart.to_csv(output_path, index=False)
-    print(f"\n💾 Saved: {output_path}")
-
-
-if __name__ == "__main__":
-    main()

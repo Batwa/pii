@@ -70,3 +70,48 @@ def test_deduplicate_results_prefers_higher_score(detector):
     unique = detector.deduplicate_results(results, text)
     assert len(unique) == 1
     assert unique[0]["score"] == 1.0
+
+
+def test_regex_detects_russian_identifiers_and_sensitive_clinic(detector):
+    text = (
+        "Call +7 (495) 234-56-78. SNILS 142-337-890 12. "
+        "Visit Bryansk City Polyclinic No. 4."
+    )
+    results = detector.detect_pii_regex(text)
+
+    assert {result["entity_type"] for result in results} >= {
+        "PHONE_RU", "SNILS", "SENSITIVE_ORGANIZATION"
+    }
+    assert any(result["text"] == "Bryansk City Polyclinic No. 4" for result in results)
+
+
+def test_date_and_cross_line_entities_are_not_redacted(detector):
+    text = "Movement at night.\nAlexey Sergeevich\nDate of birth: 04.11.1992."
+    results = [
+        {"entity_type": "DATE_TIME", "start": 12, "end": 17, "score": 0.9, "source": "presidio"},
+        {"entity_type": "PERSON", "start": 19, "end": 37, "score": 0.9, "source": "spacy"},
+        {"entity_type": "DATE_OF_BIRTH", "start": 52, "end": 62, "score": 1.0, "source": "regex"},
+    ]
+
+    unique = detector.deduplicate_results(results, text)
+
+    assert unique == [
+        {"entity_type": "DATE_OF_BIRTH", "start": 52, "end": 62, "score": 1.0,
+         "source": "regex", "text": "04.11.1992"}
+    ]
+
+
+def test_date_of_birth_requires_birth_context(detector):
+    text = "Date of issue: 04.11.2026. Born: 04.11.1992."
+    issue_start = text.index("04.11.2026")
+    birth_start = text.index("04.11.1992")
+    results = [
+        {"entity_type": "DATE_OF_BIRTH", "start": issue_start, "end": issue_start + 10,
+         "score": 0.95, "source": "custom_ner"},
+        {"entity_type": "DATE_OF_BIRTH", "start": birth_start, "end": birth_start + 10,
+         "score": 1.0, "source": "regex"},
+    ]
+
+    unique = detector.deduplicate_results(results, text)
+
+    assert [result["text"] for result in unique] == ["04.11.1992"]

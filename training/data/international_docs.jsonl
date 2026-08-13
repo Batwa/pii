@@ -1,0 +1,26 @@
+{"source_file": "intl_au_abn.txt", "text": "Supplier ABN 21067643025 is on the invoice.", "spans": [{"text": "21067643025", "label": "AU_ABN"}]}
+{"source_file": "intl_au_acn.txt", "text": "Company ACN 029157417 was registered in 2019.", "spans": [{"text": "029157417", "label": "AU_ACN"}]}
+{"source_file": "intl_au_medicare.txt", "text": "Medicare number 2806423654 was presented at intake.", "spans": [{"text": "2806423654", "label": "AU_MEDICARE"}]}
+{"source_file": "intl_au_tfn.txt", "text": "Tax file number 729090105 supplied by the employee.", "spans": [{"text": "729090105", "label": "AU_TFN"}]}
+{"source_file": "intl_ca_sin.txt", "text": "SIN 628 194 821 was provided.", "spans": [{"text": "628 194 821", "label": "CA_SIN"}]}
+{"source_file": "intl_in_aadhaar.txt", "text": "Aadhaar number 628031913696 is linked to the account.", "spans": [{"text": "628031913696", "label": "IN_AADHAAR"}]}
+{"source_file": "intl_in_gstin.txt", "text": "GSTIN 20DGDFC9787WEZT appears on the tax invoice.", "spans": [{"text": "20DGDFC9787WEZT", "label": "IN_GSTIN"}]}
+{"source_file": "intl_in_pan.txt", "text": "PAN DFZGS0719M was submitted with the return.", "spans": [{"text": "DFZGS0719M", "label": "IN_PAN"}]}
+{"source_file": "intl_in_passport.txt", "text": "Passport V6936467 issued in Delhi.", "spans": [{"text": "V6936467", "label": "IN_PASSPORT"}]}
+{"source_file": "intl_in_vehicle.txt", "text": "Vehicle registration MH12AB1234 is in her name.", "spans": [{"text": "MH12AB1234", "label": "IN_VEHICLE_REGISTRATION"}]}
+{"source_file": "intl_in_voter.txt", "text": "EPIC QAU8070837 verified at the booth.", "spans": [{"text": "QAU8070837", "label": "IN_VOTER"}]}
+{"source_file": "intl_ng_nin.txt", "text": "NIN 64886690562 recorded during enrolment.", "spans": [{"text": "64886690562", "label": "NG_NIN"}]}
+{"source_file": "intl_ng_vehicle.txt", "text": "Plate number ABC123DE registered in Lagos.", "spans": [{"text": "ABC123DE", "label": "NG_VEHICLE_REGISTRATION"}]}
+{"source_file": "intl_ph_tin.txt", "text": "TIN 106-201-773 filed with the bureau.", "spans": [{"text": "106-201-773", "label": "PH_TIN"}]}
+{"source_file": "intl_ph_umid.txt", "text": "UMID 4308-5089582-9 shown as proof of identity.", "spans": [{"text": "4308-5089582-9", "label": "PH_UMID"}]}
+{"source_file": "intl_sg_fin.txt", "text": "FIN S1982886E was checked against the pass record.", "spans": [{"text": "S1982886E", "label": "SG_NRIC_FIN"}]}
+{"source_file": "intl_uk_dl.txt", "text": "DVLA licence number BNFMO802081EP7HU.", "spans": [{"text": "BNFMO802081EP7HU", "label": "UK_DRIVING_LICENCE"}]}
+{"source_file": "intl_uk_nino.txt", "text": "National Insurance No. YZ351819A recorded.", "spans": [{"text": "YZ351819A", "label": "UK_NINO"}]}
+{"source_file": "intl_uk_postcode.txt", "text": "Postcode BP5 7AF for delivery.", "spans": [{"text": "BP5 7AF", "label": "UK_POSTCODE"}]}
+{"source_file": "intl_uk_vehicle.txt", "text": "Car registration AB12CDE was photographed.", "spans": [{"text": "AB12CDE", "label": "UK_VEHICLE_REGISTRATION"}]}
+{"source_file": "intl_us_mbi.txt", "text": "MBI 3RW8K96VG76 on the claim.", "spans": [{"text": "3RW8K96VG76", "label": "US_MBI"}]}
+{"source_file": "intl_us_npi.txt", "text": "Provider NPI 2511481873 billed for the visit.", "spans": [{"text": "2511481873", "label": "US_NPI"}]}
+{"source_file": "intl_za_id.txt", "text": "South African ID number 1008173404288 was captured.", "spans": [{"text": "1008173404288", "label": "ZA_ID_NUMBER"}]}
+{"source_file": "intl_neg_invoice.txt", "text": "Invoice total was 1008173404288 cents before the correction.", "spans": []}
+{"source_file": "intl_neg_reference.txt", "text": "The standard reference ABC123DE covers all shipping lanes.", "spans": []}
+{"source_file": "intl_neg_date.txt", "text": "The policy was issued on 12.03.2019 and renewed annually.", "spans": []}

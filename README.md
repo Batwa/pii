@@ -16,13 +16,6 @@ processed locally through `server.py`):
 python3 server.py      # -> http://localhost:8000
 ```
 
-Or test from the command line:
-
-```bash
-python text_pii_detector.py
-python pii_detector.py
-```
-
 ## Setup
 
 Use Python 3.13 (the version this project is tested with). Create and activate a virtual environment:
@@ -56,13 +49,6 @@ sudo apt install tesseract-ocr
 
 On Windows, install Tesseract with your preferred package manager or installer, then add its installation folder to `PATH`.
 
-Create sample files to try:
-
-```bash
-python sample_text_files.py
-python sample_images.py
-```
-
 Run the test suite (development dependencies only):
 
 ```bash
@@ -79,8 +65,8 @@ pii_detector.py        CSV / tabular PII detection
 text_pii_detector.py   Text file PII detection
 image_detector.py      Image PII detection
 config.py              Shared settings and paths
-data/input/            Put your files here
-data/output/           Redacted results are saved here
+recognizers.py         Presidio recognizer registry and score thresholds
+training/              Annotation data and custom NER training scripts
 tests/sample_data/     Small files used by automated tests
 ```
 
@@ -93,7 +79,6 @@ Key settings live in `config.py`:
 | Setting | Default | Purpose |
 |---------|---------|---------|
 | `CONFIDENCE_THRESHOLD` | `0.8` | Minimum detection confidence (0.1 = more sensitive) |
-| `DATA_INPUT` | `data/input/` | Where sample input files go |
 | `DATA_OUTPUT` | `data/output/` | Where redacted output is saved |
 | `SAMPLE_DATA` | `tests/sample_data/` | Small fixtures used by `pytest` |
 

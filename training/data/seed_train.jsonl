@@ -1,0 +1,20 @@
+{"text":"Patient Alicia Nguyen visited Northside Medical Clinic.","spans":[{"text":"Alicia Nguyen","label":"PERSON"},{"text":"Northside Medical Clinic","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Movement at night helps Daniel sleep.","spans":[{"text":"Daniel","label":"PERSON"}]}
+{"text":"Date of birth: 04.11.1992.","spans":[{"text":"04.11.1992","label":"DATE_OF_BIRTH"}]}
+{"text":"Bryansk City Polyclinic No. 4 issued a letter to Elena Petrova.","spans":[{"text":"Bryansk City Polyclinic No. 4","label":"SENSITIVE_ORGANIZATION"},{"text":"Elena Petrova","label":"PERSON"}]}
+{"text":"Jordan Patel was treated at Westbrook Clinic No. 12.","spans":[{"text":"Jordan Patel","label":"PERSON"},{"text":"Westbrook Clinic No. 12","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Certificate for Omar Haddad, born 09.02.1985.","spans":[{"text":"Omar Haddad","label":"PERSON"},{"text":"09.02.1985","label":"DATE_OF_BIRTH"}]}
+{"text":"At night, the office is closed.","spans":[]}
+{"text":"Sunrise Medical Center admitted Priya Shah.","spans":[{"text":"Sunrise Medical Center","label":"SENSITIVE_ORGANIZATION"},{"text":"Priya Shah","label":"PERSON"}]}
+{"text":"Dr. Sophie Martin works at Children's City Polyclinic No. 8.","spans":[{"text":"Sophie Martin","label":"PERSON"},{"text":"Children's City Polyclinic No. 8","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Date of issue: 04.11.2026.","spans":[]}
+{"text":"The note was signed by Ivan Petrov.","spans":[{"text":"Ivan Petrov","label":"PERSON"}]}
+{"text":"Green Valley Hospital No. 3 issued a certificate.","spans":[{"text":"Green Valley Hospital No. 3","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Morning exercise is encouraged.","spans":[]}
+{"text":"Patient Lila Chen was born 12/03/2011.","spans":[{"text":"Lila Chen","label":"PERSON"},{"text":"12/03/2011","label":"DATE_OF_BIRTH"}]}
+{"text":"The district clinic has an evening appointment.","spans":[]}
+{"text":"Harborview Medical Center recorded Mateo Ruiz.","spans":[{"text":"Harborview Medical Center","label":"SENSITIVE_ORGANIZATION"},{"text":"Mateo Ruiz","label":"PERSON"}]}
+{"text":"Anya Volkova attended Central Hospital.","spans":[{"text":"Anya Volkova","label":"PERSON"},{"text":"Central Hospital","label":"SENSITIVE_ORGANIZATION"}]}
+{"text":"Yearly review is due in March.","spans":[]}
+{"text":"Birth date: 01-01-2007 for Liam Brooks.","spans":[{"text":"01-01-2007","label":"DATE_OF_BIRTH"},{"text":"Liam Brooks","label":"PERSON"}]}
+{"text":"City Polyclinic No. 14 serves pediatric patients.","spans":[{"text":"City Polyclinic No. 14","label":"SENSITIVE_ORGANIZATION"}]}
