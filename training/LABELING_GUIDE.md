@@ -16,10 +16,11 @@ teach the model to compete with regex it can never beat.
 | MODEL learns (label these) | RULES own (do not label for training) |
 |---|---|
 | `PERSON` — names in any layout | Phones, e-mails, IP addresses |
-| `SENSITIVE_ORGANIZATION` — clinics, hospitals, schools, shelters | All formatted IDs: SSN, SNILS, INN, passports, cards, accounts, IBAN, VIN, plates, policy/student/customer/badge/case IDs |
+| `SENSITIVE_ORGANIZATION` — clinics, hospitals, schools, shelters mentioned as third parties | All formatted IDs: SSN, SNILS, INN, passports, cards, accounts, IBAN, VIN, plates, policy/student/customer/badge/case IDs, serial and order numbers |
 | `ADDRESS` — street + apartment + city + postal code | Pronouns (closed word list) |
 | `DATE_OF_BIRTH` — the date value near a birth label | Labelled IDs of any country (label-before-number rule) |
 |  | Times with persons, class/grade designators |
+|  | Travel-destination cities (context rule on NER output) |
 
 ## Annotation format
 
@@ -48,15 +49,21 @@ One JSON object per line (JSONL):
 - Facilities whose mention alone reveals something about a person: clinics,
   hospitals, polyclinics, hospices, shelters, schools, colleges, universities,
   medical/support/health/care centers.
-- Always redacted, whether or not a person is named next to them.
+- Label THIRD-PARTY mentions only: "referred to X", "treated at X",
+  "Education: X", "attached to X".
+- Do NOT label the organization that authored the document — its own
+  letterhead or header line stays visible (review verdict, 2026-08-31). At
+  runtime a rule exempts a facility name standing alone on one of the first
+  three lines.
 - Ordinary employers are NOT sensitive organizations. (Employer redaction is
   a context rule, not a model entity, in V1.)
 
 ### ADDRESS
 - Label the full home/work address on one line: street, apartment, city,
   postal code ("17 Maple Crescent, Apt 3B, Springfield, IL 62704").
-- Standalone city names stay visible ("the Leeds ring road", "arrival
-  Lisbon", "the Katowice warehouse", "our Frankfurt branch").
+- Standalone city names stay visible ("the Leeds ring road", "the Katowice
+  warehouse", "our Frankfurt branch") — but a travel destination ("arrival
+  Lisbon") is redacted by a context rule; either way it is never labeled.
 - A city inside an address or a residence sentence is part of the address.
 
 ### DATE_OF_BIRTH
@@ -70,9 +77,14 @@ One JSON object per line (JSONL):
   a person+clock-time phrase ("at 2 o'clock in the morning" → redacted).
 - Generic job titles, laws and article numbers, document headings.
 - Prices, amounts, quantities, meter readings, percentages.
-- Thing-IDs: order, invoice, tracking, serial, batch, flight, voucher,
-  project codes, device serials.
-- Public places and unaffiliated organizations.
+- Thing-IDs that are NOT trackable to a purchase: invoice, tracking, batch,
+  flight, voucher, project codes. (Serial and order numbers are REDACTED —
+  rule-owned, so still never labeled for training.)
+- Public places and unaffiliated organizations, including the document's own
+  letterhead organization.
+- Operational locations: warehouse, branch, hub, and port cities — even when a
+  person interacts with them. (A city as a person's travel DESTINATION is
+  redacted — rule-owned, never labeled for training.)
 - Languages and nationality adjectives ("Dutch", "Indian passport") — group
   membership is a TBD policy area; V1 keeps them.
 - I/me/my/you/your (pronoun policy covers only third-person forms).
@@ -84,7 +96,13 @@ One JSON object per line (JSONL):
 3. he/him/his/she/her/hers always redact; they/them/their/theirs only when a
    person is detected nearby; I/me/you forms never.
 4. A bare digit run is never PII; a label next to a number decides its type.
-5. Travel destinations are standalone cities (keep); residences redact.
+5. Residence cities redact; operational cities (warehouse, branch, hub) keep.
+6. The organization that authored the document (letterhead) stays visible;
+   third-party facility mentions redact (verdict on S001-class checks).
+7. Serial numbers and order numbers redact — they can be searched up and
+   tracked. Batch numbers stay visible (verdict on S003/S036 vs S046/S061).
+8. A city as a person's travel destination redacts ("arrival Gdansk");
+   warehouse/branch/hub cities stay (verdict on S014 vs S005/S006/S084).
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 

@@ -48,6 +48,13 @@ RESIDENCE_CONTEXT = re.compile(
     r"(?i)\b(?:resid\w*|lives?\s+in|living\s+in|address|registered\s+at|home"
     r"|apt\.?|apartment|unit\s+\d|premises|office\s+at|headquarters\s+at)\b"
 )
+# A city as a person's journey destination is redacted (review verdict S014);
+# operational locations — warehouses, branches, hubs — stay visible, so the
+# nouns here are itinerary words, not "arrives"/"dispatched" cargo phrasing.
+TRAVEL_CONTEXT = re.compile(
+    r"(?i)\b(?:arrival|departs|departure|itinerary|travels?\s+to|trip\s+to"
+    r"|fl(?:ies|ying)\s+to)\b"
+)
 # "as a Senior X" / "position of X" introduces a job title, not a name or an
 # employer — generic titles stay visible under the policy.
 TITLE_PREFIX = re.compile(
@@ -114,6 +121,14 @@ TEXT_PATTERNS = {
     'group_class': re.compile(
         r'\b(?:class|grade|group|form)\s+'
         r'(?P<pii>\d{1,2}-?[A-Z]\b|[A-Z]{2,5}-\d{2,6})', re.IGNORECASE),
+    # Trackable purchase/product identifiers (review verdict: serial and order
+    # numbers can be searched up and tracked). Batch numbers stay visible.
+    'serial_number': re.compile(
+        r'\bserial\s*(?:no\.?|number|#)?\s*[:#]?\s*'
+        r'(?P<pii>(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19})\b', re.IGNORECASE),
+    'order_number': re.compile(
+        r'\border\s*(?:no\.?|number|#)?\s*[:#]?\s*'
+        r'(?P<pii>(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19})\b', re.IGNORECASE),
 
     # --- dates (policy: only birth dates redact; issue dates stay) ---
     # Month-day-year, day-month-year, and worded forms ("5 May 1994",
@@ -181,7 +196,8 @@ TEXT_PATTERNS = {
 # the same span: a labelled BIC beats a generic 9-digit SSN shape, and a
 # labelled INN beats Presidio's 12-digit Aadhaar recognizer.
 LABELLED_PATTERNS = {"bic", "inn_labelled", "generic_id", "group_class",
-                     "student_id", "policy_number"}
+                     "student_id", "policy_number", "serial_number",
+                     "order_number"}
 PATTERN_ENTITY_TYPES = {"inn_labelled": "INN", "apt_unit": "ADDRESS_LINE",
                         "pronoun_group": "PRONOUN_GROUP",
                         "labelled_person": "PERSON", "chat_speaker": "PERSON",
@@ -220,6 +236,22 @@ def sentence_around(text, start, end):
     s = breaks[-1] + 1 if breaks else 0
     after = _SENTENCE_BREAK.search(text, end)
     return text[s:after.start() if after else len(text)]
+
+
+def is_letterhead(text, start, end, span_text):
+    """True when the span alone fills one of the document's first three lines.
+
+    Review verdict: the organization that AUTHORED a document (its letterhead)
+    stays visible; only third-party facility mentions are redacted. A name
+    embedded in a longer line, or deeper in the document, is not a letterhead.
+    """
+    if text.count("\n", 0, start) > 2:
+        return False
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end].strip() == span_text.strip()
 
 
 def run_pattern_rules(text):
@@ -279,6 +311,13 @@ def apply_policy_filters(results, text):
         if source == 'custom_ner' and entity != 'DATE_OF_BIRTH' \
                 and not SENSITIVE_ORG_KEYWORDS.search(result['text']):
             continue
+        # The document's own letterhead organization stays visible — whichever
+        # layer detected it (the regex, the custom model, or general NER).
+        if (entity == 'SENSITIVE_ORGANIZATION'
+                or (entity == 'ORGANIZATION'
+                    and SENSITIVE_ORG_KEYWORDS.search(result['text']))) \
+                and is_letterhead(text, result['start'], result['end'], result['text']):
+            continue
         # Group membership is a TBD policy area, and the NRP recognizer
         # over-fires on languages and nationality adjectives ("Dutch",
         # "Indian passport") — V1 keeps these.
@@ -307,7 +346,8 @@ def apply_policy_filters(results, text):
                 0 <= result['start'] - a_end <= 8
                 and re.fullmatch(r'[ \t,]*', text[a_end:result['start']])
                 for a_end in address_ends)
-            if not (RESIDENCE_CONTEXT.search(sentence) or near_address):
+            if not (RESIDENCE_CONTEXT.search(sentence)
+                    or TRAVEL_CONTEXT.search(sentence) or near_address):
                 continue
         # A line-initial greeting name counts only when the same name occurs
         # inside a fully detected person elsewhere in the document.

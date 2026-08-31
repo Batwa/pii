@@ -11,10 +11,12 @@ redaction policy (red.pdf). Labeling decisions taken where the policy is open:
   it/its are kept.
 - Company tax IDs (INN, GSTIN) are labeled for redaction, matching the existing
   private regression suite, even where no person is attached.
-- Cities are redacted inside home/work addresses and kept when standalone
-  (including travel destinations and public places).
-- Device serials, order numbers, invoice numbers, flight numbers, project codes,
-  and tracking numbers are kept — they identify things, not people.
+- Cities are redacted inside home/work addresses and as a person's travel
+  destination; operational cities (warehouses, branches, hubs) stay.
+- Serial and order numbers are redacted (trackable to a purchase); invoice,
+  batch, flight, voucher, tracking, and project identifiers are kept.
+- The organization that authored a document (its letterhead) stays visible;
+  third-party facility mentions are redacted.
 - Case/claim numbers tied to a person are redacted; court statute citations are
   kept.
 - "morning"/"night"/"evening" are kept except when paired with a clock time and
@@ -45,10 +47,9 @@ DEV = [
         "antibiotics and took her medication every morning without assistance. "
         "The ward nurse recorded stable vitals. Follow-up in three weeks.\n"
         "Discharge approved by the attending physician."),
-  redact=[("St. Anthony Riverside Hospital","SENSITIVE_ORG"),
-          ("Marina Kovaleva","PERSON"),("03/14/1988","DOB"),
+  redact=[("Marina Kovaleva","PERSON"),("03/14/1988","DOB"),
           ("5527-8841","GENERIC_ID"),("she","PRONOUN"),("her","PRONOUN")],
-  keep=["02/11/2026","02/18/2026","morning","ward nurse","pneumonia"]),
+  keep=["St. Anthony Riverside Hospital","02/11/2026","02/18/2026","morning","ward nurse","pneumonia"]),
 
  dict(id="gold_d02_hr_letter.txt",
   text=("EMPLOYMENT VERIFICATION\n\nTo whom it may concern,\n"
@@ -73,8 +74,9 @@ DEV = [
         "on Tuesday. He should receive a new tracking link today.\n"
         "[10:07] Mark Osei: Great, thanks."),
   redact=[("Priya Raman","PERSON"),("Mark Osei","PERSON"),
-          ("00394471","GENERIC_ID"),("he","PRONOUN")],
-  keep=["118-4402987","Rotterdam","Tuesday","48213","tracking link"]),
+          ("00394471","GENERIC_ID"),("118-4402987","ORDER_NUMBER"),
+          ("he","PRONOUN")],
+  keep=["Rotterdam","Tuesday","48213","tracking link"]),
 
  dict(id="gold_d04_email_thread.txt",
   text=("From: tomas.lindqvist@borealfreight.example\n"
@@ -127,11 +129,10 @@ DEV = [
         "April Nowak represented the school at the regional mathematics olympiad. "
         "Her homeroom teacher notes consistent progress in physics and algebra.\n"
         "Report generated 06/20/2026."),
-  redact=[("Lindenwood Secondary School","SENSITIVE_ORG"),
-          ("April Nowak","PERSON"),("9-B","GROUP_CLASS"),
+  redact=[("April Nowak","PERSON"),("9-B","GROUP_CLASS"),
           ("LW-2024-1187","GENERIC_ID"),("her","PRONOUN")],
-  keep=["09/01/2024","06/20/2026","4.6","mathematics olympiad","physics",
-        "algebra","homeroom teacher"]),
+  keep=["Lindenwood Secondary School","09/01/2024","06/20/2026","4.6",
+        "mathematics olympiad","physics","algebra","homeroom teacher"]),
 
  dict(id="gold_d08_insurance_claim.txt",
   text=("MOTOR CLAIM FORM\nClaim No. CLM-77-58201\n"
@@ -245,12 +246,12 @@ DEV = [
         "She reports seasonal allergies and takes no regular medication. "
         "Preferred appointment time is late afternoon.\n"
         "Intake completed 06/10/2026 by front-desk staff."),
-  redact=[("Willow Creek Community Clinic","SENSITIVE_ORG"),
-          ("Nadia Fetisova","PERSON"),("09/02/1985","DOB"),
+  redact=[("Nadia Fetisova","PERSON"),("09/02/1985","DOB"),
           ("61 7788 9900 1122 33","POLICY_NUMBER"),
           ("Pavel Fetisov","PERSON"),("555-448-2160","PHONE"),
           ("she","PRONOUN")],
-  keep=["06/10/2026","seasonal allergies","late afternoon","front-desk staff"]),
+  keep=["Willow Creek Community Clinic","06/10/2026","seasonal allergies",
+        "late afternoon","front-desk staff"]),
 
  dict(id="gold_d17_employment_contract.txt",
   text=("EMPLOYMENT CONTRACT No. 44/26\n"
@@ -322,8 +323,9 @@ DEV = [
         "seven nights.\n"
         "Baggage allowance one checked bag, 23 kg. Check-in opens 48 hours "
         "before departure."),
-  redact=[("Yana Melnyk","PERSON"),("P0442158","PASSPORT")],
-  keep=["LH1407","LH1408","09/12/2026","09/19/2026","Lisbon","HTL-58821",
+  redact=[("Yana Melnyk","PERSON"),("P0442158","PASSPORT"),
+          ("Lisbon","CITY_TRAVEL")],
+  keep=["LH1407","LH1408","09/12/2026","09/19/2026","HTL-58821",
         "23 kg","48 hours"]),
 
  dict(id="gold_d23_shelter_intake.txt",
@@ -334,10 +336,10 @@ DEV = [
         "applications. Her belongings were logged and stored. Safety planning "
         "session scheduled within 72 hours of arrival.\n"
         "Access to this sheet is restricted to assigned staff."),
-  redact=[("Haven House Women's Shelter","SENSITIVE_ORG"),
-          ("Larisa Bondar","PERSON"),("HH-2026-031","GENERIC_ID"),
+  redact=[("Larisa Bondar","PERSON"),("HH-2026-031","GENERIC_ID"),
           ("Miriam Adler","PERSON"),("she","PRONOUN"),("her","PRONOUN")],
-  keep=["72 hours","housing applications","Safety planning","assigned staff"]),
+  keep=["Haven House Women's Shelter","72 hours","housing applications",
+        "Safety planning","assigned staff"]),
 
  dict(id="gold_d24_warranty_claim.txt",
   text=("WARRANTY CLAIM\nProduct: cordless drill, serial number DRL8802914476.\n"
@@ -348,8 +350,9 @@ DEV = [
         "Replacement part ships within five business days once the claim is "
         "approved by the service center."),
   redact=[("Igor Stachowiak","PERSON"),("555-330-8174","PHONE"),
-          ("i.stachowiak@inbox.example","EMAIL")],
-  keep=["DRL8802914476","03/18/2026","ten cycles","five business days",
+          ("i.stachowiak@inbox.example","EMAIL"),
+          ("DRL8802914476","SERIAL_NUMBER")],
+  keep=["03/18/2026","ten cycles","five business days",
         "service center","cordless drill"]),
 
  dict(id="gold_d25_job_offer.txt",
@@ -376,10 +379,10 @@ TEST = [
         "discharged on 05/05/2026. He tolerated the cast well and walked the "
         "corridor every evening with supervision.\n"
         "Physiotherapy referral issued; first session in ten days."),
-  redact=[("Blue Hills Municipal Hospital","SENSITIVE_ORG"),
-          ("Bill Tanaka","PERSON"),("22.07.1990","DOB"),
+  redact=[("Bill Tanaka","PERSON"),("22.07.1990","DOB"),
           ("8814-0223","GENERIC_ID"),("he","PRONOUN")],
-  keep=["05/03/2026","05/05/2026","evening","Physiotherapy","ten days"]),
+  keep=["Blue Hills Municipal Hospital","05/03/2026","05/05/2026","evening",
+        "Physiotherapy","ten days"]),
 
  dict(id="gold_t02_hr_letter.txt",
   text=("TO WHOM IT MAY CONCERN\n"
@@ -405,8 +408,9 @@ TEST = [
         "[14:14] Petr Havel: member number 7745120.\n"
         "[14:15] Support: Thank you. A technician will call him tomorrow "
         "between nine and noon."),
-  redact=[("Petr Havel","PERSON"),("7745120","GENERIC_ID"),("him","PRONOUN")],
-  keep=["552-9083311","90417","dishwasher","tomorrow","loyalty card"]),
+  redact=[("Petr Havel","PERSON"),("7745120","GENERIC_ID"),
+          ("552-9083311","ORDER_NUMBER"),("him","PRONOUN")],
+  keep=["90417","dishwasher","tomorrow","loyalty card"]),
 
  dict(id="gold_t04_email.txt",
   text=("From: monika.szabo@ferrumworks.example\n"
@@ -458,10 +462,10 @@ TEST = [
         "selected for the debate team; travel consent forms are due by "
         "08/20/2026. His locker assignment stays the same.\n"
         "The school office is open on weekdays."),
-  redact=[("Oakfield Grammar School","SENSITIVE_ORG"),
-          ("Tomas Vilkas","PERSON"),("7-A","GROUP_CLASS"),
+  redact=[("Tomas Vilkas","PERSON"),("7-A","GROUP_CLASS"),
           ("OG-3391-77","GENERIC_ID"),("his","PRONOUN")],
-  keep=["09/02/2026","08/20/2026","debate team","weekdays","autumn term"]),
+  keep=["Oakfield Grammar School","09/02/2026","08/20/2026","debate team",
+        "weekdays","autumn term"]),
 
  dict(id="gold_t08_claim.txt",
   text=("PROPERTY CLAIM\nClaim reference CLM-2026-8817 opened for water "
@@ -561,11 +565,11 @@ TEST = [
         "appointments on weekday mornings. Her consent forms were signed and "
         "filed the same day.\n"
         "Next review after four sessions."),
-  redact=[("Harbor Light Family Support Center","SENSITIVE_ORG"),
-          ("Beatrix Molnar","PERSON"),("12/08/1979","DOB"),
+  redact=[("Beatrix Molnar","PERSON"),("12/08/1979","DOB"),
           ("555-953-7788","PHONE"),("HL-455-2026","GENERIC_ID"),
           ("she","PRONOUN"),("her","PRONOUN")],
-  keep=["interpreter","weekday mornings","four sessions","consent forms"]),
+  keep=["Harbor Light Family Support Center","interpreter","weekday mornings",
+        "four sessions","consent forms"]),
 ]
 
 
@@ -606,10 +610,10 @@ TEST2 = [
         "early. He should bring the insurance card and a list of current "
         "medications.\n"
         "To reschedule, reply to this message before Friday."),
-  redact=[("Eastbrook Dental Clinic","SENSITIVE_ORG"),
-          ("Milan Horvat","PERSON"),("2nd of June, 1990","DOB"),
+  redact=[("Milan Horvat","PERSON"),("2nd of June, 1990","DOB"),
           ("he","PRONOUN")],
-  keep=["10/05/2026","14:30","ten minutes","Friday","insurance card"]),
+  keep=["Eastbrook Dental Clinic","10/05/2026","14:30","ten minutes",
+        "Friday","insurance card"]),
 
  dict(id="gold_v2_04_gym_cancellation.txt",
   text=("MEMBERSHIP CANCELLATION\n"
