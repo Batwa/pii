@@ -9,7 +9,7 @@ import spacy
 sys.path.insert(0, str(Path(__file__).parent))
 from train import load_examples
 
-TARGET_LABELS = {"PERSON", "DATE_OF_BIRTH", "SENSITIVE_ORGANIZATION"}
+TARGET_LABELS = {"PERSON", "DATE_OF_BIRTH", "SENSITIVE_ORGANIZATION", "ADDRESS"}
 
 
 def main():

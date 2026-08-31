@@ -50,6 +50,14 @@ ENTITY_SCORE_THRESHOLDS = {
     "UK_POSTCODE": 0.40,   # observed 0.45
     "US_MBI": 0.60,        # observed 0.65
 }
+
+# V1 policy decisions for the public-sharing profile (red.pdf). Third-person
+# singular pronouns are always redacted; the plural group is redacted only when a
+# person is detected nearby, because "they/their" routinely refers to objects and
+# organizations. I/me/my/you/your are kept per the policy.
+PRONOUNS_ALWAYS = ("he", "him", "his", "she", "her", "hers")
+PRONOUNS_NEAR_PERSON = ("they", "them", "their", "theirs")
+PERSON_PROXIMITY_CHARS = 160
 SUPPORTED_FILE_TYPES = {
     'tabular': ['.csv'],
     'text': ['.txt', '.json', '.md'],

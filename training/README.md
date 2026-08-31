@@ -1,5 +1,38 @@
 # Local custom-entity training
 
+**Start with [LABELING_GUIDE.md](LABELING_GUIDE.md)** — it defines which
+entities the model learns versus which the rule layer (`policy_rules.py`)
+owns, the labeling criteria, and the LLM pre-labeling workflow. Label only the
+model's entities; rules already beat the model on everything formatted.
+
+`train.py` writes to `models/custom_ner_candidate` by default. The detector
+auto-loads `models/custom_ner`, so promote a candidate there only after
+`evaluate.py` and the gold suites pass.
+
+## Human-gold evaluation corpus
+
+`build_gold_corpus.py` authors 40 fully synthetic labeled documents (25 dev /
+15 held-out test) under `training/data/gold/`, covering the V1 public-sharing
+policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
+birth dates, sensitive facilities, employer-linked organizations, and negative
+documents that must survive untouched. The header of that script records every
+labeling decision taken where the policy is open.
+
+Score the detector against it with:
+
+```bash
+python training/evaluate_gold.py --set both
+```
+
+The score is coverage-based (a span passes when all its alphanumeric characters
+are masked, whatever the entity label). Tune rules against **dev only**; run
+**test** at milestones — if test drops well below dev, the rules are memorizing
+the dev set. `--set all` adds **test2**, a fresh batch authored after the rules
+phase (the original test set absorbed five fixes from its first run, so test2
+is the cleaner generalization measurement — its own first blind run scored
+97.2%/100%, with one fix applied since). Current state: all three sets pass
+100% redact coverage / 100% keep.
+
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
 - `PERSON`
@@ -37,13 +70,17 @@ This creates `train.jsonl`, `dev.jsonl`, `regression_cases.jsonl`, and `REVIEW_C
 python training/train.py \
   --train training/data/private/train.jsonl \
   --dev training/data/private/dev.jsonl \
-  --output models/custom_ner
+  --output models/custom_ner_candidate
 
 python training/evaluate.py \
-  --model models/custom_ner \
+  --model models/custom_ner_candidate \
   --data training/data/private/dev.jsonl
 
 python training/validate_regression_cases.py
+python training/evaluate_gold.py --set all
+
+# Promote only after every check above passes:
+# rm -rf models/custom_ner && mv models/custom_ner_candidate models/custom_ner
 ```
 
 For a safe pipeline check with synthetic data only:

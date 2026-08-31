@@ -15,21 +15,21 @@ from config import (
     PRESIDIO_SCORE_FLOOR,
 )
 from recognizers import build_analyzer_registry, passes_entity_threshold
+import policy_rules
+
 
 class TextPIIDetector:
-    """Advanced text file PII detection with multiple redaction strategies"""
+    """Hybrid PII detection: Presidio + NER layers + the rule layer.
+
+    All regex patterns and context rules live in policy_rules.py; this class
+    owns the models, the pipeline order, deduplication, and redaction output.
+    """
     CUSTOM_ENTITY_TYPES = {
         "PERSON", "DATE_OF_BIRTH", "SENSITIVE_ORGANIZATION", "ADDRESS",
         "PHONE", "PHONE_RU", "SNILS", "INN", "BANK_ACCOUNT",
         "PAYMENT_CARD", "PASSPORT_NUMBER", "EMAIL", "EMAIL_ADDRESS", "BIC", "VIN",
         "LICENSE_PLATE", "POLICY_NUMBER", "STUDENT_ID",
     }
-
-    # A pattern anchored to an explicit label outranks a bare digit-run match over
-    # the same span: a labelled BIC beats a generic 9-digit SSN shape, and a
-    # labelled INN beats Presidio's 12-digit Aadhaar recognizer.
-    LABELLED_PATTERNS = {"bic", "inn_labelled"}
-    PATTERN_ENTITY_TYPES = {"inn_labelled": "INN"}
 
     def __init__(self, confidence_threshold=CONFIDENCE_THRESHOLD):
         """Initialize text PII detector with multiple NLP engines"""
@@ -72,30 +72,10 @@ class TextPIIDetector:
             "Morgan Wilson", "Riley Martinez", "Avery Garcia", "Quinn Anderson"
         ]
         
-        # Enhanced regex patterns for text-specific PII
-        self.text_patterns = {
-            'email_address': re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
-            'phone': re.compile(r'(?<!\w)(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})(?!\w)'),
-            'phone_ru': re.compile(r'(?<!\w)(?:(?:\+7|8)[\s-]?(?:\(\d{3,4}\)|\d{3,4})[\s-]?\d{2,3}[\s-]\d{2}[\s-]\d{2})(?!\w)'),
-            'ssn': re.compile(r'\b\d{3}[-.]?\d{2}[-.]?\d{4}\b'),
-            'snils': re.compile(r'\b\d{3}-\d{3}-\d{3}\s\d{2}\b'),
-            'inn': re.compile(r'\b\d{10}(?:\d{2})?\b'),
-            'inn_labelled': re.compile(r'\b(?:INN|ИНН)\s*:?\s*(?P<pii>\d{10}(?:\d{2})?)\b', re.IGNORECASE),
-            'bank_account': re.compile(r'\b[1-9]\d{19}\b'),
-            'payment_card': re.compile(r'\b\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}\b'),
-            'passport_number': re.compile(r'\b\d{2}\s\d{2}\sNo\.\s\d{6}\b', re.IGNORECASE),
-            'bic': re.compile(r'\b(?:BIC|БИК)\s*:?[\s]*(?P<pii>\d{9})\b', re.IGNORECASE),
-            'vin': re.compile(r'\b[A-HJ-NPR-Z0-9]{17}\b'),
-            'license_plate': re.compile(r'\b[A-Z]\s?\d{3}\s?[A-Z]{2}\s?\d{2,3}\b'),
-            'policy_number': re.compile(r'\b(?:policy|insurance\s+policy)\s+No\.?:?\s*(?P<pii>\d{2}(?:\s*\d{4}){3}\s*\d{2})\b', re.IGNORECASE),
-            'student_id': re.compile(r'\bstudent\s+ID\s+No\.?:?\s*(?P<pii>[A-Z]{2,10}-\d{4}-\d{4,})\b', re.IGNORECASE),
-            'credit_card': re.compile(r'\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'),
-            'ip_address': re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'),
-            'date_of_birth': re.compile(r'\b(?:date\s+of\s+birth|born|dob)\s*[:,-]?\s*(?P<pii>(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2})\b', re.IGNORECASE),
-            'sensitive_organization': re.compile(r'(?P<pii>(?:[A-Z][A-Za-z-]*\s+){0,5}(?:Hospital|Clinic|Polyclinic|Medical Center)(?:\s+No\.?\s*\d+)?)'),
-            'address_line': re.compile(r'\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Place|Pl)\b', re.IGNORECASE)
-        }
-        
+        # All patterns live in policy_rules; kept as an attribute for
+        # callers and tests that iterate detector.text_patterns.
+        self.text_patterns = policy_rules.TEXT_PATTERNS
+
         print("✅ Text PII Detector ready!")
     
     def read_text_file(self, file_path):
@@ -180,31 +160,8 @@ class TextPIIDetector:
             return []
     
     def detect_pii_regex(self, text):
-        """Detect PII using regex patterns"""
-        regex_results = []
-        
-        for pii_type, pattern in self.text_patterns.items():
-            matches = pattern.finditer(text)
-            for match in matches:
-                # Context patterns retain their surrounding text for matching,
-                # but only the named PII span should be redacted.
-                start, end = match.span('pii') if 'pii' in match.re.groupindex else match.span()
-                if pii_type == 'sensitive_organization':
-                    # Do not include a sentence verb such as “Visit” merely
-                    # because it is capitalized at the beginning of a sentence.
-                    leading = re.match(r'(?i)^(?:visit|at|the|from|to|for)\s+', text[start:end])
-                    if leading:
-                        start += leading.end()
-                regex_results.append({
-                    'entity_type': self.PATTERN_ENTITY_TYPES.get(pii_type, pii_type.upper()),
-                    'start': start,
-                    'end': end,
-                    'score': 1.1 if pii_type in self.LABELLED_PATTERNS else 1.0,
-                    'text': text[start:end],
-                    'source': 'regex'
-                })
-        
-        return regex_results
+        """Detect PII using the pattern rules (see policy_rules.py)."""
+        return policy_rules.run_pattern_rules(text)
 
     def detect_pii_custom_model(self, text):
         """Detect project-specific PII categories using the local custom model."""
@@ -250,11 +207,20 @@ class TextPIIDetector:
         regex_results = self.detect_pii_regex(text)
         all_results.extend(regex_results)
 
-        # 5. Remove duplicates (same entity detected by multiple methods)
+        # 5. Policy filters: context requirements for NER spans, pronouns, times.
+        all_results = policy_rules.apply_policy_filters(all_results, text)
+
+        # 5b. A detected name marks every other occurrence of the same text:
+        # a person found on the "Patient:" line is the same person in prose.
+        all_results.extend(policy_rules.echo_person_names(all_results, text))
+
+        # 6. Remove duplicates (same entity detected by multiple methods)
         unique_results = self.deduplicate_results(all_results, text)
-        
-        return unique_results
-    
+
+        # 7. When an explicit ID label precedes a span, the label decides the
+        # entity type (policy: the abbreviation before a number is analyzed).
+        return policy_rules.relabel_by_id_context(unique_results, text)
+
     def deduplicate_results(self, results, text):
         """Keep the strongest non-overlapping, single-line detections."""
         candidates = []
@@ -272,14 +238,20 @@ class TextPIIDetector:
                 continue
             if result.get('entity_type') == 'DATE_OF_BIRTH':
                 context = text[max(0, start - 40):start]
-                if not re.search(r'(?i)(?:born|date\s+of\s+birth|birth\s+date|dob)\s*[:,-]?\s*$', context):
+                if not policy_rules.DOB_CONTEXT.search(context):
                     continue
             candidates.append({**result, 'text': span})
 
+        # On an exact score/span tie, Presidio's country-specific label beats a
+        # generic regex label — an explicit rule, not an accident of sort order.
+        source_rank = {'presidio': 0, 'regex': 1, 'custom_ner': 2, 'spacy': 3, 'echo': 4}
+        # Scores are rounded so Presidio's context-boost arithmetic (0.4499…)
+        # still ties with an intentionally score-matched pattern.
         ranked = sorted(candidates, key=lambda item: (
-            -item.get('score', 0),
+            -round(item.get('score', 0), 3),
             -(item['end'] - item['start']),
             item['start'],
+            source_rank.get(item.get('source'), 5),
         ))
         selected = []
         for result in ranked:

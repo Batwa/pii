@@ -37,7 +37,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", default="training/data/seed_train.jsonl")
     parser.add_argument("--dev", default="training/data/seed_dev.jsonl")
-    parser.add_argument("--output", default="models/custom_ner")
+    # Deliberately NOT models/custom_ner: the detector auto-loads that path, so
+    # training straight into it would silently change production behavior.
+    # Promote a candidate by moving it there after evaluation passes.
+    parser.add_argument("--output", default="models/custom_ner_candidate")
     parser.add_argument("--base-model", default="en_core_web_lg")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
