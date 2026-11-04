@@ -121,6 +121,13 @@ One JSON object per line (JSONL):
 
 - `python training/evaluate_gold.py --set both` — coverage-based scoring
   against the human-gold corpus. Tune on dev; run test at milestones only.
+- `python training/evaluate_model_gold.py --model <path> --set all` — the same
+  gold corpus, but the NER model alone, scored on the four model entities only.
+  This is the number that decides whether a candidate can be promoted or the
+  keyword gate on its spans relaxed; the full-pipeline score hides the model.
+- `python training/evaluate.py --model <path> --data <jsonl>` — exact-span
+  precision/recall/F1 per label on a labeled JSONL set, with every mismatch
+  sorted into MISSED / SPURIOUS / BOUNDARY / LABEL.
 - `python training/validate_regression_cases.py` — exact-identifier suite.
 - `python training/train.py --output models/custom_ner_candidate` — never
   train directly into `models/custom_ner`; the detector auto-loads that path.

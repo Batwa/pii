@@ -32,4 +32,4 @@ data/output/
 
 # Private annotation sets and locally trained models must not be published.
 training/data/private/
-models/custom_ner/
+models/custom_ner*/
