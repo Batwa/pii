@@ -14,6 +14,14 @@ CUSTOM_NER_MODEL = os.environ.get(
     "CUSTOM_NER_MODEL",
     os.path.join(PROJECT_ROOT, "models", "custom_ner"),
 )
+# Custom-model spans the pipeline trusts as they come. SENSITIVE_ORGANIZATION
+# is deliberately absent: a facility still needs a keyword in its own text
+# (clinic, school, ...) because that is the label a small model over-fires on.
+# Until 2026-11-04 the live model was the 16-example seed model and only
+# DATE_OF_BIRTH was trusted; the candidate trained on the generated corpus earned
+# PERSON and ADDRESS on the model-only gold run (training/README.md). Widen this
+# only with a measured training/evaluate_model_gold.py run for the new model.
+CUSTOM_MODEL_TRUSTED_LABELS = frozenset({"DATE_OF_BIRTH", "PERSON", "ADDRESS"})
 
 # Country ID recognizers that ship with Presidio but are disabled in its default
 # registry. Presidio's own YAML loader cannot instantiate all of these (it always

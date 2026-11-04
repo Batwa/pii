@@ -20,7 +20,7 @@ decisions recorded in training/build_gold_corpus.py).
 """
 import re
 
-from config import PRONOUNS_ALWAYS, PRONOUNS_NEAR_PERSON, PERSON_PROXIMITY_CHARS
+from config import PRONOUNS_ALWAYS, PRONOUNS_NEAR_PERSON, PERSON_PROXIMITY_CHARS, CUSTOM_MODEL_TRUSTED_LABELS
 
 # =========================================================================
 # 1. Shared vocabulary
@@ -61,7 +61,7 @@ TITLE_PREFIX = re.compile(
     r'(?i)\b(?:position\s+of|as\s+an?|title\s+of)\s+(?:[A-Z][a-z]+\s+){0,2}$')
 # A date is a DOB only with an explicit birth label directly before it.
 DOB_CONTEXT = re.compile(
-    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|dob)\s*[:,-]?\s*$')
+    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|d\.?o\.?b\.?)\s*[:,-]?\s*$')
 
 # When an ID label sits directly before a number, the label decides the type —
 # policy page 3. Fixes checksum collisions such as a Luhn-valid Canadian SIN
@@ -306,9 +306,11 @@ def apply_policy_filters(results, text):
         sentence = sentence_around(text, result['start'], result['end'])
         prefix = text[max(0, result['start'] - 32):result['start']]
 
-        # The 16-example custom model over-fires on ordinary proper nouns;
-        # trust it only for facilities its keywords can corroborate.
-        if source == 'custom_ner' and entity != 'DATE_OF_BIRTH' \
+        # Custom-model spans are trusted for the labels the live model has
+        # earned on the model-only gold run (config.CUSTOM_MODEL_TRUSTED_LABELS).
+        # Anything else — in practice SENSITIVE_ORGANIZATION — still needs a
+        # facility keyword in its text, the label a small model over-fires on.
+        if source == 'custom_ner' and entity not in CUSTOM_MODEL_TRUSTED_LABELS \
                 and not SENSITIVE_ORG_KEYWORDS.search(result['text']):
             continue
         # The document's own letterhead organization stays visible — whichever
@@ -335,7 +337,7 @@ def apply_policy_filters(results, text):
                 continue
         # The NER layers also mislabel single title words as people ("as a
         # Senior Dispatcher"); a real name never follows a title introducer.
-        if entity == 'PERSON' and source in ('spacy', 'presidio') \
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
                 and ' ' not in result['text'] and TITLE_PREFIX.search(prefix):
             continue
         # A standalone city/region stays; redact only in residence context

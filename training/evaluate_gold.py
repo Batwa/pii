@@ -6,6 +6,10 @@ every occurrence lies inside some detected span — the label does not need to
 match, because the product outcome is whether the text is masked. A must_keep
 span fails when any detected span overlaps any of its occurrences.
 
+A detected span that touches neither kind of gold item is reported as a STRAY.
+The keep score alone cannot see redactions of unlisted text, so the stray count
+is what makes over-redaction visible.
+
 Matching is case-insensitive on word boundaries and counts ALL occurrences, so
 short gold strings such as pronouns cover every instance in the document.
 """
@@ -49,7 +53,7 @@ def covered(span, text, detected):
 
 def evaluate(detector, docs_path, cases_path, verbose=True):
     docs = {r["source_file"]: r["text"] for r in read_jsonl(docs_path)}
-    redact_pass = redact_fail = keep_pass = keep_fail = 0
+    redact_pass = redact_fail = keep_pass = keep_fail = strays = 0
     by_label = defaultdict(lambda: [0, 0])  # label -> [pass, fail]
     failures = []
 
@@ -57,10 +61,12 @@ def evaluate(detector, docs_path, cases_path, verbose=True):
         text = docs[case["source_file"]]
         detections = detector.comprehensive_pii_detection(text)
         spans = [(d["start"], d["end"]) for d in detections]
+        listed = []  # every occurrence of every gold item, PII or keep
 
         for item in case.get("must_redact", []):
             label = item.get("label", "?")
             occ = occurrences(item["text"], text)
+            listed.extend(occ)
             bad = [o for o in occ if not covered(o, text, spans)]
             if bad:
                 redact_fail += 1
@@ -75,6 +81,7 @@ def evaluate(detector, docs_path, cases_path, verbose=True):
 
         for item in case.get("must_keep", []):
             occ = occurrences(item["text"], text)
+            listed.extend(occ)
             hit = None
             for o_start, o_end in occ:
                 for d in detections:
@@ -91,6 +98,13 @@ def evaluate(detector, docs_path, cases_path, verbose=True):
             else:
                 keep_pass += 1
 
+        for d in detections:
+            if not any(d["start"] < o_end and d["end"] > o_start
+                       for o_start, o_end in listed):
+                strays += 1
+                failures.append(("STRAY", case["source_file"], d["entity_type"],
+                                 d["text"], f"by {d['source']}, touches no gold item"))
+
     if verbose:
         for kind, source_file, label, text, detail in failures:
             print(f"{kind}  {source_file:28} {label:16} {text!r:34} {detail}")
@@ -103,7 +117,8 @@ def evaluate(detector, docs_path, cases_path, verbose=True):
     recall = redact_pass / total_redact if total_redact else 1.0
     keep_rate = keep_pass / total_keep if total_keep else 1.0
     print(f"\nredact coverage: {redact_pass}/{total_redact} ({recall:.1%})   "
-          f"keep intact: {keep_pass}/{total_keep} ({keep_rate:.1%})")
+          f"keep intact: {keep_pass}/{total_keep} ({keep_rate:.1%})   "
+          f"stray spans: {strays}")
     return recall, keep_rate, failures
 
 

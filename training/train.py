@@ -47,6 +47,9 @@ def main():
     args = parser.parse_args()
 
     random.seed(args.seed)
+    # Also seed numpy/thinc: without this two runs with the same --seed give
+    # different models, and candidate comparisons measure noise.
+    spacy.util.fix_random_seed(args.seed)
     train_data = load_examples(args.train)
     dev_data = load_examples(args.dev)
     nlp = spacy.load(args.base_model)

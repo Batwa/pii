@@ -9,6 +9,26 @@ model's entities; rules already beat the model on everything formatted.
 auto-loads `models/custom_ner`, so promote a candidate there only after
 `evaluate.py` and the gold suites pass.
 
+## Generated training corpus
+
+`generate_training_corpus.py` writes `training/data/generated/{train,dev}.jsonl`
+plus `*_decoys.jsonl` (the strings that must stay unlabeled): fully synthetic,
+labeled with the four model entities only, every span occurring exactly once in
+its document, train and dev drawn from disjoint name/street/city/facility pools,
+one document in five without entities. Round 1 (seed 20260831) is 400 train /
+40 dev documents across 19 positive and 4 negative genres and went through the
+first adjudication round (`review_sample.jsonl`, 107 checks). Round 2
+(2026-11-04, seed 20261104, appended so round 1 stays byte-identical) adds 120
+train / 12 dev documents in the layouts the first candidate mislabeled on gold:
+résumés with skill lists and year ranges, CVs with language lists, school
+records with grades, motor claims with vehicle models, e-mail threads with a
+weekday before the quoted author, chat greetings, names in running prose or by
+first name only, intake forms with lowercase birth labels, and two negative
+genres (job postings, vehicle listings). Round 2 has not been through an
+adjudication round yet; `build_review_sample.py` samples the whole corpus and
+overwrites `review_sample.jsonl`, so write a round-2 sample to a different file
+before re-running it.
+
 ## Human-gold evaluation corpus
 
 `build_gold_corpus.py` authors 40 fully synthetic labeled documents (25 dev /
@@ -33,44 +53,71 @@ is the cleaner generalization measurement — its own first blind run scored
 97.2%/100%, with one fix applied since). Current state: all three sets pass
 100% redact coverage / 100% keep.
 
-## First NER candidate (2026-11-04)
+## NER candidates and the custom-model gate (2026-11-04)
 
-`train.py` on the generated corpus (400 train / 40 dev documents, 20 epochs,
-seed 42, about 2.5 minutes on CPU) produced the first candidate trained on more
-than the 16 seed examples. The live model is still that seed model: it has no
-`ADDRESS` label at all, and `policy_rules.py` discards everything it emits
-except birth dates and keyword-matching facilities. Measured with the two
-evaluators described below:
+Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
+minutes on CPU each) and compared with the 16-example seed model that had been
+live since the first release. Candidate 1 saw the 440 round-1 documents;
+candidate 2 saw those plus the 132 round-2 documents described above. Model
+alone, on the gold corpus (89 model-entity items and 267 must-keep phrases over
+50 documents):
 
-| | live `models/custom_ner` | candidate |
-|---|---|---|
-| generated dev, exact-span F1 (72 spans) | 51.7% | 98.6% (one ADDRESS boundary error) |
-| gold, model alone: redact coverage (89 model-entity items, 50 docs) | 71 (79.8%) | 84 (94.4%) |
-| gold, model alone: keep intact (267 phrases) | 209 (78.3%) | 258 (96.6%) |
-| gold, model alone: stray spans | 20 | 1 |
-| gold, ADDRESS covered under the right label (23) | 0 | 23 |
-| gold, DOB covered (8) | 4 | 7 |
-| gold, PERSON covered (56) | 52 | 52 |
-| held-out only (test + test2): coverage / keep / strays | 35/41, 106/132, 9 | 39/41, 129/132, 0 |
+| | seed model | candidate 1 | candidate 2 (promoted) |
+|---|---|---|---|
+| generated dev, exact-span F1 | 51.7% | 98.6% | 98.9% |
+| redact coverage | 71 (79.8%) | 84 (94.4%) | 82 (92.1%) |
+| keep intact | 209 (78.3%) | 258 (96.6%) | 264 (98.9%) |
+| stray spans | 20 | 1 | 0 |
+| ADDRESS under the right label (23) | 0 | 23 | 23 |
+| held-out only (test + test2): coverage / keep / strays | 35/41, 106/132, 9 | 39/41, 129/132, 0 | 36/41, 131/132, 0 |
 
-Plugged into the full detector (`CUSTOM_NER_MODEL=models/custom_ner_candidate`)
-the candidate changes nothing: all three gold sets stay at 100% / 100% and both
-regression suites pass, because the gate hides the model. Promotion is
-therefore safe but pointless until the gate is relaxed for it.
+Candidate 1's over-redactions were all CV-style layouts: skill and language
+lists as organizations, a year range and a grade as birth dates, a weekday
+swallowed into a name, a car model as a person. Round 2 removed every one of
+them. Candidate 2 pays with recall: it misses three held-out names candidate 1
+found, all in running prose. Training was not seeded end to end for these runs
+(`train.py` now calls `spacy.util.fix_random_seed`), so part of that difference
+may be run-to-run noise. The generated-dev F1 is inflated either way: dev
+shares its templates with train and the loss is near zero from epoch 5.
 
-Read the generated-dev F1 with care: dev shares its templates with train and
-the loss is near zero from epoch 5, so that number mostly measures
-memorization. The model-only gold score is the honest one, and its remaining
-errors all come from layouts the templates never produce: skill lists
-("Python, SQL") and language lists ("Dutch, English, French") labeled
-`SENSITIVE_ORGANIZATION`; a year range ("2019-2023") and a grade ("4.6 of 5.0")
-labeled `DATE_OF_BIRTH`; a weekday swallowed into a name ("Monday Aisha
-Bello"); a car model as `PERSON`; and five misses (four names, one birth date).
+### The gate
 
-Next steps, in order: add those decoys and layouts to
-`generate_training_corpus.py` and retrain; then relax the custom-model gate in
-`policy_rules.py` for PERSON and ADDRESS and re-measure with
-`evaluate_model_gold.py` and the full gold suite.
+`policy_rules.py` used to discard every custom-model span except birth dates
+and keyword-matching facilities; with the seed model that was the only safe
+setting. The gate now trusts the labels in `config.CUSTOM_MODEL_TRUSTED_LABELS`
+(`DATE_OF_BIRTH`, `PERSON`, `ADDRESS`); `SENSITIVE_ORGANIZATION` still needs a
+facility keyword, and the job-title filter now applies to custom-model PERSON
+spans too. Full pipeline with the relaxed gate, all three gold sets:
+
+| live model | coverage | keep intact | stray spans |
+|---|---|---|---|
+| seed model | 100% | 265/267 (two city names redacted as people) | 5 |
+| candidate 1 | 100% | 266/267 (a car model redacted as a person) | 5 |
+| candidate 2 | 100% | 267/267 | 5 |
+
+The five strays are the same five as under the old gate and belong to the rule
+layer, not the model: "them" and "their" far from any person, "price" caught by
+the apartment pattern, and "Pallet" / "Meter" from general NER. Candidate 2 is
+the only model safe behind the relaxed gate, so it was promoted to
+`models/custom_ner` on 2026-11-04; the seed model is kept locally as
+`models/custom_ner_seed16`. The private regression suite, the international
+suite and the unit tests all pass with it.
+
+On gold the relaxed gate changes no score, because rules and general NER already
+cover every listed item there. Its purpose is real documents: on the 20
+private-suite documents it newly masks text in 11 of them, 73 alphanumeric
+characters under `PERSON` and 39 under `ADDRESS` that nothing else had covered,
+while the suite's 70 identifiers and keep checks still pass. Those additions
+have not been hand-reviewed; diff the redacted private documents before relying
+on them.
+
+### Next steps
+
+1. A fresh blind gold batch (test3): round 2 was driven by dev and test
+   failures, and test2's reference-letter miss is a known target now too.
+2. PERSON recall in running prose: more prose genres, more epochs, or a second
+   seed to separate signal from noise now that training is seeded.
+3. The five rule-layer strays above.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
@@ -130,8 +177,11 @@ every mismatch into MISSED, SPURIOUS, BOUNDARY or LABEL. `evaluate_model_gold.py
 runs the model **alone** on the human-gold corpus and scores only the four
 model entities, plus the must-keep phrases it touches and the stray spans that
 touch no gold item at all. The full-pipeline gold score cannot judge a model:
-`policy_rules.py` discards every custom-model span except birth dates and
-keyword-matching facilities, so a bad model and a good one score the same there.
+rules and general NER already cover the gold items, and `policy_rules.py` admits
+custom-model spans only for the labels in `config.CUSTOM_MODEL_TRUSTED_LABELS`,
+so a weak model hides behind the rules there. `evaluate_gold.py` also reports
+stray spans (detections touching no gold item), the over-redaction signal the
+keep score alone cannot see.
 
 For a safe pipeline check with synthetic data only:
 

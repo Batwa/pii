@@ -120,7 +120,8 @@ One JSON object per line (JSONL):
 ## Evaluation
 
 - `python training/evaluate_gold.py --set both` — coverage-based scoring
-  against the human-gold corpus. Tune on dev; run test at milestones only.
+  against the human-gold corpus, plus the stray-span count (detections that
+  touch no gold item). Tune on dev; run test at milestones only.
 - `python training/evaluate_model_gold.py --model <path> --set all` — the same
   gold corpus, but the NER model alone, scored on the four model entities only.
   This is the number that decides whether a candidate can be promoted or the
