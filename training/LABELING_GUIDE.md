@@ -48,7 +48,11 @@ One JSON object per line (JSONL):
 ### SENSITIVE_ORGANIZATION
 - Facilities whose mention alone reveals something about a person: clinics,
   hospitals, polyclinics, hospices, shelters, schools, colleges, universities,
-  medical/support/health/care centers.
+  institutes, academies, medical/support/health/care/wellbeing/wellness/
+  counselling/rehabilitation centers (either spelling), counselling services.
+  The runtime keyword list (`SENSITIVE_ORG_KEYWORDS`) mirrors this line; a
+  facility type missing from both is a miss, not a policy exception (test3,
+  2026-11-04: Institute, Academy, Wellbeing Centre).
 - Label THIRD-PARTY mentions only: "referred to X", "treated at X",
   "Education: X", "attached to X".
 - Do NOT label the organization that authored the document — its own
@@ -60,7 +64,9 @@ One JSON object per line (JSONL):
 
 ### ADDRESS
 - Label the full home/work address on one line: street, apartment, city,
-  postal code ("17 Maple Crescent, Apt 3B, Springfield, IL 62704").
+  postal code ("17 Maple Crescent, Apt 3B, Springfield, IL 62704"). A flat or
+  apartment designator may precede the street ("Flat 6, 28 Harbour Lane") and
+  is still part of the same address.
 - Standalone city names stay visible ("the Leeds ring road", "the Katowice
   warehouse", "our Frankfurt branch") — but a travel destination ("arrival
   Lisbon") is redacted by a context rule; either way it is never labeled.
@@ -68,7 +74,8 @@ One JSON object per line (JSONL):
 
 ### DATE_OF_BIRTH
 - Only the date value, only when a birth label is nearby: "born", "DOB",
-  "date of birth". Numeric and worded forms both count ("5 May 1994").
+  "d.o.b.", "date of birth", "birth date". Numeric, ISO ("1983-07-19") and
+  worded forms ("5 May 1994") all count.
 - Issue dates, appointment dates, contract dates, hearing dates stay visible.
 
 ## Keep rules (must NOT be labeled, and must survive redaction)
@@ -103,6 +110,11 @@ One JSON object per line (JSONL):
    tracked. Batch numbers stay visible (verdict on S003/S036 vs S046/S061).
 8. A city as a person's travel destination redacts ("arrival Gdansk");
    warehouse/branch/hub cities stay (verdict on S014 vs S005/S006/S084).
+9. A customer/member/account number given in a chat reply is that person's
+   identifier even when its label sits in the previous message ("Could you
+   give me the customer number?" / "Sure, CU-104772."). Labeled so in gold
+   test3 (2026-11-04); no rule implements it yet, because a bare prefixed
+   code with no label beside it is indistinguishable from a thing-ID.
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 

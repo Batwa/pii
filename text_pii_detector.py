@@ -30,6 +30,7 @@ class TextPIIDetector:
         "PAYMENT_CARD", "PASSPORT_NUMBER", "EMAIL", "EMAIL_ADDRESS", "BIC", "VIN",
         "LICENSE_PLATE", "POLICY_NUMBER", "STUDENT_ID",
     }
+    ADDRESS_ENTITY_TYPES = {"ADDRESS", "ADDRESS_LINE"}
 
     def __init__(self, confidence_threshold=CONFIDENCE_THRESHOLD):
         """Initialize text PII detector with multiple NLP engines"""
@@ -241,6 +242,18 @@ class TextPIIDetector:
                 if not policy_rules.DOB_CONTEXT.search(context):
                     continue
             candidates.append({**result, 'text': span})
+
+        # An address candidate nested inside a longer address candidate yields
+        # to it: the regex apartment designator ("Flat 2", score 1.0) must not
+        # outrank the model's full address line that contains it (score 0.95),
+        # or the street, city and postcode around it would surface unmasked.
+        address_spans = [(c['start'], c['end']) for c in candidates
+                         if c['entity_type'] in self.ADDRESS_ENTITY_TYPES]
+        candidates = [c for c in candidates
+                      if c['entity_type'] not in self.ADDRESS_ENTITY_TYPES
+                      or not any(s <= c['start'] and c['end'] <= e
+                                 and (e - s) > (c['end'] - c['start'])
+                                 for s, e in address_spans)]
 
         # On an exact score/span tie, Presidio's country-specific label beats a
         # generic regex label — an explicit rule, not an accident of sort order.

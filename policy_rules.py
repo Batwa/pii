@@ -31,14 +31,22 @@ _MONTHS = (r"(?:January|February|March|April|May|June|July|August|September"
 
 # Facility words that mark an organization as sensitive under the policy
 # (clinics, hospitals, schools, shelters). Deliberately case-sensitive so prose
-# such as "the service center" or "the school office" stays untouched.
-SENSITIVE_ORG_KEYWORDS = re.compile(
-    r"\b(?:Hospital|Clinic|Polyclinic|Hospice|Shelter|School|College|University"
-    r"|(?:Medical|Support|Health|Care)\s+Cent(?:er|re))\b"
+# such as "the service center" or "the school office" stays untouched. Institute,
+# Academy, the British "Centre" compounds and counselling services were added
+# after the test3 blind run (2026-11-04), where the model had found all three
+# such facilities and this list threw them away.
+_FACILITY_WORDS = (
+    r"Hospital|Clinic|Polyclinic|Hospice|Shelter|School|College|University"
+    r"|Institute|Academy"
+    r"|(?:Medical|Support|Health|Care|Wellbeing|Wellness|Counsell?ing"
+    r"|Rehabilitation)[ \t]+Cent(?:er|re)"
+    r"|Counsell?ing[ \t]+Service"
 )
+SENSITIVE_ORG_KEYWORDS = re.compile(r"\b(?:" + _FACILITY_WORDS + r")\b")
 # A detected organization is redacted only when the document ties a person to it.
 EMPLOYMENT_CONTEXT = re.compile(
-    r"(?i)\b(?:employ\w*|works?\b|worked|working|hired|joined|staff|salary"
+    r"(?i)\b(?:employ\w*|works?\b|worked|working(?!\s+(?:days?|hours?|weeks?|time)\b)"
+    r"|hired|joined|staff|salary"
     r"|payroll|position|internship|colleague|report(?:s|ed)?\s+to|offer\s+you)"
 )
 # "Engineer at Helix Dynamics" — a role followed by at/joins directly before it.
@@ -46,7 +54,7 @@ ORG_AT_PREFIX = re.compile(r"(?i)\b(?:at|joins?|joining)\s+[\"'“]?\s*$")
 # A detected city/region is redacted only in a residence or work-address context.
 RESIDENCE_CONTEXT = re.compile(
     r"(?i)\b(?:resid\w*|lives?\s+in|living\s+in|address|registered\s+at|home"
-    r"|apt\.?|apartment|unit\s+\d|premises|office\s+at|headquarters\s+at)\b"
+    r"|apt\.?|apartment|unit\s+\d|flat\s+\d|premises|office\s+at|headquarters\s+at)\b"
 )
 # A city as a person's journey destination is redacted (review verdict S014);
 # operational locations — warehouses, branches, hubs — stay visible, so the
@@ -83,6 +91,10 @@ TEXT_PATTERNS = {
     # The final separator is mandatory: a bare 10-digit run (batch code,
     # reference number) is not a phone under the policy.
     'phone': re.compile(r'(?<!\w)(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]([0-9]{4})(?!\w)'),
+    # International form: a leading "+", the country code, then at least two
+    # separated digit groups. The "+" is mandatory so amounts and references
+    # never qualify (test3 finding, 2026-11-04).
+    'phone_intl': re.compile(r'(?<!\w)\+\d{1,3}(?:[ .-]\(?\d{2,6}\)?){2,4}(?!\w)'),
     'phone_ru': re.compile(r'(?<!\w)(?:(?:\+7|8)[\s-]?(?:\(\d{3,4}\)|\d{3,4})[\s-]?\d{2,3}[\s-]\d{2}[\s-]\d{2})(?!\w)'),
 
     # --- government and financial identifiers (policy: always redact) ---
@@ -110,7 +122,13 @@ TEXT_PATTERNS = {
     # --- person-linked labelled identifiers (policy: customer/account/member/
     # student/patient IDs redact; thing-IDs such as order, invoice, tracking,
     # serial, batch, and flight numbers stay) ---
-    'policy_number': re.compile(r'\b(?:policy|insurance\s+policy)\s+No\.?:?\s*(?P<pii>\d{2}(?:\s*\d{4}){3}\s*\d{2})\b', re.IGNORECASE),
+    # Separators are space/tab/hyphen only, never \s, so the value cannot run
+    # onto the next line. The letter prefix ("POL 4471 9920 36") came from
+    # the test3 blind run.
+    'policy_number': re.compile(
+        r'\b(?:policy|insurance\s+policy)\s+(?:No\.?|number|#)\s*:?\s*'
+        r'(?P<pii>(?:[A-Z]{2,4}[ \t-]?)?\d{2,4}(?:[ \t-]\d{2,4}){1,4}|[A-Z]{0,4}[ \t-]?\d{6,12})\b',
+        re.IGNORECASE),
     'student_id': re.compile(r'\bstudent\s+ID\s+No\.?:?\s*(?P<pii>[A-Z]{2,10}-\d{4}-\d{4,})\b', re.IGNORECASE),
     'generic_id': re.compile(
         r'\b(?:customer|client|member|patient|employee|student|account'
@@ -134,8 +152,9 @@ TEXT_PATTERNS = {
     # Month-day-year, day-month-year, and worded forms ("5 May 1994",
     # "March 3, 1985"), each anchored to an explicit birth label.
     'date_of_birth': re.compile(
-        r'\b(?:date\s+of\s+birth|born(?:\s+on)?|dob)\s*[:,-]?\s*(?:the\s+)?(?P<pii>'
-        r'(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2}'
+        r'\b(?:date\s+of\s+birth|birth\s+date|born(?:\s+on)?|d\.?o\.?b\.?)\s*[:,-]?\s*(?:the\s+)?(?P<pii>'
+        r'(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])'
+        r'|(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2}'
         r'|(?:0?[1-9]|[12][0-9]|3[01])[-/.](?:0?[1-9]|1[0-2])[-/.](?:19|20)\d{2}'
         r'|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?' + _MONTHS + r',?\s+(?:19|20)\d{2}'
         r'|' + _MONTHS + r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+(?:19|20)\d{2}'
@@ -146,8 +165,8 @@ TEXT_PATTERNS = {
     # unrelated heading from the previous line.
     'sensitive_organization': re.compile(
         r"(?P<pii>(?:[A-Z][\w.'’-]*[ \t]+){0,5}"
-        r"(?:Hospital|Clinic|Polyclinic|Hospice|Shelter|School|College|University"
-        r"|(?:Medical|Support|Health|Care)[ \t]+Cent(?:er|re))"
+        r"(?:" + _FACILITY_WORDS + r")"
+        r"(?:[ \t]+of[ \t]+[A-Z][\w-]+(?:[ \t]+(?:and[ \t]+)?[A-Z][\w-]+){0,2})?"
         r"(?:[ \t]+No\.?[ \t]*\d+)?)"),
     # The word-boundary before the street-type alternation is load-bearing:
     # without it "...of the contraCT" and "...with standaRD" match.
@@ -155,10 +174,14 @@ TEXT_PATTERNS = {
         r"\b\d+\s+[A-Za-z][A-Za-z\s'’]{0,40}?"
         r'\b(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr'
         r'|Court|Ct|Place|Pl|Crescent|Grove|Walk|Rise|Row|Terrace|Way|Close'
-        r'|Prospekt|House|Gardens|Mews)\b', re.IGNORECASE),
-    # Apartment/unit designators that follow the street line. The \b after
-    # the keyword keeps "unit" from matching inside "units".
-    'apt_unit': re.compile(r'\b(?:apt|apartment|unit|suite)\b\.?\s*#?\s*(?P<pii>[A-Za-z0-9-]{1,6})\b', re.IGNORECASE),
+        r'|Prospekt|House|Gardens|Mews|Hill|Yard|Square|Quay|Parade|Heights)\b',
+        re.IGNORECASE),
+    # Apartment/unit designators, before or after the street line; the span
+    # includes the designator word so "Flat 6" ahead of its street is masked
+    # whole. The \b after the keyword keeps "unit" from matching inside
+    # "units"; the digit lookahead keeps "unit price" and "flat rate" from
+    # yielding a designator.
+    'apt_unit': re.compile(r'\b(?P<pii>(?:apt|apartment|unit|suite|flat)\b\.?\s*#?\s*(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{1,6})\b', re.IGNORECASE),
 
     # --- pronouns and times (policy: third-person pronouns redact; times only
     # together with a person) ---
@@ -199,20 +222,23 @@ LABELLED_PATTERNS = {"bic", "inn_labelled", "generic_id", "group_class",
                      "student_id", "policy_number", "serial_number",
                      "order_number"}
 PATTERN_ENTITY_TYPES = {"inn_labelled": "INN", "apt_unit": "ADDRESS_LINE",
+                        "phone_intl": "PHONE",
                         "pronoun_group": "PRONOUN_GROUP",
                         "labelled_person": "PERSON", "chat_speaker": "PERSON",
                         "quoted_author": "PERSON",
                         "greeting_name": "GREETING_NAME",
                         "passport_labelled": "PASSPORT_NUMBER"}
-# Matches the IN_PASSPORT threshold: ties go to the country recognizer.
-PATTERN_SCORES = {"passport_labelled": 0.45}
+# Matches the IN_PASSPORT threshold: ties go to the country recognizer. The
+# international phone scores just under the country-specific phone patterns, so
+# "+7 (495) ..." keeps its PHONE_RU label when both match.
+PATTERN_SCORES = {"passport_labelled": 0.45, "phone_intl": 0.99}
 
 # Comma-separated segments that may legitimately continue a street address.
 # State-zip and postcode forms come before the bare city-name form, which
 # would otherwise swallow the state letters and strand the zip code.
 _ADDRESS_SEGMENT = re.compile(
     r'^,[ \t]*(?:'
-    r'(?i:apt|apartment|unit|suite)\.?[ \t]*#?[ \t]*[A-Za-z0-9-]{1,6}'  # Apt 4B
+    r'(?i:apt|apartment|unit|suite|flat)\.?[ \t]*#?[ \t]*(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{1,6}'  # Apt 4B
     r'|[A-Z]{2}[ \t]?\d{4,5}(?:-\d{4})?'                          # IL 62704
     r'|[A-Z]{1,2}\d{1,2}[A-Z]?[ \t]\d[A-Z]{2}'                    # BS1 4ND
     r'|[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?'                          # city name

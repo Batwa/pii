@@ -53,8 +53,9 @@ before any fix: **test** (15 docs; its first run absorbed five fixes),
 round 2 targeted its reference-letter miss, so it is no longer blind for prose
 names), and **test3** (13 docs, authored 2026-11-04 after candidate 2 and the
 gate change). `--set all` runs all four. Current state: dev, test and test2 at
-100% coverage / 100% keep; test3's blind run is recorded below and nothing has
-been fixed against it yet.
+100% coverage / 100% keep; test3 at 97.4% / 99.0% after the fixes recorded
+below, so it counts as semi-dev now and the next blind measurement needs a
+test4.
 
 ### test3 blind run (2026-11-04)
 
@@ -91,6 +92,31 @@ IBAN and UK postcodes; serial and order numbers redacted with the tracking
 number kept; the travel-destination city redacted with the nationality kept;
 the weekday before a quoted author, chat greetings, skill and language lists,
 the year range and the GPA all kept.
+
+### Fixes applied against test3 (2026-11-04)
+
+Applied the same day, so test3 is semi-dev like test and test2. Rule changes
+in `policy_rules.py`: the facility vocabulary gains Institute, Academy, the
+Wellbeing / Wellness / Counselling / Rehabilitation Centre compounds and
+Counselling Service, shared by the regex and the model-span gate, with an
+optional "of Technology" tail; an international phone pattern with a mandatory
+leading "+", scored just under the country-specific patterns so "+7 (495) ..."
+keeps its PHONE_RU label; the ISO form and the "d.o.b." / "birth date" labels
+in the birth-date rule; a letter prefix in the policy-number rule; "flat" as an
+apartment designator whose value must carry a digit, which also removed the
+"unit price" stray on dev; Hill, Yard, Square, Quay, Parade and Heights as
+street types; and "working days/hours" no longer counts as employment context.
+In `text_pii_detector.py`, an address candidate nested inside a longer address
+candidate now yields to it: the first version of the "flat" rule produced a
+"Flat 2" span that outranked the model's full address line and exposed the
+street, city and postcode around it.
+
+Result: test3 67/76 → 74/76 (97.4%), keep 102/103 unchanged, strays 1 → 0;
+dev strays 5 → 4; test and test2 unchanged at 100% / 100%; both regression
+suites and the unit tests pass. The three remaining test3 failures are the
+unlabeled chat-reply ID "CU-104772" (labeling-guide decision 9, no rule yet),
+the first name "Nkechi" in prose (model recall), and "Halden Kitchenware"
+redacted as a person by general NER.
 
 ## NER candidates and the custom-model gate (2026-11-04)
 
@@ -152,14 +178,14 @@ on them.
 
 ### Next steps
 
-1. Decide the test3 findings (gold section above): widen the facility keyword
-   list; add the ISO date, international phone, letter-prefixed policy number
-   and flat-before-street formats; the unlabeled chat-reply ID. Each fix spends
-   test3's blindness, so author test4 before the next milestone.
-2. PERSON recall in running prose, now measured twice (candidate 2 against 1,
-   and test3's "Nkechi"/"Rhiannon"): more prose genres or a second seed.
-3. The rule-layer strays: "them"/"their" far from a person, "price", "Pallet",
-   "Meter" on dev, "Processing" on test3.
+1. Author test4 before the next milestone: every gold set has now absorbed
+   fixes, so no blind measurement is left.
+2. PERSON recall in running prose, measured twice (candidate 2 against 1, and
+   test3's "Nkechi"/"Rhiannon"): more prose genres or a second seed.
+3. The remaining rule-layer strays: "them"/"their" far from a person and
+   "Pallet"/"Meter" from general NER on dev; "Halden Kitchenware" as a person
+   on test3. An ID answered in chat without its label ("CU-104772") needs a
+   conversation-context rule or stays a known gap.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
