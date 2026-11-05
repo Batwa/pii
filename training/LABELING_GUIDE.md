@@ -42,8 +42,12 @@ One JSON object per line (JSONL):
 ### PERSON
 - Full names, single names in greetings, names after role labels
   ("Patient: X"), chat speakers, quoted e-mail authors.
+- A name word may carry an inner capital ("MacLeod", "McDonald", "DeSouza");
+  label the whole word, never the prefix alone.
 - Job titles are NOT persons ("Senior Dispatcher", "Ward Nurse" stay).
 - Company names are NOT persons even in "Defendant: Stroyservice LLC".
+- A product or vehicle name after a thing label is NOT a person ("Vehicle:
+  Nissan Qashqai", "Product: Halden Kitchenware"), whatever the NER says.
 
 ### SENSITIVE_ORGANIZATION
 - Facilities whose mention alone reveals something about a person: clinics,
@@ -71,6 +75,8 @@ One JSON object per line (JSONL):
   warehouse", "our Frankfurt branch") — but a travel destination ("arrival
   Lisbon") is redacted by a context rule; either way it is never labeled.
 - A city inside an address or a residence sentence is part of the address.
+- A postal code in any national format closes the address line ("Haarlem,
+  2011 AB"; "Springfield, IL 62704"; "Bristol, BS1 4ND").
 
 ### DATE_OF_BIRTH
 - Only the date value, only when a birth label is nearby: "born", "DOB",
@@ -115,6 +121,11 @@ One JSON object per line (JSONL):
    give me the customer number?" / "Sure, CU-104772."). Labeled so in gold
    test3 (2026-11-04); no rule implements it yet, because a bare prefixed
    code with no label beside it is indistinguishable from a thing-ID.
+10. A label naming a thing directly before a span ("Vehicle:", "Make/Model:",
+    "Product:") vetoes the person reading of what follows, as an ID label
+    decides a number's type (decision 4). "Hospital number" labels a patient
+    identifier; the bare word "hospital" labels a facility. Rules since
+    2026-11-05 (test4 findings).
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 

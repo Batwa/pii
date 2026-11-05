@@ -31,6 +31,9 @@ class TextPIIDetector:
         "LICENSE_PLATE", "POLICY_NUMBER", "STUDENT_ID",
     }
     ADDRESS_ENTITY_TYPES = {"ADDRESS", "ADDRESS_LINE"}
+    # Entity families in which a candidate nested inside a strictly longer
+    # candidate of the same family yields to it (see deduplicate_results).
+    NESTED_SPAN_FAMILIES = (frozenset(ADDRESS_ENTITY_TYPES), frozenset({"PERSON"}))
 
     def __init__(self, confidence_threshold=CONFIDENCE_THRESHOLD):
         """Initialize text PII detector with multiple NLP engines"""
@@ -243,17 +246,19 @@ class TextPIIDetector:
                     continue
             candidates.append({**result, 'text': span})
 
-        # An address candidate nested inside a longer address candidate yields
-        # to it: the regex apartment designator ("Flat 2", score 1.0) must not
-        # outrank the model's full address line that contains it (score 0.95),
-        # or the street, city and postcode around it would surface unmasked.
-        address_spans = [(c['start'], c['end']) for c in candidates
-                         if c['entity_type'] in self.ADDRESS_ENTITY_TYPES]
-        candidates = [c for c in candidates
-                      if c['entity_type'] not in self.ADDRESS_ENTITY_TYPES
-                      or not any(s <= c['start'] and c['end'] <= e
-                                 and (e - s) > (c['end'] - c['start'])
-                                 for s, e in address_spans)]
+        # A candidate nested inside a longer candidate of the same family yields
+        # to it. A short regex span scores 1.0 and would otherwise outrank the
+        # model's longer span (0.95) that contains it, exposing the rest: the
+        # apartment designator "Flat 2" inside a full address line (test3), the
+        # role-label name "Ruaridh Mac" inside "Ruaridh MacLeod" (test4).
+        for family in self.NESTED_SPAN_FAMILIES:
+            outer = [(c['start'], c['end']) for c in candidates
+                     if c['entity_type'] in family]
+            candidates = [c for c in candidates
+                          if c['entity_type'] not in family
+                          or not any(s <= c['start'] and c['end'] <= e
+                                     and (e - s) > (c['end'] - c['start'])
+                                     for s, e in outer)]
 
         # On an exact score/span tie, Presidio's country-specific label beats a
         # generic regex label — an explicit rule, not an accident of sort order.

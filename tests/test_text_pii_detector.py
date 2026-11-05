@@ -114,3 +114,42 @@ def test_date_of_birth_requires_birth_context(detector):
     unique = detector.deduplicate_results(results, text)
 
     assert [result["text"] for result in unique] == ["04.11.1992"]
+
+
+def test_nested_person_candidate_yields_to_the_longer_one(detector):
+    # A role-label regex span that stopped early ("Ruaridh Mac", score 1.0)
+    # must not outrank the model's full name (0.95) and expose "Leod".
+    text = "Student: Ruaridh MacLeod, group 7-A."
+    start = text.index("Ruaridh")
+    results = [
+        {"entity_type": "PERSON", "start": start, "end": start + len("Ruaridh Mac"),
+         "score": 1.0, "source": "regex"},
+        {"entity_type": "PERSON", "start": start, "end": start + len("Ruaridh MacLeod"),
+         "score": 0.95, "source": "custom_ner"},
+    ]
+
+    unique = detector.deduplicate_results(results, text)
+
+    assert [result["text"] for result in unique] == ["Ruaridh MacLeod"]
+
+
+def test_rule_layer_fixes_from_test4():
+    import policy_rules
+
+    text = ("Vehicle: Nissan Qashqai, registration AB12 CDE.\n"
+            "Student: Ruaridh MacLeod, hospital number RV-88-2201.\n"
+            "Call her on +33 6 12 34 56 78 or +31 20 234 5678.\n"
+            "41 Rosemary Parade, Haarlem, 2011 AB\n"
+            "City Hospital No. 3 confirmed.")
+    found = {(r["entity_type"], r["text"]) for r in policy_rules.run_pattern_rules(text)}
+    assert ("PERSON", "Ruaridh MacLeod") in found
+    assert ("GENERIC_ID", "RV-88-2201") in found
+    assert ("PHONE", "+33 6 12 34 56 78") in found
+    assert ("PHONE", "+31 20 234 5678") in found
+    assert ("ADDRESS_LINE", "41 Rosemary Parade, Haarlem, 2011 AB") in found
+    assert not any(label == "GENERIC_ID" and "3" == value for label, value in found)
+
+    vehicle = text.index("Nissan")
+    ner = [{"entity_type": "PERSON", "start": vehicle, "end": vehicle + len("Nissan Qashqai"),
+            "score": 0.85, "text": "Nissan Qashqai", "source": "spacy"}]
+    assert policy_rules.apply_policy_filters(ner, text) == []

@@ -54,8 +54,9 @@ round 2 targeted its reference-letter miss, so it is no longer blind for prose
 names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
 change), and **test4** (13 docs, authored 2026-11-04 after the test3 fixes).
 `--set all` runs all five. Current state: dev, test and test2 at 100% coverage
-/ 100% keep; test3 at 97.4% / 99.0% after the fixes recorded below (semi-dev);
-test4's blind run is recorded below and nothing has been fixed against it.
+/ 100% keep; test3 at 97.4% / 99.0% and test4 at 95.2% / 96.4% after the fixes
+recorded below. Every set has now absorbed fixes, so the next measurement needs
+a fresh blind batch (test5).
 
 ### test3 blind run (2026-11-04)
 
@@ -152,6 +153,34 @@ Infirmary letterhead. The seven misses and four over-redactions:
   "Florentyna", two of three "Kasimir", the bare name line under "CV", the
   address behind a unit number, and the two non-ISO birth dates.
 
+### test4 fixes (2026-11-05)
+
+Five of the eleven findings were fixed; test4 is semi-dev from here. In
+`text_pii_detector.py` the nested-span rule now covers two entity families
+(`NESTED_SPAN_FAMILIES`): a PERSON candidate nested inside a longer PERSON
+candidate yields to it, exactly as address candidates already did, so the
+role-label span "Ruaridh Mac" no longer outranks the model's "Ruaridh MacLeod".
+The name regexes (`labelled_person`, `chat_speaker`, `quoted_author`,
+`greeting_name`) also share a `_NAME_WORD` fragment that allows one inner
+capital ("MacLeod", "McDonald"), so the rule finds the full name itself when no
+model span is there. In `policy_rules.py`: a thing label directly before a span
+("Vehicle:", "Make/Model:", "Product:"; `THING_LABEL_PREFIX`) vetoes a PERSON
+from the NER layers, the way an ID label decides a number's type; "hospital
+number" / "hospital id" joins the `generic_id` labels (the bare word "hospital"
+does not, so "City Hospital No. 3" stays with the facility pattern);
+`phone_intl` accepts a single-digit group straight after the country code
+("+33 6 12 34 56 78"); and a Dutch postcode ("2011 AB") is an address
+continuation segment. Two unit tests cover the dedup rule and the four rule
+fixes.
+
+Result: test4 56/63 → 60/63 (95.2%), keep 79/83 → 80/83, 0 strays; dev, test,
+test2 and test3 unchanged (dev strays still 4); both regression suites and the
+17 unit tests pass. The six remaining test4 failures are the ones no rule fixes
+cheaply: plural pronouns both ways (they/their near a person in document 06,
+"Their forwarding address" far from the tenants in 07), "via the Lyon hub"
+under the sentence-level travel context, the unlabeled chat-reply ID
+"4471-8820-03" (guide decision 9), and the first name "Thandiwe" in prose.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -212,19 +241,20 @@ on them.
 
 ### Next steps
 
-1. Decide the test4 findings (gold section above): extend the nested-span
-   rule to PERSON, let a "Vehicle:" label veto a person, add "hospital
-   number" to the ID labels, the single-digit-group phone and the Dutch
-   postcode. Each fix spends test4's blindness; author test5 before the next
-   milestone.
+1. Author a blind gold batch test5 before the next milestone: every existing
+   set has absorbed fixes (test4 on 2026-11-05). Worth probing there: names
+   with inner capitals and lowercase particles ("van der", "O'"), thing labels
+   other than vehicles, hub and branch cities inside travel sentences, more
+   postcode formats.
 2. Plural pronouns need reference, not proximity: both failure directions are
    now in gold (test4 documents 06 and 07).
 3. PERSON recall in running prose and on bare name lines, measured three
    times (candidate 2 against 1, test3, test4): more prose genres or a second
    seed.
-4. The remaining rule-layer strays: "them"/"their" far from a person and
-   "Pallet"/"Meter" from general NER on dev; "Halden Kitchenware" on test3.
-   An ID answered in chat without its label stays a known gap.
+4. The remaining rule-layer over-redactions: "them"/"their" far from a person
+   and "Pallet"/"Meter" from general NER on dev (strays); "Halden Kitchenware"
+   on test3 and "via the Lyon hub" on test4 (keep failures). An ID answered in
+   chat without its label stays a known gap.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 

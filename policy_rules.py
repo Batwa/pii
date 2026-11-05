@@ -67,6 +67,13 @@ TRAVEL_CONTEXT = re.compile(
 # employer — generic titles stay visible under the policy.
 TITLE_PREFIX = re.compile(
     r'(?i)\b(?:position\s+of|as\s+an?|title\s+of)\s+(?:[A-Z][a-z]+\s+){0,2}$')
+# A label naming a thing directly before a span ("Vehicle: Nissan Qashqai")
+# vetoes the person reading general NER gives product names, as an ID label
+# decides a number's type (test4 finding, 2026-11-05).
+THING_LABEL_PREFIX = re.compile(
+    r'(?i)\b(?:vehicle|car|van|truck|motorcycle|vessel|boat|make|model'
+    r'|make\s*/\s*model|product|item|device|equipment|machine|brand'
+    r'|manufacturer)\s*[:\-]\s*$')
 # A date is a DOB only with an explicit birth label directly before it.
 DOB_CONTEXT = re.compile(
     r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|d\.?o\.?b\.?)\s*[:,-]?\s*$')
@@ -84,6 +91,10 @@ ID_LABEL_TOKEN = re.compile(r"(?i)\b(" + "|".join(ID_LABEL_OVERRIDES) + r")\b\W{
 # 2. Pattern rules — fixed formats and labelled values
 # =========================================================================
 
+# One word of a person's name: a capital, lowercase letters, at most one more
+# capital inside ("MacLeod", "O'Brien" through the apostrophe). Never "LLC".
+_NAME_WORD = r"[A-Z][a-z'’-]+(?:[A-Z][a-z'’-]+)?"
+
 TEXT_PATTERNS = {
     # --- contact details (policy: personal phones and e-mails always redact;
     # V1 decision: ALL e-mail addresses redact, role inboxes included) ---
@@ -91,10 +102,11 @@ TEXT_PATTERNS = {
     # The final separator is mandatory: a bare 10-digit run (batch code,
     # reference number) is not a phone under the policy.
     'phone': re.compile(r'(?<!\w)(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]([0-9]{4})(?!\w)'),
-    # International form: a leading "+", the country code, then at least two
+    # International form: a leading "+", the country code, an optional
+    # single-digit group ("+33 6 12 34 56 78", test4), then at least two
     # separated digit groups. The "+" is mandatory so amounts and references
     # never qualify (test3 finding, 2026-11-04).
-    'phone_intl': re.compile(r'(?<!\w)\+\d{1,3}(?:[ .-]\(?\d{2,6}\)?){2,4}(?!\w)'),
+    'phone_intl': re.compile(r'(?<!\w)\+\d{1,3}(?:[ .-]\d)?(?:[ .-]\(?\d{2,6}\)?){2,4}(?!\w)'),
     'phone_ru': re.compile(r'(?<!\w)(?:(?:\+7|8)[\s-]?(?:\(\d{3,4}\)|\d{3,4})[\s-]?\d{2,3}[\s-]\d{2}[\s-]\d{2})(?!\w)'),
 
     # --- government and financial identifiers (policy: always redact) ---
@@ -130,10 +142,13 @@ TEXT_PATTERNS = {
         r'(?P<pii>(?:[A-Z]{2,4}[ \t-]?)?\d{2,4}(?:[ \t-]\d{2,4}){1,4}|[A-Z]{0,4}[ \t-]?\d{6,12})\b',
         re.IGNORECASE),
     'student_id': re.compile(r'\bstudent\s+ID\s+No\.?:?\s*(?P<pii>[A-Z]{2,10}-\d{4}-\d{4,})\b', re.IGNORECASE),
+    # "hospital" alone names a place, so it needs the number word (test4);
+    # "Hospital No. 3" stays with the sensitive_organization pattern.
     'generic_id': re.compile(
-        r'\b(?:customer|client|member|patient|employee|student|account'
+        r'\b(?:(?:customer|client|member|patient|employee|student|account'
         r'|badge|case|claim|record|mrn)\s*'
-        r'(?:id|number|no\.?|record|reference|ref\.?|#)?\s*[:#.]?\s*'
+        r'(?:id|number|no\.?|record|reference|ref\.?|#)?'
+        r'|hospital\s+(?:id|number))\s*[:#.]?\s*'
         r'(?P<pii>(?=[A-Z0-9/-]{0,20}\d)[A-Z0-9][A-Z0-9/-]{3,19})', re.IGNORECASE),
     # A person's group/class designation ("class 9-B", "Group PMI-2601").
     'group_class': re.compile(
@@ -193,7 +208,9 @@ TEXT_PATTERNS = {
     # nearby, so timetables and opening hours stay untouched.
     'time_expr': re.compile(r"\b\d{1,2}\s*o['’]?clock(?:\s+in\s+the\s+(?:morning|evening|afternoon|night))?", re.IGNORECASE),
 
-    # --- names in layouts the general NER routinely misses ---
+    # --- names in layouts the general NER routinely misses. A name word may
+    # carry one inner capital ("MacLeod", "McDonald", "DeSouza"): the test4
+    # blind run showed the role-label rule stopping at "Ruaridh Mac". ---
     'labelled_person': re.compile(
         r'\b(?:patient|student|employee|customer|client|resident|traveler'
         r'|traveller|applicant|claimant|policyholder|account\s+holder'
@@ -202,17 +219,17 @@ TEXT_PATTERNS = {
         r'|mother|father|candidate|(?:emergency\s+)?contact)\s*[:\-]\s*'
         # The name itself stays case-sensitive ((?-i:)) and single-line
         # ([ \t]) so it cannot absorb "My name", "LLC", or the next line.
-        r"(?P<pii>(?-i:[A-Z][a-z'’-]+(?:[ \t][A-Z][a-z'’-]+){1,2}))", re.IGNORECASE),
+        r"(?P<pii>(?-i:" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r"){1,2}))", re.IGNORECASE),
     'chat_speaker': re.compile(
-        r"(?m)^\[\d{1,2}:\d{2}\]\s+(?P<pii>[A-Z][a-z'’-]+(?:[ \t][A-Z][a-z'’-]+)+)(?=:)"),
+        r"(?m)^\[\d{1,2}:\d{2}\]\s+(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")+)(?=:)"),
     'quoted_author': re.compile(
         r"\b(?P<pii>(?!(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b"
         r"|(?:January|February|March|April|May|June|July|August"
         r"|September|October|November|December)\b)"
-        r"[A-Z][a-z'’-]+(?:[ \t][A-Z][a-z'’-]+){1,2})[ \t]+wrote\b"),
+        + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r"){1,2})[ \t]+wrote\b"),
     # Line-initial greeting name; kept only when the same name also occurs
     # inside a full PERSON detection (checked in apply_policy_filters).
-    'greeting_name': re.compile(r"(?m)^(?:Dear\s+)?(?P<pii>[A-Z][a-z'’-]+),(?=\s)"),
+    'greeting_name': re.compile(r"(?m)^(?:Dear\s+)?(?P<pii>" + _NAME_WORD + r"),(?=\s)"),
 }
 
 # A pattern anchored to an explicit label outranks a bare digit-run match over
@@ -241,6 +258,7 @@ _ADDRESS_SEGMENT = re.compile(
     r'(?i:apt|apartment|unit|suite|flat)\.?[ \t]*#?[ \t]*(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{1,6}'  # Apt 4B
     r'|[A-Z]{2}[ \t]?\d{4,5}(?:-\d{4})?'                          # IL 62704
     r'|[A-Z]{1,2}\d{1,2}[A-Z]?[ \t]\d[A-Z]{2}'                    # BS1 4ND
+    r'|\d{4}[ \t]?[A-Z]{2}'                                       # 2011 AB (NL)
     r'|[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?'                          # city name
     r')')
 
@@ -365,6 +383,11 @@ def apply_policy_filters(results, text):
         # Senior Dispatcher"); a real name never follows a title introducer.
         if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
                 and ' ' not in result['text'] and TITLE_PREFIX.search(prefix):
+            continue
+        # A product name after a thing label is not a person ("Vehicle: Nissan
+        # Qashqai"), however the NER layers read it.
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
+                and THING_LABEL_PREFIX.search(prefix):
             continue
         # A standalone city/region stays; redact only in residence context
         # or straight after a street address on the same line (commas and
