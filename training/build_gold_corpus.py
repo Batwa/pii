@@ -2,7 +2,8 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented, so the corpus carries no real personal data and lives in
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 documents
+are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
 
@@ -696,6 +697,217 @@ TEST2 = [
         "noticeboard"]),
 ]
 
+# ----------------------------------------------------- test3 set (13, blind)
+# Authored 2026-11-04 after corpus round 2 and candidate 2, without running the
+# detector on any of it; the first run is recorded in training/README.md. Every
+# name, street, city and organization is fresh: none appears in the generator
+# pools or in the other gold sets, and the skill, language and vehicle words
+# avoid the round-2 decoy pools, so the set measures the pattern, not the word.
+# It mixes the layouts round 2 targeted (skill and language lists, year ranges,
+# grades, a weekday before a quoted author, a vehicle model, chat greetings,
+# prose and first-name-only names, varied birth labels) with layouts no training
+# document has: a payslip whose employer is the letterhead, a UK plate and IBAN,
+# an ISO birth date, facility names without the usual keyword (Academy,
+# Institute, British "Centre"), a flat-before-street address, and plural
+# pronouns that refer to people in one sentence and to parcels in the next.
+TEST3 = [
+ dict(id="gold_v3_01_cv_profile.txt",
+  text=("CURRICULUM VITAE\nTheodora Lindahl\n"
+        "Contact: t.lindahl@brevlada.example, +44 7700 900412\n"
+        "Address: 9 Lantern Hill, Flat 2, Whitby, YO21 3AB\n"
+        "Education: Ballymore Institute of Technology, B.Eng. Civil Engineering, "
+        "2016.\n"
+        "Experience: Site Engineer at Caldwell & Finch Surveyors (2016-2021); she "
+        "coordinated three bridge inspections a year. Project Lead at Dunmore Rail "
+        "Services since 2021.\n"
+        "Languages: Welsh, Finnish, Greek.\nSkills: Revit, Primavera P6, Bluebeam."),
+  redact=[("Theodora Lindahl","PERSON"),("t.lindahl@brevlada.example","EMAIL"),
+          ("+44 7700 900412","PHONE"),("9 Lantern Hill","ADDRESS"),
+          ("Flat 2","ADDRESS"),("Whitby","CITY_RESIDENCE"),("YO21 3AB","ZIP"),
+          ("Ballymore Institute of Technology","SENSITIVE_ORG"),
+          ("Caldwell & Finch Surveyors","EMPLOYER_ORG"),
+          ("Dunmore Rail Services","EMPLOYER_ORG"),("she","PRONOUN")],
+  keep=["Welsh","Finnish","Greek","Revit","Primavera P6","Bluebeam",
+        "Site Engineer","Project Lead","2016","three bridge inspections"]),
+
+ dict(id="gold_v3_02_quoted_email.txt",
+  text=("From: imogen.hartley@corvusmedia.example\n"
+        "To: callum.reyes@corvusmedia.example\n"
+        "Subject: RE: launch rota\n\n"
+        "Callum, the print run moves to Thursday. Can you confirm the Antwerp "
+        "warehouse has the pallets? Rhiannon from dispatch will hold the courier "
+        "slot.\n\n"
+        "> On Wednesday Callum Reyes wrote:\n"
+        "> Fine by me. His team covers the evening shift, so the van is loaded "
+        "by 18:00.\n"),
+  redact=[("imogen.hartley@corvusmedia.example","EMAIL"),
+          ("callum.reyes@corvusmedia.example","EMAIL"),
+          ("Callum Reyes","PERSON"),("Callum","PERSON"),("Rhiannon","PERSON"),
+          ("his","PRONOUN")],
+  keep=["Thursday","Wednesday","Antwerp","evening","18:00","launch rota",
+        "print run","courier slot"]),
+
+ dict(id="gold_v3_03_motor_renewal.txt",
+  text=("MOTOR POLICY RENEWAL\nPolicyholder: Oluwaseun Adebayo\n"
+        "Policy No.: POL 4471 9920 36\n"
+        "Vehicle: Volvo V60, registration KX19 TRV, VIN YV1ZW74E0M1234567.\n"
+        "Annual premium 612.40, renewal date 12/01/2026. No claims in the last "
+        "five years.\n"
+        "He can cancel within 14 days of renewal without charge. Courtesy car "
+        "included."),
+  redact=[("Oluwaseun Adebayo","PERSON"),("POL 4471 9920 36","POLICY_NUMBER"),
+          ("KX19 TRV","LICENSE_PLATE"),("YV1ZW74E0M1234567","VIN"),
+          ("he","PRONOUN")],
+  keep=["Volvo V60","612.40","12/01/2026","five years","14 days",
+        "Courtesy car"]),
+
+ dict(id="gold_v3_04_live_chat.txt",
+  text=("LIVE CHAT #90315\n"
+        "[14:02] Support: Hello and welcome. How can we help today?\n"
+        "[14:03] Baptiste Lacroix: Hi, order ORD-55-20931 arrived with a cracked "
+        "lid.\n"
+        "[14:04] Support: Sorry to hear that. Could you give me the customer "
+        "number?\n"
+        "[14:05] Baptiste Lacroix: Sure, CU-104772. The box left your Gothenburg "
+        "hub on Saturday.\n"
+        "[14:06] Support: Thanks. I have asked my colleague Anselm to ship a "
+        "replacement tomorrow; he will email the new tracking link.\n"
+        "[14:07] Baptiste Lacroix: Great, thanks."),
+  redact=[("Baptiste Lacroix","PERSON"),("ORD-55-20931","ORDER_NUMBER"),
+          ("CU-104772","GENERIC_ID"),("Anselm","PERSON"),("he","PRONOUN")],
+  keep=["Hello","Hi","Sure","Great","Support","Gothenburg","Saturday","90315",
+        "cracked lid","tracking link"]),
+
+ dict(id="gold_v3_05_progress_report.txt",
+  text=("PROGRESS REPORT\nFairhaven Community College\n"
+        "Student: Wiktoria Zaremba, class 10-C\nStudent ID: FC-2026-0419\n"
+        "Term average 78 percent; GPA 3.4 of 4.0. Attendance 96 percent.\n"
+        "Wiktoria Zaremba transfers to Greystone Academy in September and her "
+        "records follow by secure post. The form tutor commends her coursework "
+        "in chemistry.\nIssued 07/03/2026."),
+  redact=[("Wiktoria Zaremba","PERSON"),("10-C","GROUP_CLASS"),
+          ("FC-2026-0419","GENERIC_ID"),("Greystone Academy","SENSITIVE_ORG"),
+          ("her","PRONOUN")],
+  keep=["Fairhaven Community College","78 percent","3.4","96 percent",
+        "September","07/03/2026","form tutor","chemistry"]),
+
+ dict(id="gold_v3_06_intake_record.txt",
+  text=("INTAKE RECORD\nOakridge Counselling Service\n"
+        "Client: Ferdinand Oyelaran (DOB 1983-07-19), client ref OC-2026-118.\n"
+        "Referred by Marchmont Wellbeing Centre after an initial assessment.\n"
+        "He prefers evening appointments and asked that letters go to his work "
+        "address, 14 Corbett Street, Stirling.\n"
+        "First session booked for 11/10/2026."),
+  redact=[("Ferdinand Oyelaran","PERSON"),("1983-07-19","DOB"),
+          ("OC-2026-118","GENERIC_ID"),
+          ("Marchmont Wellbeing Centre","SENSITIVE_ORG"),("he","PRONOUN"),
+          ("his","PRONOUN"),("14 Corbett Street","ADDRESS"),
+          ("Stirling","CITY_RESIDENCE")],
+  keep=["Oakridge Counselling Service","evening","11/10/2026",
+        "initial assessment"]),
+
+ dict(id="gold_v3_07_recommendation.txt",
+  text=("LETTER OF RECOMMENDATION\nTo the selection committee,\n"
+        "I supervised Rafael Castellano at Northgate Marine for four seasons, "
+        "and I have rarely met a more careful deckhand. He completed the "
+        "advanced rigging course in 2022 and later trained two apprentices. One "
+        "of them, Nkechi, now leads her own crew.\n"
+        "I recommend him without reservation. My direct line is 555-736-2208.\n"
+        "Signed on 08/14/2026."),
+  redact=[("Rafael Castellano","PERSON"),("Northgate Marine","EMPLOYER_ORG"),
+          ("he","PRONOUN"),("them","PRONOUN"),("Nkechi","PERSON"),
+          ("her","PRONOUN"),("him","PRONOUN"),("555-736-2208","PHONE")],
+  keep=["deckhand","advanced rigging course","2022","four seasons",
+        "08/14/2026","two apprentices","selection committee"]),
+
+ dict(id="gold_v3_08_payslip.txt",
+  text=("PAYSLIP \u2014 period 10/01/2026 to 10/31/2026\nPemberton Foods Ltd\n"
+        "Employee: Siobhan Gallagher, employee no. EMP-30917\n"
+        "Role: Line Supervisor, grade 4\n"
+        "Gross pay 3,180.00; deductions 742.15; net pay 2,437.85.\n"
+        "Paid by transfer to IBAN GB29 NWBK 6016 1331 9268 19 on 10/28/2026.\n"
+        "Her holiday balance is 11 days. Queries go to the payroll desk."),
+  redact=[("Siobhan Gallagher","PERSON"),("EMP-30917","GENERIC_ID"),
+          ("GB29 NWBK 6016 1331 9268 19","IBAN"),("her","PRONOUN")],
+  keep=["Pemberton Foods Ltd","Line Supervisor","grade 4","3,180.00",
+        "2,437.85","10/28/2026","11 days","payroll desk"]),
+
+ dict(id="gold_v3_09_volunteer_roster.txt",
+  text=("VOLUNTEER ROSTER \u2014 harvest festival\n"
+        "Saturday morning, gate and parking:\n"
+        "- Anneliese Brink, 555-402-7719\n"
+        "- Kwame Mensah, 555-402-8830\n"
+        "Saturday afternoon, refreshments tent:\n"
+        "- Ludmila Horakova, 555-402-9152\n"
+        "Stewards wear the yellow vests from the storage container. The raffle "
+        "draw follows the brass band in the main marquee; the prize list stays "
+        "with the committee."),
+  redact=[("Anneliese Brink","PERSON"),("555-402-7719","PHONE"),
+          ("Kwame Mensah","PERSON"),("555-402-8830","PHONE"),
+          ("Ludmila Horakova","PERSON"),("555-402-9152","PHONE")],
+  keep=["Saturday","morning","afternoon","refreshments tent","yellow vests",
+        "harvest festival","main marquee","brass band"]),
+
+ dict(id="gold_v3_10_damage_claim.txt",
+  text=("DAMAGE CLAIM\n"
+        "Claimant: Gretchen Albrecht, 3 Tanner's Yard, Alnwick, NE66 1PQ\n"
+        "Order number ORD-77-18204, tracking RR 445 221 879 GB, delivered "
+        "09/26/2026.\n"
+        "Item: espresso machine, serial number SN-7Q2M-88413, purchase price "
+        "389.00.\n"
+        "The carton arrived crushed on one side and the drip tray was cracked. "
+        "She photographed the damage before unpacking and keeps the packaging.\n"
+        "Resolution requested: replacement unit."),
+  redact=[("Gretchen Albrecht","PERSON"),("3 Tanner's Yard","ADDRESS"),
+          ("Alnwick","CITY_RESIDENCE"),("NE66 1PQ","ZIP"),
+          ("ORD-77-18204","ORDER_NUMBER"),("SN-7Q2M-88413","SERIAL_NUMBER"),
+          ("she","PRONOUN")],
+  keep=["RR 445 221 879 GB","09/26/2026","389.00","espresso machine",
+        "drip tray","replacement unit"]),
+
+ dict(id="gold_v3_11_product_recall.txt",
+  text=("PRODUCT RECALL NOTICE\n"
+        "Halden Kitchenware recalls the 1.7-litre kettle, model HK-170, batch "
+        "codes 2206 through 2211, sold between 03/01/2026 and 06/30/2026.\n"
+        "The lid hinge can detach when the kettle is tilted. No injuries have "
+        "been reported. Customers may return the kettle to any Bilbao or Antwerp "
+        "branch for a refund of 34.99 or a replacement from the HK-180 range.\n"
+        "Questions: the customer care team answers weekdays, 09:00 to 17:00."),
+  redact=[],
+  keep=["Halden Kitchenware","HK-170","2206","03/01/2026","06/30/2026",
+        "Bilbao","Antwerp","34.99","HK-180","09:00","customer care team"]),
+
+ dict(id="gold_v3_12_tenant_notice.txt",
+  text=("NOTICE TO TENANTS\n"
+        "Tenants: Elias Fenwick and Ruth Fenwick, Flat 6, 28 Harbour Lane, "
+        "Dunmore.\n"
+        "The boiler inspection takes place on 11/18/2026 between 09:00 and "
+        "12:00. Their presence is not required; the engineer holds a key.\n"
+        "Parcels left in the hallway will be moved to the bike store because "
+        "they block the fire exit. The building's water supply is off for about "
+        "an hour and its pressure may vary afterwards.\n"
+        "Rent for December remains 1,150.00."),
+  redact=[("Elias Fenwick","PERSON"),("Ruth Fenwick","PERSON"),
+          ("Flat 6","ADDRESS"),("28 Harbour Lane","ADDRESS"),
+          ("Dunmore","CITY_RESIDENCE"),("their","PRONOUN")],
+  keep=["11/18/2026","09:00","12:00","they","its","bike store","fire exit",
+        "1,150.00","December","engineer"]),
+
+ dict(id="gold_v3_13_consular_appointment.txt",
+  text=("CONSULAR APPOINTMENT CONFIRMATION\n"
+        "Applicant: Mariana Castro, Brazilian passport FQ483921, born 23 August "
+        "1979.\n"
+        "Appointment: 12/09/2026 at the visa section, counter 4, for a short-stay "
+        "visa; travelling to Porto on 01/15/2027 for a conference.\n"
+        "Bring the printed form, one photo and proof of accommodation. She may "
+        "bring an interpreter.\n"
+        "Processing takes up to 15 working days."),
+  redact=[("Mariana Castro","PERSON"),("FQ483921","PASSPORT"),
+          ("23 August 1979","DOB"),("Porto","CITY_TRAVEL"),("she","PRONOUN")],
+  keep=["Brazilian","12/09/2026","counter 4","01/15/2027","15 working days",
+        "short-stay visa","conference"]),
+]
+
 
 def occurrences(needle, haystack):
     pattern = re.escape(needle)
@@ -739,7 +951,7 @@ def emit(docs, docs_path, cases_path):
 
 def main():
     problems = (validate(DEV, "dev") + validate(TEST, "test")
-                + validate(TEST2, "test2"))
+                + validate(TEST2, "test2") + validate(TEST3, "test3"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -747,10 +959,13 @@ def main():
     emit(DEV, GOLD_DIR / "dev_docs.jsonl", GOLD_DIR / "dev_cases.jsonl")
     emit(TEST, GOLD_DIR / "test_docs.jsonl", GOLD_DIR / "test_cases.jsonl")
     emit(TEST2, GOLD_DIR / "test2_docs.jsonl", GOLD_DIR / "test2_cases.jsonl")
-    n_redact = sum(len(d["redact"]) for d in DEV + TEST + TEST2)
-    n_keep = sum(len(d["keep"]) for d in DEV + TEST + TEST2)
-    print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 docs "
-          f"({n_redact} redact spans, {n_keep} keep spans) to {GOLD_DIR}")
+    emit(TEST3, GOLD_DIR / "test3_docs.jsonl", GOLD_DIR / "test3_cases.jsonl")
+    everything = DEV + TEST + TEST2 + TEST3
+    n_redact = sum(len(d["redact"]) for d in everything)
+    n_keep = sum(len(d["keep"]) for d in everything)
+    print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
+          f"{len(TEST3)} test3 docs ({n_redact} redact spans, {n_keep} keep "
+          f"spans) to {GOLD_DIR}")
 
 
 if __name__ == "__main__":

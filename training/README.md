@@ -31,8 +31,8 @@ before re-running it.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 40 fully synthetic labeled documents (25 dev /
-15 held-out test) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 63 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 test3) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -46,12 +46,51 @@ python training/evaluate_gold.py --set both
 
 The score is coverage-based (a span passes when all its alphanumeric characters
 are masked, whatever the entity label). Tune rules against **dev only**; run
-**test** at milestones — if test drops well below dev, the rules are memorizing
-the dev set. `--set all` adds **test2**, a fresh batch authored after the rules
-phase (the original test set absorbed five fixes from its first run, so test2
-is the cleaner generalization measurement — its own first blind run scored
-97.2%/100%, with one fix applied since). Current state: all three sets pass
-100% redact coverage / 100% keep.
+the test sets at milestones — if they drop well below dev, the rules are
+memorizing the dev set. Each test batch was authored blind and scored once
+before any fix: **test** (15 docs; its first run absorbed five fixes),
+**test2** (10 docs; first blind run 97.2% / 100%, one fix since, and corpus
+round 2 targeted its reference-letter miss, so it is no longer blind for prose
+names), and **test3** (13 docs, authored 2026-11-04 after candidate 2 and the
+gate change). `--set all` runs all four. Current state: dev, test and test2 at
+100% coverage / 100% keep; test3's blind run is recorded below and nothing has
+been fixed against it yet.
+
+### test3 blind run (2026-11-04)
+
+Full pipeline (candidate 2 live, relaxed gate): redact coverage 67/76 (88.2%),
+keep intact 102/103 (99.0%), 1 stray span. Model alone: 25/30 model-entity
+items (83.3%), keep 101/103, 0 strays. The nine misses and two over-redactions,
+grouped by cause:
+
+- Facility names without a keyword: "Ballymore Institute of Technology",
+  "Greystone Academy", "Marchmont Wellbeing Centre" (3 misses). The model found
+  all three under the right label; the keyword requirement on
+  `SENSITIVE_ORGANIZATION` spans dropped them. Two of the model's spans were
+  sloppy ("Caldwell & Finch Surveyors (2016-2021", "Greystone Academy in
+  September"), so trusting the label outright would cost keep checks; widening
+  `SENSITIVE_ORG_KEYWORDS` (institute, academy, centre) is the cheaper fix.
+- Formats the rules do not know: an international phone "+44 7700 900412", an
+  ISO birth date "1983-07-19", a policy number with a letter prefix "POL 4471
+  9920 36", and a flat number before the street ("Flat 6, 28 Harbour Lane";
+  "Flat 2" after a street passed) (4 misses).
+- A customer number given in a chat reply with no label beside it, "Sure,
+  CU-104772." (1 miss): the label-before-number rule has nothing to anchor on.
+- A first name alone in prose, "One of them, Nkechi, now leads her own crew"
+  (1 miss, pipeline and model). The model alone also missed "Rhiannon" and two
+  of three "Callum" mentions, which general NER caught.
+- General NER over-redaction: "Halden Kitchenware" as PERSON in the negative
+  recall notice (keep failure), and "Processing" as ORGANIZATION in "Processing
+  takes up to 15 working days", which the employment-context filter let through
+  (stray).
+
+What passed is worth noting too: all 15 pronouns, including "their" for the
+tenants with "they" and "its" kept for parcels and a building; the payslip's
+employer letterhead kept while the CV's employers redacted; the UK plate, VIN,
+IBAN and UK postcodes; serial and order numbers redacted with the tracking
+number kept; the travel-destination city redacted with the nationality kept;
+the weekday before a quoted author, chat greetings, skill and language lists,
+the year range and the GPA all kept.
 
 ## NER candidates and the custom-model gate (2026-11-04)
 
@@ -113,11 +152,14 @@ on them.
 
 ### Next steps
 
-1. A fresh blind gold batch (test3): round 2 was driven by dev and test
-   failures, and test2's reference-letter miss is a known target now too.
-2. PERSON recall in running prose: more prose genres, more epochs, or a second
-   seed to separate signal from noise now that training is seeded.
-3. The five rule-layer strays above.
+1. Decide the test3 findings (gold section above): widen the facility keyword
+   list; add the ISO date, international phone, letter-prefixed policy number
+   and flat-before-street formats; the unlabeled chat-reply ID. Each fix spends
+   test3's blindness, so author test4 before the next milestone.
+2. PERSON recall in running prose, now measured twice (candidate 2 against 1,
+   and test3's "Nkechi"/"Rhiannon"): more prose genres or a second seed.
+3. The rule-layer strays: "them"/"their" far from a person, "price", "Pallet",
+   "Meter" on dev, "Processing" on test3.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
