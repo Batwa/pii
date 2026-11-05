@@ -2,7 +2,7 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 documents
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 documents
 are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
@@ -26,6 +26,8 @@ redaction policy (red.pdf). Labeling decisions taken where the policy is open:
   one blunt V1 rule instead of a personal/role judgment call.
 - Languages spoken and nationality adjectives ("Dutch", "Indian passport") are
   kept; the policy marks group membership as TBD.
+- A bank sort code is labeled with the account number it accompanies; a boat's
+  hull identification number counts as a serial number (trackable).
 
 Every redact/keep string is matched case-insensitively on word boundaries, and
 ALL of its occurrences in the document count. The builder refuses to emit a
@@ -1091,6 +1093,201 @@ TEST4 = [
   keep=["Esbjerg","18:00","06:00","Genoa","Malmo","four hours","night",
         "08:00","duty line","harbour office"]),
 ]
+# ------------------------------------------------- test5 set (13), blind batch
+# Authored 2026-11-05 after the test4 fixes, without running the detector.
+# Probes: names with lowercase particles, accents and inner capitals; thing
+# labels other than vehicles; hub/branch cities inside travel sentences;
+# Canadian and German postcodes; UK and German phone forms; staff/payroll
+# numbers; facilities without a keyword (Nursery, Surgery, Language Centre);
+# plural pronouns in both directions; the chat-reply ID again.
+TEST5 = [
+ dict(id="gold_v5_01_claim_form.txt",
+  text=("INSURANCE CLAIM FORM\nClaimant: Fenna van der Berg\n"
+        "Address: 220 Lakeshore Avenue, Toronto, ON M5V 2T6\n"
+        "Policy No. HM 4471 2290 18; claim reference CL-77-0912.\n"
+        "Staff No. 004512 at Maple Ridge Logistics (employer).\n"
+        "Incident on 10/14/2026: a tree branch fell on the parked car. She "
+        "reported it the same evening. The tyres were replaced in June; they "
+        "are still under warranty."),
+  redact=[("Fenna van der Berg","PERSON"),("220 Lakeshore Avenue","ADDRESS"),
+          ("Toronto","CITY_RESIDENCE"),("M5V 2T6","ZIP"),
+          ("HM 4471 2290 18","POLICY_NUMBER"),("CL-77-0912","GENERIC_ID"),
+          ("004512","GENERIC_ID"),("Maple Ridge Logistics","EMPLOYER_ORG"),
+          ("she","PRONOUN")],
+  keep=["10/14/2026","tree branch","parked car","same evening","June","they",
+        "under warranty"]),
+
+ dict(id="gold_v5_02_nursery_letter.txt",
+  text=("Sunrise Day Nursery\n"
+        "Dear Ms Nowak,\n"
+        "Zofia Nowak has settled in well since September. She enjoys the garden "
+        "and the story corner.\n"
+        "Her key worker is Beatriz Fernández, who can be reached on 020 7946 "
+        "0958 during session hours.\n"
+        "We have shared the allergy plan with Hillcrest Children's Clinic as "
+        "agreed."),
+  redact=[("Zofia Nowak","PERSON"),("Nowak","PERSON"),
+          ("Beatriz Fernández","PERSON"),("020 7946 0958","PHONE"),
+          ("Hillcrest Children's Clinic","SENSITIVE_ORG"),
+          ("she","PRONOUN"),("her","PRONOUN")],
+  keep=["Sunrise Day Nursery","September","garden","story corner",
+        "session hours","allergy plan"]),
+
+ dict(id="gold_v5_03_device_return.txt",
+  text=("RETURN AUTHORISATION\n"
+        "Customer: Siobhan O'Connell, customer number 3310-8847\n"
+        "Device: Garmin Forerunner 255, serial number 7KX-220-4418\n"
+        "Appliance: Miele Compact C1 (not covered by this return)\n"
+        "Reason: the strap clip broke after two weeks. She asked for a "
+        "replacement rather than a refund.\n"
+        "Ship the device to Depot 7 in Leeds; the Leeds branch processes "
+        "returns within five working days."),
+  redact=[("Siobhan O'Connell","PERSON"),("3310-8847","GENERIC_ID"),
+          ("7KX-220-4418","SERIAL_NUMBER"),("she","PRONOUN")],
+  keep=["Garmin Forerunner 255","Miele Compact C1","Leeds","Depot 7",
+        "two weeks","five working days","strap clip"]),
+
+ dict(id="gold_v5_04_travel_itinerary.txt",
+  text=("ITINERARY\n"
+        "Passenger: Oluwaseun Adeyemi, birthday 14 Feb 1979\n"
+        "Travels to Bergen on 03/02/2027 via the Oslo hub, returning from the "
+        "Stavanger branch office on 03/06/2027.\n"
+        "Contact during the trip: +41 44 668 18 00. He prefers a window seat.\n"
+        "Flight SK 4123 is non-refundable; the Oslo lounge voucher is "
+        "attached."),
+  redact=[("Oluwaseun Adeyemi","PERSON"),("14 Feb 1979","DOB"),
+          ("Bergen","CITY_TRAVEL"),("+41 44 668 18 00","PHONE"),
+          ("he","PRONOUN")],
+  keep=["Oslo","Stavanger","03/02/2027","03/06/2027","SK 4123","window seat",
+        "lounge voucher"]),
+
+ dict(id="gold_v5_05_reference_letter.txt",
+  text=("To whom it may concern,\n"
+        "I have known Adaeze Okonkwo for three years as her line manager at "
+        "Fairhaven Analytics, where she joined as a junior analyst and now "
+        "leads the reporting team.\n"
+        "Adaeze handles difficult clients with patience. On one occasion she "
+        "stayed late to rebuild a dashboard before a board meeting, and the "
+        "directors noticed.\n"
+        "I recommend her without reservation.\n"
+        "Marcus Lindqvist\nHead of Analytics"),
+  redact=[("Adaeze Okonkwo","PERSON"),("Adaeze","PERSON"),
+          ("Fairhaven Analytics","EMPLOYER_ORG"),("her","PRONOUN"),
+          ("she","PRONOUN"),("Marcus Lindqvist","PERSON")],
+  keep=["Head of Analytics","three years","junior analyst","reporting team",
+        "dashboard","board meeting","directors"]),
+
+ dict(id="gold_v5_06_committee_minutes.txt",
+  text=("MINUTES OF THE ALLOTMENT COMMITTEE\n"
+        "Present: Hamid Rezaei, Greta Lindgren, Pieter de Vries.\n"
+        "Hamid Rezaei and Greta Lindgren volunteered to repair the shared "
+        "shed. They will buy the timber next week and submit their receipts "
+        "to the treasurer.\n"
+        "The water butts were inspected and found sound; the lids have been "
+        "replaced.\n"
+        "Next meeting on 11/19/2026 at the pavilion."),
+  redact=[("Hamid Rezaei","PERSON"),("Greta Lindgren","PERSON"),
+          ("Pieter de Vries","PERSON"),("they","PRONOUN"),("their","PRONOUN")],
+  keep=["shared shed","timber","treasurer","water butts","11/19/2026",
+        "pavilion"]),
+
+ dict(id="gold_v5_07_gp_registration.txt",
+  text=("NEW PATIENT REGISTRATION\n"
+        "Name: Zsófia Németh, born 14.02.1979\n"
+        "Home address: Hauptstrasse 12, 80331 Munich\n"
+        "Previous practice: Lindenhof Surgery, transferred records on "
+        "10/20/2026\n"
+        "Current medication: none. She has no known allergies. Next of kin: "
+        "Gábor Németh (brother)."),
+  redact=[("Zsófia Németh","PERSON"),("14.02.1979","DOB"),
+          ("Hauptstrasse 12","ADDRESS"),("80331","ZIP"),
+          ("Munich","CITY_RESIDENCE"),("Lindenhof Surgery","SENSITIVE_ORG"),
+          ("she","PRONOUN"),("Gábor Németh","PERSON")],
+  keep=["10/20/2026","brother","medication","allergies"]),
+
+ dict(id="gold_v5_08_chat_member.txt",
+  text=("LIVE CHAT #90211\n"
+        "[14:02] Agent: Welcome. Could you confirm your member number?\n"
+        "[14:02] Priya Raghunathan: 88-1234-556, and my phone is 07700 "
+        "900123.\n"
+        "[14:03] Agent: Thank you. Your renewal is booked for 12/01/2026; the "
+        "Glasgow branch will post the card.\n"
+        "[14:04] Priya Raghunathan: Great, thanks."),
+  redact=[("Priya Raghunathan","PERSON"),("88-1234-556","GENERIC_ID"),
+          ("07700 900123","PHONE")],
+  keep=["Glasgow","12/01/2026","renewal","Agent","90211","Welcome"]),
+
+ dict(id="gold_v5_09_boat_sale.txt",
+  text=("BILL OF SALE\nSeller: Declan McCarthy\nBuyer: Anneliese Baumgartner\n"
+        "Vessel: Jeanneau Sun Odyssey 349, hull ID FR-JNO34912C626\n"
+        "Engine: Yanmar 3YM30, 29 hp, serviced in May\n"
+        "Price 98,500.00 paid by bank transfer to IBAN GB29 NWBK 6016 1331 "
+        "9268 19.\n"
+        "The sails were replaced in 2024; they carry a two-year warranty. He "
+        "hands over the keys at the marina on 11/30/2026."),
+  redact=[("Declan McCarthy","PERSON"),("Anneliese Baumgartner","PERSON"),
+          ("FR-JNO34912C626","SERIAL_NUMBER"),
+          ("GB29 NWBK 6016 1331 9268 19","IBAN"),("he","PRONOUN")],
+  keep=["Jeanneau Sun Odyssey 349","Yanmar 3YM30","29 hp","May","98,500.00",
+        "2024","they","two-year warranty","marina","11/30/2026"]),
+
+ dict(id="gold_v5_10_payroll_memo.txt",
+  text=("PAYROLL MEMO\n"
+        "Employee: Bartholomew Oyelaran-Smith, payroll number P-204418, works "
+        "three days a week at the Hull depot.\n"
+        "Bank account 12345678, sort code 40-11-60. Salary paid on the 25th.\n"
+        "His tax code changes to 1257L from April. Queries to "
+        "payroll@northgate-foods.example."),
+  redact=[("Bartholomew Oyelaran-Smith","PERSON"),("P-204418","GENERIC_ID"),
+          ("12345678","BANK_ACCOUNT"),("40-11-60","BANK_ACCOUNT"),
+          ("his","PRONOUN"),("payroll@northgate-foods.example","EMAIL")],
+  keep=["Hull","three days a week","25th","1257L","April"]),
+
+ dict(id="gold_v5_11_school_report.txt",
+  text=("Greenbank Academy\nEND OF TERM REPORT\n"
+        "Pupil: Tadhg Ó Briain, class 5-C\n"
+        "Tadhg reads well above his age and has joined the chess club. He was "
+        "late twice in October, arriving at 9 o'clock in the morning instead "
+        "of 8:30.\n"
+        "A referral to Riverside Speech and Language Centre was agreed with "
+        "his parents."),
+  redact=[("Tadhg Ó Briain","PERSON"),("Tadhg","PERSON"),("5-C","GROUP_CLASS"),
+          ("his","PRONOUN"),("he","PRONOUN"),
+          ("9 o'clock in the morning","TIME"),
+          ("Riverside Speech and Language Centre","SENSITIVE_ORG")],
+  keep=["Greenbank Academy","chess club","October","8:30","parents"]),
+
+ dict(id="gold_v5_12_product_spec.txt",
+  text=("DISHWASHER COMPARISON\n"
+        "The Bosch Serie 4 works best on the eco cycle and finishes in 3 hours "
+        "15 minutes. The Miele G 5000 is quieter at 44 dB but costs 180.00 "
+        "more.\n"
+        "Siemens offers a five-year parts warranty; AEG matches it only on the "
+        "motor.\n"
+        "All four models fit a standard 60 cm recess. Delivery to the Leeds "
+        "and Bristol showrooms takes a week."),
+  redact=[],
+  keep=["Bosch Serie 4","Miele G 5000","Siemens","AEG","Leeds","Bristol",
+        "3 hours 15 minutes","44 dB","180.00","60 cm","five-year"]),
+
+ dict(id="gold_v5_13_quoted_thread.txt",
+  text=("From: rhiannon.price@kestrelpress.example\n"
+        "To: oisin.mcguinness@kestrelpress.example\n"
+        "Subject: RE: proof corrections\n\n"
+        "Oisín, the printer in Tallinn needs the corrected plates by "
+        "Wednesday. Ring Hannelore on +49 (0)30 901820 if the courier slips; "
+        "she is covering the desk this week.\n\n"
+        "> On Tue, 27 Oct 2026, Oisín McGuinness wrote:\n"
+        "> The map on page 12 still shows the old border. I will redraw it "
+        "tonight.\n"),
+  redact=[("rhiannon.price@kestrelpress.example","EMAIL"),
+          ("oisin.mcguinness@kestrelpress.example","EMAIL"),
+          ("Oisín McGuinness","PERSON"),("Oisín","PERSON"),
+          ("Hannelore","PERSON"),("+49 (0)30 901820","PHONE"),
+          ("she","PRONOUN")],
+  keep=["Tallinn","Wednesday","27 Oct 2026","page 12","old border",
+        "proof corrections","tonight","courier"]),
+]
 
 
 def occurrences(needle, haystack):
@@ -1136,7 +1333,7 @@ def emit(docs, docs_path, cases_path):
 def main():
     problems = (validate(DEV, "dev") + validate(TEST, "test")
                 + validate(TEST2, "test2") + validate(TEST3, "test3")
-                + validate(TEST4, "test4"))
+                + validate(TEST4, "test4") + validate(TEST5, "test5"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -1146,11 +1343,13 @@ def main():
     emit(TEST2, GOLD_DIR / "test2_docs.jsonl", GOLD_DIR / "test2_cases.jsonl")
     emit(TEST3, GOLD_DIR / "test3_docs.jsonl", GOLD_DIR / "test3_cases.jsonl")
     emit(TEST4, GOLD_DIR / "test4_docs.jsonl", GOLD_DIR / "test4_cases.jsonl")
-    everything = DEV + TEST + TEST2 + TEST3 + TEST4
+    emit(TEST5, GOLD_DIR / "test5_docs.jsonl", GOLD_DIR / "test5_cases.jsonl")
+    everything = DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5
     n_redact = sum(len(d["redact"]) for d in everything)
     n_keep = sum(len(d["keep"]) for d in everything)
     print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
-          f"{len(TEST3)} test3 + {len(TEST4)} test4 docs ({n_redact} redact spans, {n_keep} keep "
+          f"{len(TEST3)} test3 + {len(TEST4)} test4 + {len(TEST5)} test5 docs "
+          f"({n_redact} redact spans, {n_keep} keep "
           f"spans) to {GOLD_DIR}")
 
 

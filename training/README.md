@@ -31,8 +31,8 @@ before re-running it.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 76 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 test3 / 13 test4) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 89 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -52,11 +52,12 @@ before any fix: **test** (15 docs; its first run absorbed five fixes),
 **test2** (10 docs; first blind run 97.2% / 100%, one fix since, and corpus
 round 2 targeted its reference-letter miss, so it is no longer blind for prose
 names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
-change), and **test4** (13 docs, authored 2026-11-04 after the test3 fixes).
-`--set all` runs all five. Current state: dev, test and test2 at 100% coverage
-/ 100% keep; test3 at 97.4% / 99.0% and test4 at 95.2% / 96.4% after the fixes
-recorded below. Every set has now absorbed fixes, so the next measurement needs
-a fresh blind batch (test5).
+change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes), and
+**test5** (13 docs, authored 2026-11-05 after the test4 fixes). `--set all`
+runs all six. Current state: dev, test and test2 at 100% coverage / 100% keep;
+test3 at 97.4% / 99.0% and test4 at 95.2% / 96.4% after the fixes recorded
+below; test5's blind run is recorded below and nothing has been fixed against
+it.
 
 ### test3 blind run (2026-11-04)
 
@@ -181,6 +182,54 @@ cheaply: plural pronouns both ways (they/their near a person in document 06,
 under the sentence-level travel context, the unlabeled chat-reply ID
 "4471-8820-03" (guide decision 9), and the first name "Thandiwe" in prose.
 
+### test5 blind run (2026-11-05)
+
+Thirteen documents, 72 must-redact items and 89 must-keep phrases, written
+without running the detector. They probe names with lowercase particles,
+accents and inner capitals; thing labels other than vehicles; hub and branch
+cities inside travel sentences; Canadian and German postcodes; UK and German
+phone forms; staff, payroll and hull numbers; facilities without a keyword
+(Nursery, Surgery, Language Centre); plural pronouns in both directions; and
+the chat-reply ID a third time.
+
+Full pipeline (candidate 2 live, relaxed gate, test4 fixes in): redact
+coverage 54/72 (75.0%), keep intact 82/89 (92.1%), 0 stray spans. Model
+alone: 22/30 model-entity items (73.3%; PERSON 15/23, ADDRESS 2/2, DOB 2/2,
+SENSITIVE_ORG 3/3), keep 84/89, 0 strays. Nothing has been fixed against it.
+The test4 fixes held: O'Connell, McCarthy and Oyelaran-Smith all passed
+through the name regexes (the model stopped at "Bartholomew Oyelaran" and the
+nested-span rule made that partial yield to the full regex span), the
+accented Zsófia Németh and Tadhg Ó Briain passed through the model, bare
+"Tadhg" and "Adaeze" and the particle name "Pieter de Vries" came from general
+NER, they/their for two named people were redacted, both letterheads and the
+appliance names stayed visible. The eighteen misses and seven over-redactions:
+
+- The model stops at a lowercase particle or an accent and the trusted PERSON
+  label then redacts the fragment and exposes the rest: "Fenna van" of "Fenna
+  van der Berg", "Németh" of "Gábor Németh" (2 misses). Model recall also
+  fails on the greeting "Oisín," (the greeting regex's [a-z] excludes í) and
+  the prose first name "Hannelore" (2 misses).
+- The model finds the facilities but the keyword gate drops them: "Lindenhof
+  Surgery" and "Riverside Speech and Language Centre" (2 misses). The model
+  also labels the German address "Hauptstrasse 12, 80331" as a facility, so
+  the gate drops it too, and the regex knows neither the street-then-number
+  order nor the postcode-before-city form (2 misses).
+- A Canadian postcode: the address extension reads ", ON M5V" as a city name
+  and strands "2T6" (1 miss).
+- Labels the rules do not know: "Staff No.", "payroll number", "hull ID", and
+  "birthday" — the model found "14 Feb 1979" as a birth date, but
+  `DOB_CONTEXT` has no "birthday" (4 misses).
+- Formats: UK national phones "020 7946 0958" and "07700 900123", the German
+  trunk prefix "+49 (0)30 901820", the sort code "40-11-60" (4 misses).
+- The chat-reply ID "88-1234-556" with its label in the previous line, a third
+  time (1 miss).
+- Plural pronouns for things near a person, "they" in documents 01 and 09 (2
+  keep failures); the hub and branch cities "Oslo" and "Stavanger" in a travel
+  sentence, as "Lyon" before (2); "Yanmar 3YM30" as a PERSON from the custom
+  model itself, behind an "Engine:" label the thing-label veto does not list
+  (1); the city "Hull" as a PERSON from general NER (1); "The Bosch Serie 4"
+  as an employer because "works best" matches the employment context (1).
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -241,15 +290,19 @@ on them.
 
 ### Next steps
 
-1. Author a blind gold batch test5 before the next milestone: every existing
-   set has absorbed fixes (test4 on 2026-11-05). Worth probing there: names
-   with inner capitals and lowercase particles ("van der", "O'"), thing labels
-   other than vehicles, hub and branch cities inside travel sentences, more
-   postcode formats.
+1. Decide the test5 findings (gold section above). Cheap: "birthday" in
+   `DOB_CONTEXT`; "staff", "payroll" and "hull ID" labels; "Engine:" among
+   the thing labels; UK national phone forms and the "(0)" trunk prefix;
+   Canadian and German postcodes; "Surgery" and "Language Centre" as facility
+   words. Structural: the model stops at lowercase particles and accents and
+   the trusted PERSON label then exposes the rest of the name — corpus round 3
+   should carry particles, accents and hyphens. Each fix spends test5's
+   blindness; author test6 before the next milestone.
 2. Plural pronouns need reference, not proximity: both failure directions are
    now in gold (test4 documents 06 and 07).
-3. PERSON recall in running prose and on bare name lines, measured three
-   times (candidate 2 against 1, test3, test4): more prose genres or a second
+3. PERSON recall in running prose, on bare name lines, and on names with
+   particles, accents and hyphens, measured four times (candidate 2 against
+   1, test3, test4, test5): more prose genres, those name shapes, or a second
    seed.
 4. The remaining rule-layer over-redactions: "them"/"their" far from a person
    and "Pallet"/"Meter" from general NER on dev (strays); "Halden Kitchenware"
