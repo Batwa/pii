@@ -55,9 +55,9 @@ names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
 change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes), and
 **test5** (13 docs, authored 2026-11-05 after the test4 fixes). `--set all`
 runs all six. Current state: dev, test and test2 at 100% coverage / 100% keep;
-test3 at 97.4% / 99.0% and test4 at 95.2% / 96.4% after the fixes recorded
-below; test5's blind run is recorded below and nothing has been fixed against
-it.
+test3 at 98.7% / 99.0%, test4 at 96.8% / 97.6% and test5 at 98.6% / 97.8%
+after the fixes recorded below. Every set has absorbed fixes, so the next
+measurement needs a fresh blind batch (test6).
 
 ### test3 blind run (2026-11-04)
 
@@ -230,6 +230,57 @@ appliance names stayed visible. The eighteen misses and seven over-redactions:
   (1); the city "Hull" as a PERSON from general NER (1); "The Bosch Serie 4"
   as an employer because "works best" matches the employment context (1).
 
+### test5 fixes (2026-11-05)
+
+Twenty of the twenty-five findings were fixed, all in `policy_rules.py`;
+test5 is semi-dev from here. Labels: "birthday" joins the birth-date labels
+and `DOB_CONTEXT`, month names may be abbreviated ("14 Feb 1979"); "staff" and
+"payroll" join "hospital" as ID labels that need a number word; "hull ID" is a
+serial number; a labelled sort code is a bank detail. Facility words: Infirmary,
+Sanatorium, GP/dental/medical practices, Surgery and Nursery (both need a name
+word in front, so a sentence-initial "Surgery went well" is not a facility),
+and Language/Speech/Therapy/Treatment/Dialysis/Cancer/Diagnostic/Crisis/Day
+Centre; the capitalised run before a facility word may carry "and"/"of"/"for"
+("Riverside Speech and Language Centre"). Formats: a UK national phone
+(`phone_uk`, leading 0 plus exactly ten digits in two or three groups, the
+count fixed by a lookahead so IBAN fragments never qualify); the "(0)" trunk
+prefix after a country code; the Canadian province-and-postcode and the German
+postcode-before-city as address continuation segments; a German-order street
+line (`address_line_de`: "Hauptstrasse 12", "Berliner Allee 3"). Names: the
+name-word fragment takes Latin-1 letters ("Németh", "Oisín"), lowercase
+particles may sit between name words ("Fenna van der Berg", "Pieter de Vries"),
+and "next of kin", "passenger", "pupil", "proposer", "guardian", "spouse",
+"beneficiary" and "driver" are role labels. Context: `OPERATIONAL_SITE_SUFFIX`
+("hub", "branch", "depot", "warehouse", "office", ...) after a city keeps it
+visible inside a travel or residence sentence and vetoes a PERSON reading
+("the Hull depot"); "Engine:", "Motor:", "Appliance:", "Instrument:" join the
+thing labels; "works best/well/on/with/..." no longer counts as employment.
+Chat: `chat_reply_ids` implements labeling-guide decision 9 — in a `[hh:mm]
+Speaker:` transcript, a person-ID label in the previous speaker's line makes
+the hyphenated or prefixed digit runs of the reply that person's identifier;
+the UK phone keeps the default score so "07700 900123" beats the nested
+"900123" on the tie.
+
+Two things were tried and reverted during this round. Adding
+SENSITIVE_ORGANIZATION to the nested-span families made the regex span yield
+to the model's wider "Greystone Academy in September" (test3) and broke a
+private-suite check ("Children's City Polyclinic No. 8" swallowed into a
+longer model span); the "and/of" prefix fixes "Riverside Speech and Language
+Centre" without it. And `phone_uk` at 0.99 lost to the chat-reply code
+"900123" at 1.0.
+
+Result: test5 54/72 → 71/72 (98.6%), keep 82/89 → 87/89 (97.8%), 0 strays.
+Side effects on the older sets, all improvements: test3 74/76 → 75/76 (the
+chat-reply ID "CU-104772"), test4 60/63 → 61/63 (the chat-reply ID
+"4471-8820-03") and keep 80/83 → 81/83 ("via the Lyon hub"); dev, test and
+test2 unchanged (dev strays still 4); both regression suites and the 18 unit
+tests pass. The five remaining failures across test3–test5 are the two
+structural ones: plural pronouns for things near a person ("they" in test5
+documents 01 and 09, "they"/"their" in test4 document 06) or for people far
+from their names ("Their forwarding address", test4 document 07), and first
+names in prose the model does not know ("Hannelore", "Thandiwe", "Nkechi").
+Plus "Halden Kitchenware" as a person from general NER on test3.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -290,24 +341,22 @@ on them.
 
 ### Next steps
 
-1. Decide the test5 findings (gold section above). Cheap: "birthday" in
-   `DOB_CONTEXT`; "staff", "payroll" and "hull ID" labels; "Engine:" among
-   the thing labels; UK national phone forms and the "(0)" trunk prefix;
-   Canadian and German postcodes; "Surgery" and "Language Centre" as facility
-   words. Structural: the model stops at lowercase particles and accents and
-   the trusted PERSON label then exposes the rest of the name — corpus round 3
-   should carry particles, accents and hyphens. Each fix spends test5's
-   blindness; author test6 before the next milestone.
-2. Plural pronouns need reference, not proximity: both failure directions are
-   now in gold (test4 documents 06 and 07).
-3. PERSON recall in running prose, on bare name lines, and on names with
-   particles, accents and hyphens, measured four times (candidate 2 against
-   1, test3, test4, test5): more prose genres, those name shapes, or a second
-   seed.
+1. Author a blind gold batch test6 before the next milestone: every existing
+   set has absorbed fixes (test5 on 2026-11-05). Worth probing there: the
+   new rules on fresh surface forms (other particles and diacritics, other
+   national phone and postcode formats, other site nouns and thing labels,
+   chat transcripts with several codes), and whatever test6's author thinks
+   the rule layer has never seen.
+2. Corpus round 3 for the model: names with lowercase particles, accents and
+   hyphens (the model gave "Fenna van", "Németh", "Bartholomew Oyelaran" on
+   test5, and the rules carried those), German-order addresses, facilities
+   it mislabels, and more first names in running prose.
+3. Plural pronouns need reference, not proximity: both failure directions are
+   in gold (test4 documents 06 and 07, test5 documents 01 and 09) and they
+   are now the largest remaining error class.
 4. The remaining rule-layer over-redactions: "them"/"their" far from a person
    and "Pallet"/"Meter" from general NER on dev (strays); "Halden Kitchenware"
-   on test3 and "via the Lyon hub" on test4 (keep failures). An ID answered in
-   chat without its label stays a known gap.
+   on test3 (keep failure).
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 

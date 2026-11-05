@@ -153,3 +153,56 @@ def test_rule_layer_fixes_from_test4():
     ner = [{"entity_type": "PERSON", "start": vehicle, "end": vehicle + len("Nissan Qashqai"),
             "score": 0.85, "text": "Nissan Qashqai", "source": "spacy"}]
     assert policy_rules.apply_policy_filters(ner, text) == []
+
+
+def test_rule_layer_fixes_from_test5():
+    import policy_rules
+
+    text = ("Claimant: Fenna van der Berg\n"
+            "Next of kin: Gábor Németh (brother)\n"
+            "Address: 220 Lakeshore Avenue, Toronto, ON M5V 2T6\n"
+            "Home address: Hauptstrasse 12, 80331 Munich\n"
+            "Passenger: Oluwaseun Adeyemi, birthday 14 Feb 1979\n"
+            "Staff No. 004512, payroll number P-204418, hull ID FR-JNO34912C626\n"
+            "Bank account 12345678, sort code 40-11-60\n"
+            "Call 020 7946 0958 or 07700 900123 or +49 (0)30 901820.\n"
+            "IBAN DE89 3704 0044 0532 0130 00\n"
+            "Previous practice: Lindenhof Surgery. Surgery went well.\n"
+            "Referred to Riverside Speech and Language Centre.\n"
+            "[14:02] Agent: Could you confirm your member number?\n"
+            "[14:02] Priya Raghunathan: 88-1234-556, booked for 2026-12-01.\n"
+            "[14:03] Agent: Order number 55120 is on its way.\n")
+    found = {(r["entity_type"], r["text"]) for r in policy_rules.run_pattern_rules(text)}
+    assert ("PERSON", "Fenna van der Berg") in found
+    assert ("PERSON", "Gábor Németh") in found
+    assert ("ADDRESS_LINE", "220 Lakeshore Avenue, Toronto, ON M5V 2T6") in found
+    assert ("ADDRESS_LINE", "Hauptstrasse 12, 80331 Munich") in found
+    assert ("DATE_OF_BIRTH", "14 Feb 1979") in found
+    assert ("GENERIC_ID", "004512") in found
+    assert ("GENERIC_ID", "P-204418") in found
+    assert ("SERIAL_NUMBER", "FR-JNO34912C626") in found
+    assert ("BANK_ACCOUNT", "40-11-60") in found
+    assert ("PHONE", "020 7946 0958") in found
+    assert ("PHONE", "07700 900123") in found
+    assert ("PHONE", "+49 (0)30 901820") in found
+    assert not any(label == "PHONE" and "0044" in value for label, value in found)
+    assert ("SENSITIVE_ORGANIZATION", "Lindenhof Surgery") in found
+    assert ("SENSITIVE_ORGANIZATION", "Surgery") not in found
+    assert ("SENSITIVE_ORGANIZATION", "Riverside Speech and Language Centre") in found
+    assert ("GENERIC_ID", "88-1234-556") in found
+    assert ("GENERIC_ID", "2026-12-01") not in found
+    assert ("GENERIC_ID", "55120") not in found
+
+    def ner(label, needle, source="spacy"):
+        start = text.index(needle)
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": 0.85, "text": needle, "source": source}
+
+    sites = ("Travels to Bergen via the Oslo hub. Engine: Yanmar 3YM30. "
+             "The Bosch Serie 4 works best on the eco cycle. She works at the Hull depot.")
+    text = sites
+    kept = policy_rules.apply_policy_filters(
+        [ner("LOCATION", "Bergen"), ner("LOCATION", "Oslo"), ner("PERSON", "Hull"),
+         ner("PERSON", "Yanmar 3YM30", "custom_ner"), ner("ORGANIZATION", "Bosch Serie 4")],
+        sites)
+    assert [r["text"] for r in kept] == ["Bergen"]

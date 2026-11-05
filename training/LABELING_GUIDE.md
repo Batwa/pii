@@ -44,6 +44,10 @@ One JSON object per line (JSONL):
   ("Patient: X"), chat speakers, quoted e-mail authors.
 - A name word may carry an inner capital ("MacLeod", "McDonald", "DeSouza");
   label the whole word, never the prefix alone.
+- Lowercase particles and accented letters are part of the name: "Fenna van
+  der Berg", "Pieter de Vries", "Gábor Németh", "Oisín". A fragment ("Fenna
+  van", "Németh") is a boundary error, not a partial success (test5,
+  2026-11-05).
 - Job titles are NOT persons ("Senior Dispatcher", "Ward Nurse" stay).
 - Company names are NOT persons even in "Defendant: Stroyservice LLC".
 - A product or vehicle name after a thing label is NOT a person ("Vehicle:
@@ -51,12 +55,16 @@ One JSON object per line (JSONL):
 
 ### SENSITIVE_ORGANIZATION
 - Facilities whose mention alone reveals something about a person: clinics,
-  hospitals, polyclinics, hospices, shelters, schools, colleges, universities,
-  institutes, academies, medical/support/health/care/wellbeing/wellness/
-  counselling/rehabilitation centers (either spelling), counselling services.
+  hospitals, polyclinics, hospices, infirmaries, sanatoriums, shelters,
+  schools, nurseries, colleges, universities, institutes, academies, GP /
+  dental / medical practices, surgeries (the UK GP sense), and medical /
+  support / health / care / wellbeing / wellness / counselling /
+  rehabilitation / language / speech / therapy / treatment / dialysis / cancer
+  / diagnostic / crisis / day centers (either spelling), counselling services.
   The runtime keyword list (`SENSITIVE_ORG_KEYWORDS`) mirrors this line; a
   facility type missing from both is a miss, not a policy exception (test3,
-  2026-11-04: Institute, Academy, Wellbeing Centre).
+  2026-11-04: Institute, Academy, Wellbeing Centre; test5, 2026-11-05:
+  Surgery, Language Centre).
 - Label THIRD-PARTY mentions only: "referred to X", "treated at X",
   "Education: X", "attached to X".
 - Do NOT label the organization that authored the document — its own
@@ -76,12 +84,15 @@ One JSON object per line (JSONL):
   Lisbon") is redacted by a context rule; either way it is never labeled.
 - A city inside an address or a residence sentence is part of the address.
 - A postal code in any national format closes the address line ("Haarlem,
-  2011 AB"; "Springfield, IL 62704"; "Bristol, BS1 4ND").
+  2011 AB"; "Springfield, IL 62704"; "Bristol, BS1 4ND"; "Toronto, ON M5V
+  2T6"). In the German order the number follows the street and the postcode
+  precedes the city ("Hauptstrasse 12, 80331 Munich"); the whole line is one
+  address.
 
 ### DATE_OF_BIRTH
 - Only the date value, only when a birth label is nearby: "born", "DOB",
-  "d.o.b.", "date of birth", "birth date". Numeric, ISO ("1983-07-19") and
-  worded forms ("5 May 1994") all count.
+  "d.o.b.", "date of birth", "birth date", "birthday". Numeric, ISO
+  ("1983-07-19") and worded forms ("5 May 1994", "14 Feb 1979") all count.
 - Issue dates, appointment dates, contract dates, hearing dates stay visible.
 
 ## Keep rules (must NOT be labeled, and must survive redaction)
@@ -119,13 +130,22 @@ One JSON object per line (JSONL):
 9. A customer/member/account number given in a chat reply is that person's
    identifier even when its label sits in the previous message ("Could you
    give me the customer number?" / "Sure, CU-104772."). Labeled so in gold
-   test3 (2026-11-04); no rule implements it yet, because a bare prefixed
-   code with no label beside it is indistinguishable from a thing-ID.
+   test3 (2026-11-04). Rule since 2026-11-05: in a `[hh:mm] Speaker:`
+   transcript, a person-ID label (account, member, customer, client, patient,
+   policy, case, claim) in the previous speaker's line makes every
+   hyphenated or prefixed digit run in the reply that person's identifier.
+   Order and reference numbers do not count (thing-IDs).
 10. A label naming a thing directly before a span ("Vehicle:", "Make/Model:",
-    "Product:") vetoes the person reading of what follows, as an ID label
-    decides a number's type (decision 4). "Hospital number" labels a patient
-    identifier; the bare word "hospital" labels a facility. Rules since
-    2026-11-05 (test4 findings).
+    "Product:", "Engine:", "Appliance:") vetoes the person reading of what
+    follows, as an ID label decides a number's type (decision 4). "Hospital
+    number", "staff number" and "payroll number" label a person's identifier;
+    the bare words label a facility or a department. A boat's hull ID is a
+    serial number; a sort code belongs with its account number. Rules since
+    2026-11-05 (test4 and test5 findings).
+11. A city or a capitalised word followed by an operational noun ("the Oslo
+    hub", "Stavanger branch office", "the Hull depot") is a site: it stays
+    visible even inside a travel or residence sentence, and it is never a
+    person (decisions 5 and 8 made explicit at runtime, 2026-11-05).
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 

@@ -33,6 +33,9 @@ class TextPIIDetector:
     ADDRESS_ENTITY_TYPES = {"ADDRESS", "ADDRESS_LINE"}
     # Entity families in which a candidate nested inside a strictly longer
     # candidate of the same family yields to it (see deduplicate_results).
+    # SENSITIVE_ORGANIZATION is deliberately not one: the model's facility
+    # spans swallow neighbours ("Greystone Academy in September"), and the
+    # shorter regex span is the right one there.
     NESTED_SPAN_FAMILIES = (frozenset(ADDRESS_ENTITY_TYPES), frozenset({"PERSON"}))
 
     def __init__(self, confidence_threshold=CONFIDENCE_THRESHOLD):
