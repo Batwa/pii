@@ -2,7 +2,7 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 documents
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 documents
 are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
@@ -908,6 +908,190 @@ TEST3 = [
         "short-stay visa","conference"]),
 ]
 
+# ----------------------------------------------------- test4 set (13, blind)
+# Authored 2026-11-04 after the test3 fixes landed (commit 0de5ec7), without
+# running the detector on any of it; the first run is recorded in
+# training/README.md. Fresh names, streets, cities and organizations again. It
+# probes how the test3 fixes generalize — facility words in new combinations
+# (Technical Institute, Rehabilitation Centre) and new ones (Infirmary, Lyceum),
+# other international phone shapes, a hyphenated policy prefix, a unit before
+# the street, the new street types — and keeps measuring the known gaps: plural
+# pronouns for objects near a person, an ID answered in chat without its label,
+# a first name alone in prose, a CamelCase surname, a Dutch postcode, and a hub
+# city inside a travel sentence.
+TEST4 = [
+ dict(id="gold_v4_01_staff_rota.txt",
+  text=("WEEKLY STAFF ROTA\nPennine Freight Co.\n"
+        "Monday: Amadou Diallo (07:00-15:00), Saoirse Brennan (15:00-23:00)\n"
+        "Tuesday: Amadou Diallo (07:00-15:00), Leopold Krauss (15:00-23:00)\n"
+        "Swap requests go to the duty manager by Friday noon. Overtime is paid "
+        "at 1.5 times the hourly rate."),
+  redact=[("Amadou Diallo","PERSON"),("Saoirse Brennan","PERSON"),
+          ("Leopold Krauss","PERSON")],
+  keep=["Pennine Freight Co.","07:00","15:00","23:00","Monday","Tuesday",
+        "Friday","duty manager","1.5 times"]),
+
+ dict(id="gold_v4_02_hospice_referral.txt",
+  text=("REFERRAL\nRoyal Vale Infirmary\n"
+        "Patient: Petronella Visser, date of birth 1958-11-23, hospital number "
+        "RV-88-2201.\n"
+        "Referred to St. Columba's Hospice for palliative care planning. She "
+        "lives alone and her daughter visits daily.\n"
+        "Transport arranged for 11/27/2026."),
+  redact=[("Petronella Visser","PERSON"),("1958-11-23","DOB"),
+          ("RV-88-2201","GENERIC_ID"),("St. Columba's Hospice","SENSITIVE_ORG"),
+          ("she","PRONOUN"),("her","PRONOUN")],
+  keep=["Royal Vale Infirmary","11/27/2026","palliative care planning",
+        "daughter"]),
+
+ dict(id="gold_v4_03_lyceum_transfer.txt",
+  text=("TRANSFER CONFIRMATION\n"
+        "Student: Ruaridh MacLeod, group 7-A, enrolled at Dunwich Lyceum from "
+        "January.\n"
+        "His previous school forwarded the attendance record and a reading-age "
+        "assessment of 11.2 years.\n"
+        "Uniform orders close on 12/15/2026; the office answers questions on "
+        "weekday afternoons."),
+  redact=[("Ruaridh MacLeod","PERSON"),("7-A","GROUP_CLASS"),
+          ("Dunwich Lyceum","SENSITIVE_ORG"),("his","PRONOUN")],
+  keep=["January","11.2 years","12/15/2026","afternoons","attendance record"]),
+
+ dict(id="gold_v4_04_quoted_email_date.txt",
+  text=("From: ottoline.marsh@solwaytimber.example\n"
+        "To: kasimir.oyelowo@solwaytimber.example\n"
+        "Subject: RE: kiln schedule\n\n"
+        "Kasimir, the Genoa depot confirmed the Thursday slot. Thandiwe will "
+        "send the loading list tonight; call her on +33 6 12 34 56 78 if it is "
+        "late.\n\n"
+        "> On Fri, 3 Oct 2026, Kasimir Oyelowo wrote:\n"
+        "> Agreed. The kiln is down for maintenance until the 10th, so nothing "
+        "ships before then.\n"),
+  redact=[("ottoline.marsh@solwaytimber.example","EMAIL"),
+          ("kasimir.oyelowo@solwaytimber.example","EMAIL"),
+          ("Kasimir Oyelowo","PERSON"),("Kasimir","PERSON"),
+          ("Thandiwe","PERSON"),("her","PRONOUN"),
+          ("+33 6 12 34 56 78","PHONE")],
+  keep=["Genoa","Thursday","kiln schedule","3 Oct 2026","10th","maintenance"]),
+
+ dict(id="gold_v4_05_motor_quote.txt",
+  text=("MOTOR INSURANCE QUOTE\nProposer: Henrik Solberg\n"
+        "Vehicle: Nissan Qashqai, registration AB12 CDE, kept overnight on a "
+        "driveway.\n"
+        "Policy number AB-20394871 (previous insurer). Quoted premium 488.20 "
+        "per year, excess 250.00.\n"
+        "He has held a licence for 12 years with no convictions."),
+  redact=[("Henrik Solberg","PERSON"),("AB12 CDE","LICENSE_PLATE"),
+          ("AB-20394871","POLICY_NUMBER"),("he","PRONOUN")],
+  keep=["Nissan Qashqai","488.20","250.00","12 years","driveway"]),
+
+ dict(id="gold_v4_06_bank_notice.txt",
+  text=("ACCOUNT NOTICE\nAccount holder: Dilnoza Karimova\n"
+        "Correspondence address: Unit 4, 77 Quayside Walk, Kirkwall, KW15 1AB\n"
+        "IBAN DE89 3704 0044 0532 0130 00\n"
+        "From 01/01/2027 paper statements stop; they move to the online portal "
+        "and their layout stays the same. She can opt out by replying within "
+        "30 days."),
+  redact=[("Dilnoza Karimova","PERSON"),("Unit 4","ADDRESS"),
+          ("77 Quayside Walk","ADDRESS"),("Kirkwall","CITY_RESIDENCE"),
+          ("KW15 1AB","ZIP"),("DE89 3704 0044 0532 0130 00","IBAN"),
+          ("she","PRONOUN")],
+  keep=["01/01/2027","they","their","online portal","30 days"]),
+
+ dict(id="gold_v4_07_tenancy_end.txt",
+  text=("END OF TENANCY STATEMENT\n"
+        "Tenants: Tobias Achterberg and Zahra Mahmoudi\n"
+        "Property: 12 Cobble Square, Flat 3, Tralee\n"
+        "Deposit held 1,200.00; deductions 140.00 for carpet cleaning; refund "
+        "1,060.00 within 10 working days.\n"
+        "Keys were returned on 10/31/2026. Their forwarding address is on file."),
+  redact=[("Tobias Achterberg","PERSON"),("Zahra Mahmoudi","PERSON"),
+          ("12 Cobble Square","ADDRESS"),("Flat 3","ADDRESS"),
+          ("Tralee","CITY_RESIDENCE"),("their","PRONOUN")],
+  keep=["1,200.00","140.00","1,060.00","10 working days","10/31/2026",
+        "carpet cleaning"]),
+
+ dict(id="gold_v4_08_helpdesk_reply.txt",
+  text=("HELPDESK CHAT #55120\n"
+        "[11:40] Support: Hi there. What is the account number on your "
+        "invoice?\n"
+        "[11:41] Nnamdi Eze: It is 4471-8820-03.\n"
+        "[11:42] Support: Thanks. The outage in the Malmo exchange ended at "
+        "noon; your line should be back. My colleague Florentyna will text you "
+        "once the test completes."),
+  redact=[("Nnamdi Eze","PERSON"),("4471-8820-03","GENERIC_ID"),
+          ("Florentyna","PERSON")],
+  keep=["Hi there","Malmo","noon","55120","invoice","Support"]),
+
+ dict(id="gold_v4_09_festival_debrief.txt",
+  text=("FESTIVAL DEBRIEF\n"
+        "Yesterday Casper Holm phoned about the marquee invoice and Marguerite "
+        "Dubois dropped off the signed consent forms. Both agreed to help "
+        "again next spring. She also suggested moving the raffle to the "
+        "afternoon.\n"
+        "Casper Holm left the hall at 7 o'clock in the evening after locking "
+        "the storage container. The committee thanks everyone who stewarded "
+        "the car park in the rain."),
+  redact=[("Casper Holm","PERSON"),("Marguerite Dubois","PERSON"),
+          ("she","PRONOUN"),("7 o'clock in the evening","TIME")],
+  keep=["marquee invoice","next spring","afternoon","car park",
+        "consent forms","storage container"]),
+
+ dict(id="gold_v4_10_travel_authorisation.txt",
+  text=("TRAVEL AUTHORISATION\n"
+        "Traveller: Ingeborg Haugen, Norwegian passport No. P7731204, born on "
+        "the 3rd of November 1988.\n"
+        "Flying to Marseille on 02/03/2027 via the Lyon hub; return 02/10/2027. "
+        "Hotel booking ref HB-99120 is attached.\n"
+        "She has requested an aisle seat. Expenses are capped at 140.00 per "
+        "day."),
+  redact=[("Ingeborg Haugen","PERSON"),("P7731204","PASSPORT"),
+          ("3rd of November 1988","DOB"),("Marseille","CITY_TRAVEL"),
+          ("she","PRONOUN")],
+  keep=["Norwegian","02/03/2027","Lyon","02/10/2027","HB-99120","140.00",
+        "aisle seat"]),
+
+ dict(id="gold_v4_11_rehab_progress.txt",
+  text=("PROGRESS NOTE\n"
+        "Client: Lucien Mercier (DoB 02-07-1985) completed the six-week "
+        "programme at Brightwater Rehabilitation Centre and returns to work on "
+        "12/01/2026.\n"
+        "He attends a weekly check-in by phone, 555-610-4473, and keeps the "
+        "exercise plan. Next review in March."),
+  redact=[("Lucien Mercier","PERSON"),("02-07-1985","DOB"),
+          ("Brightwater Rehabilitation Centre","SENSITIVE_ORG"),
+          ("he","PRONOUN"),("555-610-4473","PHONE")],
+  keep=["six-week programme","12/01/2026","March","exercise plan"]),
+
+ dict(id="gold_v4_12_cv_institute.txt",
+  text=("CV\nYevgenia Prokhorova\n"
+        "41 Rosemary Parade, Haarlem, 2011 AB\n"
+        "+31 20 234 5678 | y.prokhorova@postvak.example\n"
+        "Education: Harbourside Technical Institute, mechanical engineering, "
+        "from 2015 to 2019.\n"
+        "Experience: Test Engineer at Aurelian Software since 2019; she "
+        "maintains the rig fleet.\n"
+        "Languages: Hebrew, Catalan, Maltese. Software: Simulink, SolidWorks, "
+        "Ansys."),
+  redact=[("Yevgenia Prokhorova","PERSON"),("41 Rosemary Parade","ADDRESS"),
+          ("Haarlem","CITY_RESIDENCE"),("2011 AB","ZIP"),
+          ("+31 20 234 5678","PHONE"),("y.prokhorova@postvak.example","EMAIL"),
+          ("Harbourside Technical Institute","SENSITIVE_ORG"),
+          ("Aurelian Software","EMPLOYER_ORG"),("she","PRONOUN")],
+  keep=["Hebrew","Catalan","Maltese","Simulink","SolidWorks","Ansys",
+        "Test Engineer","2015","2019","rig fleet"]),
+
+ dict(id="gold_v4_13_harbour_notice.txt",
+  text=("HARBOUR NOTICE\n"
+        "Gale warning for the Esbjerg approaches from 18:00 tonight until "
+        "06:00 tomorrow. The Genoa ferry is delayed by four hours and the "
+        "Malmo crossing is cancelled.\n"
+        "Berth fees for the night are waived. The harbour office reopens at "
+        "08:00; call the duty line for berth allocation."),
+  redact=[],
+  keep=["Esbjerg","18:00","06:00","Genoa","Malmo","four hours","night",
+        "08:00","duty line","harbour office"]),
+]
+
 
 def occurrences(needle, haystack):
     pattern = re.escape(needle)
@@ -951,7 +1135,8 @@ def emit(docs, docs_path, cases_path):
 
 def main():
     problems = (validate(DEV, "dev") + validate(TEST, "test")
-                + validate(TEST2, "test2") + validate(TEST3, "test3"))
+                + validate(TEST2, "test2") + validate(TEST3, "test3")
+                + validate(TEST4, "test4"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -960,11 +1145,12 @@ def main():
     emit(TEST, GOLD_DIR / "test_docs.jsonl", GOLD_DIR / "test_cases.jsonl")
     emit(TEST2, GOLD_DIR / "test2_docs.jsonl", GOLD_DIR / "test2_cases.jsonl")
     emit(TEST3, GOLD_DIR / "test3_docs.jsonl", GOLD_DIR / "test3_cases.jsonl")
-    everything = DEV + TEST + TEST2 + TEST3
+    emit(TEST4, GOLD_DIR / "test4_docs.jsonl", GOLD_DIR / "test4_cases.jsonl")
+    everything = DEV + TEST + TEST2 + TEST3 + TEST4
     n_redact = sum(len(d["redact"]) for d in everything)
     n_keep = sum(len(d["keep"]) for d in everything)
     print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
-          f"{len(TEST3)} test3 docs ({n_redact} redact spans, {n_keep} keep "
+          f"{len(TEST3)} test3 + {len(TEST4)} test4 docs ({n_redact} redact spans, {n_keep} keep "
           f"spans) to {GOLD_DIR}")
 
 

@@ -31,8 +31,8 @@ before re-running it.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 63 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 test3) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 76 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 test3 / 13 test4) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -51,11 +51,11 @@ memorizing the dev set. Each test batch was authored blind and scored once
 before any fix: **test** (15 docs; its first run absorbed five fixes),
 **test2** (10 docs; first blind run 97.2% / 100%, one fix since, and corpus
 round 2 targeted its reference-letter miss, so it is no longer blind for prose
-names), and **test3** (13 docs, authored 2026-11-04 after candidate 2 and the
-gate change). `--set all` runs all four. Current state: dev, test and test2 at
-100% coverage / 100% keep; test3 at 97.4% / 99.0% after the fixes recorded
-below, so it counts as semi-dev now and the next blind measurement needs a
-test4.
+names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
+change), and **test4** (13 docs, authored 2026-11-04 after the test3 fixes).
+`--set all` runs all five. Current state: dev, test and test2 at 100% coverage
+/ 100% keep; test3 at 97.4% / 99.0% after the fixes recorded below (semi-dev);
+test4's blind run is recorded below and nothing has been fixed against it.
 
 ### test3 blind run (2026-11-04)
 
@@ -118,6 +118,40 @@ unlabeled chat-reply ID "CU-104772" (labeling-guide decision 9, no rule yet),
 the first name "Nkechi" in prose (model recall), and "Halden Kitchenware"
 redacted as a person by general NER.
 
+### test4 blind run (2026-11-04)
+
+Full pipeline (candidate 2 live, relaxed gate, test3 fixes in): redact
+coverage 56/63 (88.9%), keep intact 79/83 (95.2%), 0 stray spans. Model
+alone: 24/31 model-entity items (77.4%), keep 82/83, 0 strays. Nothing has
+been fixed against it. The test3 fixes generalized: Technical Institute and
+Rehabilitation Centre, the hyphenated policy prefix, the UK plate, the unit
+before the street, the Square and Parade street types, the ISO and
+dash-separated birth dates, the "+31 20 234 5678" phone and the German IBAN
+all passed; so did the Lyceum (through general NER and "enrolled at") and the
+Infirmary letterhead. The seven misses and four over-redactions:
+
+- The nested-span weakness again, now for people: the role-label regex stops
+  at the inner capital of "Ruaridh MacLeod" ("Ruaridh Mac", score 1.0) and
+  outranks the model's full name (score 0.95), leaving "Leod" exposed. The
+  address rule from the test3 fixes should apply to PERSON spans too.
+- Plural pronouns fail both ways within one batch: "they"/"their" for paper
+  statements are redacted because a person is within 160 characters (2 keep
+  failures), while "Their forwarding address" for the tenants is missed
+  because the names are further away (1 miss). Proximity is not reference.
+- A product name as a person from general NER, the third time after "Skoda
+  Octavia" and "Halden Kitchenware": "Nissan Qashqai" (keep failure). The
+  "Vehicle:" label in front of it could decide the type, as labels do for
+  numbers.
+- A hub city inside a travel sentence: "via the Lyon hub" is redacted because
+  the travel context is checked per sentence, not per city (keep failure).
+- Formats: a French phone with a single-digit group "+33 6 12 34 56 78", a
+  Dutch postcode "2011 AB", and "hospital number" missing from the ID labels
+  (3 misses).
+- Known gaps: an ID answered in chat without its label "4471-8820-03", and
+  the first name "Thandiwe" in prose (2 misses). The model alone also missed
+  "Florentyna", two of three "Kasimir", the bare name line under "CV", the
+  address behind a unit number, and the two non-ISO birth dates.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -178,14 +212,19 @@ on them.
 
 ### Next steps
 
-1. Author test4 before the next milestone: every gold set has now absorbed
-   fixes, so no blind measurement is left.
-2. PERSON recall in running prose, measured twice (candidate 2 against 1, and
-   test3's "Nkechi"/"Rhiannon"): more prose genres or a second seed.
-3. The remaining rule-layer strays: "them"/"their" far from a person and
-   "Pallet"/"Meter" from general NER on dev; "Halden Kitchenware" as a person
-   on test3. An ID answered in chat without its label ("CU-104772") needs a
-   conversation-context rule or stays a known gap.
+1. Decide the test4 findings (gold section above): extend the nested-span
+   rule to PERSON, let a "Vehicle:" label veto a person, add "hospital
+   number" to the ID labels, the single-digit-group phone and the Dutch
+   postcode. Each fix spends test4's blindness; author test5 before the next
+   milestone.
+2. Plural pronouns need reference, not proximity: both failure directions are
+   now in gold (test4 documents 06 and 07).
+3. PERSON recall in running prose and on bare name lines, measured three
+   times (candidate 2 against 1, test3, test4): more prose genres or a second
+   seed.
+4. The remaining rule-layer strays: "them"/"their" far from a person and
+   "Pallet"/"Meter" from general NER on dev; "Halden Kitchenware" on test3.
+   An ID answered in chat without its label stays a known gap.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 

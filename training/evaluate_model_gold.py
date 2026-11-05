@@ -115,14 +115,14 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", default="models/custom_ner")
-    parser.add_argument("--set", choices=["dev", "test", "test2", "test3", "both", "all"],
+    parser.add_argument("--set", choices=["dev", "test", "test2", "test3", "test4", "both", "all"],
                         default="dev")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 
     nlp = spacy.load(args.model)
     names = {"both": ["dev", "test"],
-             "all": ["dev", "test", "test2", "test3"]}.get(args.set, [args.set])
+             "all": ["dev", "test", "test2", "test3", "test4"]}.get(args.set, [args.set])
     for name in names:
         print(f"\n================ GOLD {name.upper()} -- model only: {args.model} ================")
         evaluate(nlp, GOLD_DIR / f"{name}_docs.jsonl",
