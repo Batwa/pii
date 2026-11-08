@@ -5,9 +5,34 @@ entities the model learns versus which the rule layer (`policy_rules.py`)
 owns, the labeling criteria, and the LLM pre-labeling workflow. Label only the
 model's entities; rules already beat the model on everything formatted.
 
-`train.py` writes to `models/custom_ner_candidate` by default. The detector
-auto-loads `models/custom_ner`, so promote a candidate there only after
-`evaluate.py` and the gold suites pass.
+### Model location
+
+The detector loads the first of: the `CUSTOM_NER_MODEL` environment variable,
+`~/pii-models/custom_ner` when that directory exists, and `models/custom_ner`
+inside the repository. `train.py` writes to `custom_ner_candidate` next to the
+live model (`config.MODELS_DIR`), and the evaluators default to the live model.
+Keep the model directories outside any synced folder: they are about 425 MB
+each, and iCloud Drive evicts such files to free disk space and then stalls
+every load for minutes, which cost this project hours in November 2026. The
+live model (candidate 2) and the seed backup moved to `~/pii-models/` on
+2026-11-07; the in-repository `models/` location remains supported and
+gitignored. Promote a candidate only after `evaluate.py` and the gold suites
+pass.
+
+The move itself lost two of the 44 model files to iCloud: every download of
+`custom_ner/vocab/strings.json` and `custom_ner_seed16/ner/moves` was
+cancelled by the sync daemon while the rest of the folder downloaded on
+demand. Both were rebuilt by replaying the vocabulary steps of `train.py` on
+`en_core_web_lg` (add the sorted labels, run `make_doc` over the training
+texts): spaCy writes `strings.json` sorted and `ner/moves` as the base
+model's label table plus the added labels, so both files are deterministic
+given the training data. The replay reproduced the seed model's
+`strings.json` and the live model's `ner/moves` byte for byte, and the two
+rebuilt files have the original sizes (9,720,804 and 1,252 bytes). With them
+in place, the six gold sets (full pipeline and model alone), both regression
+suites and the 18 unit tests reproduce every recorded number from
+`~/pii-models`, and the seed model alone reproduces its 71/89, 209/267, 20
+strays; the iCloud copies under `models/` were then removed.
 
 ## Generated training corpus
 
@@ -327,8 +352,9 @@ The five strays are the same five as under the old gate and belong to the rule
 layer, not the model: "them" and "their" far from any person, "price" caught by
 the apartment pattern, and "Pallet" / "Meter" from general NER. Candidate 2 is
 the only model safe behind the relaxed gate, so it was promoted to
-`models/custom_ner` on 2026-11-04; the seed model is kept locally as
-`models/custom_ner_seed16`. The private regression suite, the international
+`models/custom_ner` on 2026-11-04 (since 2026-11-07 both live under
+`~/pii-models/`, see "Model location"); the seed model is kept locally as
+`custom_ner_seed16`. The private regression suite, the international
 suite and the unit tests all pass with it.
 
 On gold the relaxed gate changes no score, because rules and general NER already
@@ -392,23 +418,24 @@ This creates `train.jsonl`, `dev.jsonl`, `regression_cases.jsonl`, and `REVIEW_C
 ## Train and evaluate
 
 ```bash
+# Candidates land next to the live model (default: ~/pii-models/custom_ner_candidate)
 python training/train.py \
   --train training/data/private/train.jsonl \
-  --dev training/data/private/dev.jsonl \
-  --output models/custom_ner_candidate
+  --dev training/data/private/dev.jsonl
 
 python training/evaluate.py \
-  --model models/custom_ner_candidate \
+  --model ~/pii-models/custom_ner_candidate \
   --data training/data/private/dev.jsonl
 
 python training/evaluate_model_gold.py \
-  --model models/custom_ner_candidate --set all
+  --model ~/pii-models/custom_ner_candidate --set all
 
 python training/validate_regression_cases.py
 python training/evaluate_gold.py --set all
 
 # Promote only after every check above passes:
-# rm -rf models/custom_ner && mv models/custom_ner_candidate models/custom_ner
+# mv ~/pii-models/custom_ner ~/pii-models/custom_ner_previous
+# mv ~/pii-models/custom_ner_candidate ~/pii-models/custom_ner
 ```
 
 `evaluate.py` reports exact-span precision, recall and F1 per label and sorts
@@ -429,7 +456,7 @@ python training/train.py
 python training/evaluate.py
 ```
 
-The detector automatically loads `models/custom_ner` when it exists. Keep it only when its held-out evaluation and manual review meet your privacy policy. You can point to a different local model directory with the `CUSTOM_NER_MODEL` environment variable.
+The detector automatically loads the live model (see "Model location" above: `$CUSTOM_NER_MODEL`, then `~/pii-models/custom_ner`, then `models/custom_ner`) when it exists. Keep it only when its held-out evaluation and manual review meet your privacy policy.
 
 `validate_regression_cases.py` verifies exact identifiers with the hybrid detector. Use it after every change so that a fix for one file does not reintroduce the missed phones, account numbers, or other reviewed identifiers.
 

@@ -18,7 +18,9 @@ from pathlib import Path
 import spacy
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from train import load_examples
+from config import CUSTOM_NER_MODEL
 
 TARGET_LABELS = {"PERSON", "DATE_OF_BIRTH", "SENSITIVE_ORGANIZATION", "ADDRESS"}
 ERROR_KINDS = ("MISSED", "SPURIOUS", "BOUNDARY", "LABEL")
@@ -56,7 +58,7 @@ def classify_errors(expected, predicted):
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", default="models/custom_ner")
+    parser.add_argument("--model", default=CUSTOM_NER_MODEL)
     parser.add_argument("--data", default="training/data/seed_dev.jsonl")
     parser.add_argument("--quiet", action="store_true",
                         help="print the tables only, not every mismatching document")

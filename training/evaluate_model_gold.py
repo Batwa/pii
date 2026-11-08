@@ -31,7 +31,9 @@ from pathlib import Path
 import spacy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evaluate_gold import GOLD_DIR, covered, occurrences, read_jsonl
+from config import CUSTOM_NER_MODEL
 
 # gold-corpus label -> model label
 MODEL_LABELS = {"PERSON": "PERSON", "ADDRESS": "ADDRESS",
@@ -114,7 +116,7 @@ def evaluate(nlp, docs_path, cases_path, verbose=True):
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", default="models/custom_ner")
+    parser.add_argument("--model", default=CUSTOM_NER_MODEL)
     parser.add_argument("--set", choices=["dev", "test", "test2", "test3", "test4", "test5", "both", "all"],
                         default="dev")
     parser.add_argument("--quiet", action="store_true")

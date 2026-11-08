@@ -8,6 +8,11 @@ from pathlib import Path
 import spacy
 from spacy.training import Example
 from spacy.util import minibatch
+import os
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from config import MODELS_DIR  # noqa: E402  (the project root, see above)
 
 
 def load_examples(path):
@@ -40,7 +45,7 @@ def main():
     # Deliberately NOT models/custom_ner: the detector auto-loads that path, so
     # training straight into it would silently change production behavior.
     # Promote a candidate by moving it there after evaluation passes.
-    parser.add_argument("--output", default="models/custom_ner_candidate")
+    parser.add_argument("--output", default=os.path.join(MODELS_DIR, "custom_ner_candidate"))
     parser.add_argument("--base-model", default="en_core_web_lg")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)

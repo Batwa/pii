@@ -173,6 +173,7 @@ One JSON object per line (JSONL):
   precision/recall/F1 per label on a labeled JSONL set, with every mismatch
   sorted into MISSED / SPURIOUS / BOUNDARY / LABEL.
 - `python training/validate_regression_cases.py` — exact-identifier suite.
-- `python training/train.py --output models/custom_ner_candidate` — never
-  train directly into `models/custom_ner`; the detector auto-loads that path.
+- `python training/train.py` — writes `custom_ner_candidate` next to the live
+  model (training/README.md, "Model location"); never train directly into the
+  live model directory, the detector auto-loads it.
   Promote a candidate only after `evaluate.py` and the gold suites pass.

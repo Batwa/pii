@@ -10,10 +10,24 @@ SAMPLE_DATA = os.path.join(PROJECT_ROOT, "tests", "sample_data")
 
 # PII Detection settings
 CONFIDENCE_THRESHOLD = 0.8
-CUSTOM_NER_MODEL = os.environ.get(
-    "CUSTOM_NER_MODEL",
-    os.path.join(PROJECT_ROOT, "models", "custom_ner"),
-)
+# Where the custom NER model lives. The model directories are large (about
+# 425 MB each) and a synced folder such as iCloud Drive evicts them, which
+# stalls every load (training/README.md, "Model location"). Resolution order:
+# the CUSTOM_NER_MODEL environment variable; ~/pii-models/custom_ner when that
+# directory exists; otherwise models/custom_ner inside the repository.
+def _custom_model_path():
+    override = os.environ.get("CUSTOM_NER_MODEL")
+    if override:
+        return os.path.expanduser(override)
+    home_copy = os.path.join(os.path.expanduser("~"), "pii-models", "custom_ner")
+    if os.path.isdir(home_copy):
+        return home_copy
+    return os.path.join(PROJECT_ROOT, "models", "custom_ner")
+
+
+CUSTOM_NER_MODEL = _custom_model_path()
+# Candidates and backups live next to the live model (train.py's default output).
+MODELS_DIR = os.path.dirname(CUSTOM_NER_MODEL)
 # Custom-model spans the pipeline trusts as they come. SENSITIVE_ORGANIZATION
 # is deliberately absent: a facility still needs a keyword in its own text
 # (clinic, school, ...) because that is the label a small model over-fires on.
