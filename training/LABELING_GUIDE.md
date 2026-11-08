@@ -48,10 +48,22 @@ One JSON object per line (JSONL):
   der Berg", "Pieter de Vries", "Gábor Németh", "Oisín". A fragment ("Fenna
   van", "Németh") is a boundary error, not a partial success (test5,
   2026-11-05).
+- ALL-CAPS form values after a name label are names ("SURNAME: ONYEKWERE",
+  "GIVEN NAMES: CHIDI EMEKA"); label the value, not the label. A courtesy
+  title ahead of a labelled name belongs to the span ("Mr Khalid bin Tariq
+  Al-Farsi") but is not a name word (test6, 2026-11-07).
+- A bare first name addressed by a greeting or a reminder is a person ("Hi
+  Ifeoma,", "Reminder for Bartek:", "Thanks Rhys."); collective and role
+  addressees are not ("Dear Customer,", "Hi Team,", "Hi all,"). The first
+  name of a full name found elsewhere in the document is the same person
+  ("Sigrún" after "Pupil: Sigrún Hallgrímsdóttir") — rule-owned at runtime
+  (first-name echo), but label every occurrence in gold.
 - Job titles are NOT persons ("Senior Dispatcher", "Ward Nurse" stay).
 - Company names are NOT persons even in "Defendant: Stroyservice LLC".
 - A product or vehicle name after a thing label is NOT a person ("Vehicle:
-  Nissan Qashqai", "Product: Halden Kitchenware"), whatever the NER says.
+  Nissan Qashqai", "Product: Halden Kitchenware"), whatever the NER says;
+  nor is anything with a digit in it ("Jungheinrich EFG 216") — a name never
+  contains one (test6, 2026-11-07).
 
 ### SENSITIVE_ORGANIZATION
 - Facilities whose mention alone reveals something about a person: clinics,
@@ -60,11 +72,13 @@ One JSON object per line (JSONL):
   dental / medical practices, surgeries (the UK GP sense), and medical /
   support / health / care / wellbeing / wellness / counselling /
   rehabilitation / language / speech / therapy / treatment / dialysis / cancer
-  / diagnostic / crisis / day centers (either spelling), counselling services.
+  / diagnostic / crisis / day centers (either spelling), counselling services,
+  care / nursing / residential homes, health / NHS / foundation / hospital
+  trusts.
   The runtime keyword list (`SENSITIVE_ORG_KEYWORDS`) mirrors this line; a
   facility type missing from both is a miss, not a policy exception (test3,
   2026-11-04: Institute, Academy, Wellbeing Centre; test5, 2026-11-05:
-  Surgery, Language Centre).
+  Surgery, Language Centre; test6, 2026-11-07: Care Home, Health Trust).
 - Label THIRD-PARTY mentions only: "referred to X", "treated at X",
   "Education: X", "attached to X".
 - Do NOT label the organization that authored the document — its own
@@ -87,7 +101,13 @@ One JSON object per line (JSONL):
   2011 AB"; "Springfield, IL 62704"; "Bristol, BS1 4ND"; "Toronto, ON M5V
   2T6"). In the German order the number follows the street and the postcode
   precedes the city ("Hauptstrasse 12, 80331 Munich"); the whole line is one
-  address.
+  address. In the Romance order the street word leads and a floor/door may
+  follow the number ("Calle Mayor 12, 3ºB, 28013 Madrid"). A UK postcode
+  after the town is part of the line ("Kingsmere KM2 7QL"), never a stranded
+  half ("Kingsmere KM2").
+- A year followed by capitalised words is a title or an event, not an address
+  ("2027 Halvorsen Scholarship"), unless a street word says otherwise (test6,
+  2026-11-07: the custom model's first trusted-label leak).
 
 ### DATE_OF_BIRTH
 - Only the date value, only when a birth label is nearby: "born", "DOB",
@@ -146,6 +166,24 @@ One JSON object per line (JSONL):
     hub", "Stavanger branch office", "the Hull depot") is a site: it stays
     visible even inside a travel or residence sentence, and it is never a
     person (decisions 5 and 8 made explicit at runtime, 2026-11-05).
+12. ID labels (test6, 2026-11-07): the national-ID abbreviations DNI, NIE,
+    NIF, CURP, CPF, BSN and PESEL label a person's number on their own;
+    "application", "visa" and "permit" need a reference word ("APPLICATION
+    REFERENCE: VAF-2026-118822"); a penalty charge notice number ("PCN
+    number: EV 44021873") and a hire / tenancy / loan agreement number
+    ("Agreement: 55-20931") belong to the person served or party to it; an
+    employment contract number stays visible ("CONTRACT No. 44/26", dev
+    gold). A labelled driving licence redacts whatever its format, as a
+    labelled passport does.
+13. A label that is the second item of a comma list names a field of the
+    first item, not a person: "Employer, Applicant 1: Fenland Water Services"
+    is an employer line (test6, 2026-11-07). Transcript lines count as chat
+    whether or not the time is bracketed ("14:03 Rhys ap Gruffudd: ...").
+14. Digits inside an international phone are the phone, not a checksum-only
+    identifier ("612 345 678" inside "+34 612 345 678" is not an Australian
+    company number). The 00 dialling prefix counts like "+" unless another
+    digit group precedes it, so "0044 0532 0130 00" inside an IBAN is not a
+    phone (test6, 2026-11-07).
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 

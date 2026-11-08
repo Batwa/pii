@@ -37,9 +37,13 @@ _MONTHS = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?
 # such facilities and this list threw them away.
 # Surgery and Nursery need a name word in front so a sentence-initial
 # "Surgery went well" is not a facility (test5 blind run, 2026-11-05).
+# Care/Nursing Home and Health/NHS Trust came from the test6 blind run
+# (2026-11-07), where the model had found both and this list dropped them.
 _FACILITY_WORDS = (
     r"Hospital|Clinic|Polyclinic|Hospice|Shelter|School|College|University"
     r"|Institute|Academy|Infirmary|Sanatorium"
+    r"|(?:Care|Nursing|Residential|Children's)[ \t]+Home"
+    r"|(?:Health|NHS|Foundation|Hospital|Healthcare)[ \t]+Trust"
     r"|(?<=\w[ \t])(?:Surgery|Nursery)"
     r"|(?:Dental|GP|Medical|General|Family)[ \t]+Practice"
     r"|(?:Medical|Support|Health|Care|Wellbeing|Wellness|Counsell?ing"
@@ -110,8 +114,23 @@ _NAME_WORD = r"[A-ZÀ-ÖØ-Þ][a-zß-öø-ÿ'’-]+(?:[A-ZÀ-ÖØ-Þ][a-zß-öø
 # Lowercase particles between name words: "Fenna van der Berg", "Pieter de
 # Vries". Case-sensitive on purpose, so a sentence cannot continue a name.
 _NAME_PARTICLES = (r"(?:[ \t](?:van|der|den|de|von|da|di|du|la|le|del|della|dos"
-                   r"|das|ten|ter|op|bin|al|el))*")
+                   r"|das|ten|ter|op|bin|al|el|ap|ab|ibn|bint|abu|af|av|zu|'t|’t))*")
 _NAME = _NAME_WORD + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){1,2}"
+# An optional courtesy title ahead of a labelled name. It is part of the span
+# but not a name word, so "Mr Khalid bin Tariq Al-Farsi" keeps its two name
+# slots for the name (test6: the title had used one up).
+_TITLE_OPT = r"(?:(?:Mr|Mrs|Ms|Mx|Miss|Dr|Prof|Sr|Sra|Herr|Frau|Mme|Mlle|M)\.?[ \t]+)?"
+# Addressees that are collective or role words, never a first name.
+_GREETING_STOP = (
+    r"(?:All|Everyone|Everybody|Team|Customers?|Colleagues?|Sirs?|Madam|Friends?"
+    r"|Parents?|Guests?|Members?|Residents?|Tenants?|Patients?|Students?|Applicant"
+    r"|Doctor|Nurse|Both|Partners?|Valued|Folks|Guys|Mum|Dad|Mom|You|There|Readers?"
+    r"|World|Diary|Again|Later|Soon|Today|Tomorrow|Yesterday|Tonight|Monday|Tuesday"
+    r"|Wednesday|Thursday|Friday|Saturday|Sunday|Support|Sales|Admin|Office|Reception"
+    r"|Staff|Users?|Subscribers?|Volunteers?|Neighbou?rs?|Mr|Mrs|Ms|Mx|Miss|Dr|Prof"
+    r"|Lord|Lady)")
+# A UK postcode; the outward half alone is what a span tends to stop after.
+_UK_POSTCODE = r"[A-Z]{1,2}\d{1,2}[A-Z]?[ \t]\d[A-Z]{2}"
 
 TEXT_PATTERNS = {
     # --- contact details (policy: personal phones and e-mails always redact;
@@ -120,13 +139,17 @@ TEXT_PATTERNS = {
     # The final separator is mandatory: a bare 10-digit run (batch code,
     # reference number) is not a phone under the policy.
     'phone': re.compile(r'(?<!\w)(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]([0-9]{4})(?!\w)'),
-    # International form: a leading "+", the country code, an optional
-    # single-digit group ("+33 6 12 34 56 78", test4), then at least two
-    # separated digit groups. The "+" is mandatory so amounts and references
-    # never qualify (test3 finding, 2026-11-04).
+    # International form: a leading "+" (or the 00 dialling prefix), the
+    # country code, an optional single-digit group ("+33 6 12 34 56 78",
+    # test4), then at least two separated digit groups of up to eight
+    # digits ("+49 171 2345678", test6). The prefix is mandatory so amounts
+    # and references never qualify (test3 finding, 2026-11-04); the 00 form
+    # may not follow another digit group, so the "0044 0532 0130 00" inside
+    # an IBAN is not a phone.
     'phone_intl': re.compile(
-        r'(?<!\w)\+\d{1,3}(?:[ .-]?\(0\)[ .-]?\d{1,6}(?:[ .-]\d{2,6}){1,4}'  # +49 (0)30 901820
-        r'|(?:[ .-]\d)?(?:[ .-]\(?\d{2,6}\)?){2,4})(?!\w)'),
+        r'(?<!\w)(?:\+|(?<![\d][ .-])00)\d{1,3}'
+        r'(?:[ .-]?\(0\)[ .-]?\d{1,6}(?:[ .-]\d{2,6}){1,4}'  # +49 (0)30 901820
+        r'|(?:[ .-]\d)?(?:[ .-]\(?\d{2,8}\)?){2,4})(?!\w)'),
     # UK national form: a leading 0 and exactly ten more digits in two or
     # three separated groups ("020 7946 0958", "07700 900123"; test5). The
     # lookahead fixes the digit count so IBAN fragments never qualify.
@@ -151,10 +174,21 @@ TEXT_PATTERNS = {
     # recognizers' level so a specific match wins the dedup tiebreak.
     'passport_labelled': re.compile(
         r'\bpassport\s*(?:no\.?|number|#)?\s*[:#]?\s*(?P<pii>(?=[A-Z0-9]*\d)[A-Z0-9]{6,10})\b', re.IGNORECASE),
+    # The same fallback for a labelled driving licence: Presidio's UK
+    # recognizer scores a valid number 0.5 with or without its label (test6),
+    # so the label carries it here, at the passport fallback's score.
+    'driving_licence': re.compile(
+        r"\b(?:driving|driver['’]?s?|DVLA)\s+licen[cs]e\s*(?:no\.?|number|#)?\s*[:#]?\s*"
+        r"(?P<pii>(?=[A-Z0-9]*\d)[A-Z0-9]{5,20})\b", re.IGNORECASE),
 
     # --- vehicles (policy: redact when linked to a person) ---
     'vin': re.compile(r'\b[A-HJ-NPR-Z0-9]{17}\b'),
     'license_plate': re.compile(r'\b[A-Z]\s?\d{3}\s?[A-Z]{2}\s?\d{2,3}\b'),
+    # German plate: a one-to-three-letter district code, a dash, one or two
+    # letters, a space and up to four digits ("M-RK 4471", test6). A
+    # year-shaped digit block is excluded so "EU-UK 2026" never qualifies.
+    'license_plate_de': re.compile(
+        r"(?<![\w-])[A-ZÄÖÜ]{1,3}-[A-Z]{1,2}[ \t](?!(?:19|20)\d{2}\b)\d{1,4}[EH]?(?![\w-])"),
 
     # --- person-linked labelled identifiers (policy: customer/account/member/
     # student/patient IDs redact; thing-IDs such as order, invoice, tracking,
@@ -169,11 +203,16 @@ TEXT_PATTERNS = {
     'student_id': re.compile(r'\bstudent\s+ID\s+No\.?:?\s*(?P<pii>[A-Z]{2,10}-\d{4}-\d{4,})\b', re.IGNORECASE),
     # "hospital" alone names a place, so it needs the number word (test4);
     # "Hospital No. 3" stays with the sensitive_organization pattern.
+    # National ID abbreviations (DNI, NIE, NIF, CURP, CPF, BSN, PESEL) label a
+    # person's number on their own; "application", "visa" and "permit" need
+    # a reference word ("APPLICATION REFERENCE: VAF-2026-118822"); both from
+    # the test6 blind run.
     'generic_id': re.compile(
         r'\b(?:(?:customer|client|member|patient|employee|student|account'
-        r'|badge|case|claim|record|mrn)\s*'
+        r'|badge|case|claim|record|mrn|dni|nie|nif|curp|cpf|bsn|pesel)\s*'
         r'(?:id|number|no\.?|record|reference|ref\.?|#)?'
-        r'|(?:hospital|staff|payroll)\s+(?:id|number|no\.?))\s*[:#.]?\s*'
+        r'|(?:hospital|staff|payroll)\s+(?:id|number|no\.?)'
+        r'|(?:application|visa|permit)\s+(?:reference|ref\.?|number|no\.?|id))\s*[:#.]?\s*'
         r'(?P<pii>(?=[A-Z0-9/-]{0,20}\d)[A-Z0-9][A-Z0-9/-]{3,19})', re.IGNORECASE),
     # A person's group/class designation ("class 9-B", "Group PMI-2601").
     'group_class': re.compile(
@@ -190,6 +229,20 @@ TEXT_PATTERNS = {
     # A UK sort code identifies the account together with the account number.
     'sort_code': re.compile(
         r'\bsort\s+code\s*[:#]?\s*(?P<pii>\d{2}[- ]\d{2}[- ]\d{2})\b', re.IGNORECASE),
+    # A penalty charge notice is served on the registered keeper, so its
+    # number is that person's ("PCN number: EV 44021873", test6); the value
+    # may carry a spaced letter prefix.
+    'pcn_number': re.compile(
+        r'\b(?:PCN|penalty\s+charge\s+notice)\s*(?:number|no\.?|#)?\s*[:#]?\s*'
+        r'(?P<pii>(?:[A-Z]{1,4}[ \t-]?)?\d{6,12})\b', re.IGNORECASE),
+    # A hire, tenancy or loan agreement number identifies its party
+    # ("Agreement: 55-20931", test6). Single-line separators; the value needs
+    # a digit and a separator or six characters, so "agreement 2026" is not
+    # one. An employment contract number stays visible (dev gold, "44/26").
+    'agreement_number': re.compile(
+        r'\b(?:(?:hire|rental|tenancy|loan|credit|finance|lease)[ \t]+)?agreement'
+        r'[ \t]*(?:id|number|no\.?|reference|ref\.?|#)?[ \t]*[:#.]?[ \t]*'
+        r'(?P<pii>(?=[A-Z0-9/-]*\d)(?:[A-Z0-9]+[-/][A-Z0-9/-]+|[A-Z0-9]{6,20}))\b', re.IGNORECASE),
 
     # --- dates (policy: only birth dates redact; issue dates stay) ---
     # Month-day-year, day-month-year, and worded forms ("5 May 1994",
@@ -227,6 +280,18 @@ TEXT_PATTERNS = {
         r"\b(?P<pii>[A-ZÄÖÜ][a-zäöüß-]*?[ \t-]?"
         r"(?:[Ss]tra(?:ss|ß)e|[Ss]tr\.|[Aa]llee|[Ww]eg|[Gg]asse|[Pp]latz|[Dd]amm|[Uu]fer)"
         r"[ \t]+\d{1,4}[a-z]?)\b"),
+    # Romance-order street line: the street word leads, the name follows,
+    # then the number and an optional floor/door ("Calle Mayor 12, 3ºB",
+    # test6); the segment extension then takes ", 28013 Madrid". English
+    # look-alikes (Avenue, Place, Boulevard) are left out on purpose.
+    'address_line_es': re.compile(
+        r"\b(?P<pii>(?:Calle|Carrer|Carrera|Avenida|Avinguda|Paseo|Passeig|Plaza|Plaça"
+        r"|Camino|Ronda|Travesía|Rua|Praça|Largo|Via|Viale|Piazza|Corso|Rue|Chemin"
+        r"|Allée|Quai|Impasse|C/|Avda\.|Av\.|Pza\.|Bd\.)[ \t]+"
+        r"(?:(?:de|del|dels|des|du|di|da|degli|delle|la|las|los|le|les|l')[ \t]+){0,3}"
+        r"[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t]+(?:(?:de|del|du|di|da|la|le|les|y|e)[ \t]+)?[A-ZÀ-ÖØ-Þ][\w'’-]+){0,3}"
+        r",?[ \t]+(?:n[ºo°]\.?[ \t]*)?\d{1,4}(?:[ \t]?(?:bis|ter)\b)?"
+        r"(?:,[ \t]*\d{1,2}[ºo°]?[ \t]?[A-Za-z]?\b|[ \t]+\d{1,2}[ºo°][ \t]?[A-Za-z]?\b)?)"),
     # Apartment/unit designators, before or after the street line; the span
     # includes the designator word so "Flat 6" ahead of its street is masked
     # whole. The \b after the keyword keeps "unit" from matching inside
@@ -247,18 +312,50 @@ TEXT_PATTERNS = {
     # --- names in layouts the general NER routinely misses. A name word may
     # carry one inner capital ("MacLeod", "McDonald", "DeSouza"): the test4
     # blind run showed the role-label rule stopping at "Ruaridh Mac". ---
+    # A label that is the second item of a comma list ("Employer, Applicant
+    # 1: Fenland Water Services") names a field of the first item, so it does
+    # not introduce a name (test6).
     'labelled_person': re.compile(
-        r'\b(?:patient|student|employee|customer|client|resident|traveler'
+        r'(?<!,[ \t])\b(?:patient|student|employee|customer|client|resident|traveler'
         r'|traveller|applicant|claimant|policyholder|account\s+holder'
         r'|taxpayer|respondent|plaintiff|defendant|witness|landlord|tenant'
         r'|owner|renter|caseworker|insured|guard\s+on\s+duty|reported\s+by'
         r'|mother|father|candidate|(?:emergency\s+)?contact|next\s+of\s+kin'
-        r'|passenger|pupil|proposer|guardian|spouse|beneficiary|driver)\s*[:\-]\s*'
+        r'|passenger|pupil|proposer|guardian|spouse|beneficiary|driver|hirer'
+        r'|lessee|borrower|cardholder|keeper|carer|parent(?:\s*/\s*(?:carer|guardian))?'
+        r'|referred\s+by)'
+        # "Applicant 1:", "Emergency contact (if unavailable):", "Emergency
+        # contact if the parent cannot be reached:" — a number, a bracket or
+        # an "if" clause may sit between the label and the colon (test6).
+        r'(?:[ \t]+\d{1,2})?(?:[ \t]*\([^)\n]{0,40}\)|[ \t]+if[^:\n]{0,50})?\s*[:\-]\s*'
         # The name itself stays case-sensitive ((?-i:)) and single-line
         # ([ \t]) so it cannot absorb "My name", "LLC", or the next line.
-        r"(?P<pii>(?-i:" + _NAME + r"))", re.IGNORECASE),
+        r"(?P<pii>(?-i:" + _TITLE_OPT + _NAME + r"))", re.IGNORECASE),
+    # Name fields of a form ("SURNAME: ONYEKWERE", "GIVEN NAMES: CHIDI EMEKA",
+    # "Full name: Lebedev Kirill Andreevich"): a line-initial label, then an
+    # ALL-CAPS run or Title Case name words (test6: the NER layers and the
+    # name regexes all wanted Title Case). The bare label "Name:" is left out;
+    # it names products and companies as often as people.
+    'name_field': re.compile(
+        r"^[ \t]*(?:surname|family\s+name|last\s+name|given\s+names?|first\s+names?"
+        r"|forenames?|middle\s+names?|maiden\s+name|full\s+name"
+        r"|(?:applicant|patient|tenant|student|employee|customer|client|resident|hirer|insured)['’]?s?\s+name"
+        r"|name\s+of\s+(?:the\s+)?(?:applicant|patient|tenant|student|employee|customer|client|holder|insured))"
+        r"[ \t]*[:\-][ \t]*(?P<pii>(?-i:" + _TITLE_OPT + _NAME_WORD
+        + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,3}"
+        r"|[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]+(?:[ \t]+[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]+){0,3}))",
+        re.IGNORECASE | re.MULTILINE),
+    # A greeting or reminder addressed to a bare first name ("Hi Ifeoma,",
+    # "Reminder for Bartek:", "Thanks Rhys."): the address word labels the
+    # person (test6). Collective and role addressees are not names.
+    'greeting_person': re.compile(
+        r"\b(?:Hi|Hello|Hey|Hiya|Dear|Thanks|Thank you|Cheers|Reminder for|Message for"
+        r"|Note for|Attention)[ \t]+(?!" + _GREETING_STOP + r"\b)(?P<pii>" + _NAME_WORD
+        + r")(?=[,:.!?;]|[ \t]+(?:and|&)[ \t])"),
+    # The brackets round the time are optional ("14:03 Rhys ap Gruffudd:",
+    # test6).
     'chat_speaker': re.compile(
-        r"(?m)^\[\d{1,2}:\d{2}\]\s+(?P<pii>" + _NAME_WORD + r"(?:" + _NAME_PARTICLES
+        r"(?m)^\[?\d{1,2}:\d{2}\]?[ \t]+(?P<pii>" + _NAME_WORD + r"(?:" + _NAME_PARTICLES
         + r"[ \t]" + _NAME_WORD + r")+)(?=:)"),
     'quoted_author': re.compile(
         r"\b(?P<pii>(?!(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b"
@@ -275,27 +372,32 @@ TEXT_PATTERNS = {
 # labelled INN beats Presidio's 12-digit Aadhaar recognizer.
 LABELLED_PATTERNS = {"bic", "inn_labelled", "generic_id", "group_class",
                      "student_id", "policy_number", "serial_number",
-                     "order_number", "sort_code"}
+                     "order_number", "sort_code", "pcn_number", "agreement_number"}
 PATTERN_ENTITY_TYPES = {"inn_labelled": "INN", "apt_unit": "ADDRESS_LINE",
                         "address_line_de": "ADDRESS_LINE",
+                        "address_line_es": "ADDRESS_LINE",
+                        "license_plate_de": "LICENSE_PLATE",
                         "phone_intl": "PHONE", "phone_uk": "PHONE",
                         "sort_code": "BANK_ACCOUNT",
+                        "pcn_number": "GENERIC_ID", "agreement_number": "GENERIC_ID",
                         "pronoun_group": "PRONOUN_GROUP",
                         "labelled_person": "PERSON", "chat_speaker": "PERSON",
-                        "quoted_author": "PERSON",
+                        "quoted_author": "PERSON", "name_field": "PERSON",
+                        "greeting_person": "PERSON",
                         "greeting_name": "GREETING_NAME",
-                        "passport_labelled": "PASSPORT_NUMBER"}
+                        "passport_labelled": "PASSPORT_NUMBER",
+                        "driving_licence": "DRIVING_LICENCE"}
 # Matches the IN_PASSPORT threshold: ties go to the country recognizer. The
 # international phone scores just under the country-specific phone patterns, so
 # "+7 (495) ..." keeps its PHONE_RU label when both match.
 # The UK form keeps the default 1.0: a chat-reply code ("900123", also 1.0)
 # nested inside "07700 900123" must lose to the longer phone span on the tie.
-PATTERN_SCORES = {"passport_labelled": 0.45, "phone_intl": 0.99}
+PATTERN_SCORES = {"passport_labelled": 0.45, "driving_licence": 0.45, "phone_intl": 0.99}
 
 # A chat reply gives an identifier whose label sits in the previous speaker's
 # line ("Could you confirm your member number?" / "88-1234-556, and ...").
 # Labeling-guide decision 9: the question's label decides the reply's code.
-_CHAT_LINE = re.compile(r"(?m)^\[\d{1,2}:\d{2}\]\s+(?P<speaker>[^:\n]{1,40}):[ \t]*(?P<body>.*)$")
+_CHAT_LINE = re.compile(r"(?m)^\[?\d{1,2}:\d{2}\]?[ \t]+(?P<speaker>[^:\n]{1,40}):[ \t]*(?P<body>.*)$")
 _ID_QUESTION = re.compile(
     r"(?i)\b(?:account|member(?:ship)?|customer|client|patient|policy|case|claim"
     r"|insurance)\s+(?:number|no\.?|id|code)\b")
@@ -312,8 +414,20 @@ _ADDRESS_SEGMENT = re.compile(
     r'|\d{4}[ \t]?[A-Z]{2}'                                       # 2011 AB (NL)
     r'|(?:[A-Z]{2}[ \t]+)?[A-Z]\d[A-Z][ \t]?\d[A-Z]\d'              # ON M5V 2T6 (CA)
     r'|\d{5}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?'                # 80331 Munich (DE)
-    r'|[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?'                          # city name
+    # A town, optionally two words, optionally followed by its UK postcode
+    # on the same segment ("Kingsmere KM2 7QL", test6): the postcode is tried
+    # before a second town word so "KM2" is not read as one.
+    r'|[A-Z][\w-]+(?:[ \t]+(?:' + _UK_POSTCODE + r'|[A-Z][\w-]+(?:[ \t]+' + _UK_POSTCODE + r')?))?'
     r')')
+# An address span that stops after the outward half of a UK postcode
+# ("8 Bryn Teg, Caernarfon LL55" from the model, test6) takes the inward half.
+_OUTWARD_TAIL = re.compile(r"\b[A-Z]{1,2}\d{1,2}[A-Z]?$")
+_INWARD_NEXT = re.compile(r"[ \t]\d[A-Z]{2}\b")
+# The street-type words of address_line, for the custom-model address check.
+_STREET_TYPE = re.compile(
+    r'\b(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr'
+    r'|Court|Ct|Place|Pl|Crescent|Grove|Walk|Rise|Row|Terrace|Way|Close'
+    r'|House|Gardens|Mews|Hill|Yard|Square|Quay|Parade|Heights|Flat|Apt|Unit)\b', re.IGNORECASE)
 
 _SENTENCE_BREAK = re.compile(r'[.!?\n]')
 
@@ -325,6 +439,15 @@ def extend_address(text, end):
         if not match:
             return end
         end += match.end()
+
+
+def complete_postcode(text, start, end):
+    """Extend an address span over the inward half of a UK postcode it stops in."""
+    if _OUTWARD_TAIL.search(text[start:end]):
+        match = _INWARD_NEXT.match(text[end:end + 5])
+        if match:
+            return end + match.end()
+    return end
 
 
 def sentence_around(text, start, end):
@@ -380,7 +503,7 @@ def run_pattern_rules(text):
                 leading = re.match(r'(?i)^(?:visit|at|the|from|to|for)\s+', text[start:end])
                 if leading:
                     start += leading.end()
-            if pii_type in ('address_line', 'address_line_de'):
+            if pii_type in ('address_line', 'address_line_de', 'address_line_es'):
                 # A street line is usually followed by apartment, city, and
                 # postal-code segments; the whole location identifies a home.
                 end = extend_address(text, end)
@@ -407,6 +530,12 @@ def apply_policy_filters(results, text):
     address_ends = [r['end'] for r in results
                     if r['entity_type'] == 'ADDRESS_LINE']
     person_texts = {r['text'] for r in results if r['entity_type'] == 'PERSON'}
+    # Regex phones with an international prefix: a checksum-only identifier
+    # Presidio finds strictly inside one ("612 345 678" as an Australian
+    # company number inside "+34 612 345 678", test6) is part of the phone.
+    intl_phones = [(r['start'], r['end']) for r in results
+                   if r['entity_type'] == 'PHONE' and r.get('source') == 'regex'
+                   and r['text'].startswith(('+', '00'))]
 
     def near_person(start, end, radius=PERSON_PROXIMITY_CHARS):
         return any(p_start - radius <= end and start <= p_end + radius
@@ -461,6 +590,33 @@ def apply_policy_filters(results, text):
         operational = OPERATIONAL_SITE_SUFFIX.match(text[result['end']:result['end'] + 24])
         if entity == 'PERSON' and source in ('spacy', 'presidio') and operational:
             continue
+        if source == 'presidio' and any(
+                s <= result['start'] and result['end'] <= e
+                and (e - s) > (result['end'] - result['start']) for s, e in intl_phones):
+            continue
+        # A person's name never contains a digit. General NER glues a chat
+        # time onto a name ("14:03 Rhys") — strip it, on the same line only,
+        # so a span that crossed a line break still dies in dedup — or reads
+        # a product code as a person ("Jungheinrich EFG 216", test6) — drop it.
+        if entity == 'PERSON' and source in ('spacy', 'presidio') and re.search(r'\d', result['text']):
+            lead = re.match(r'(?:\S*\d\S*[ \t]+)+', result['text'])
+            rest = result['text'][lead.end():] if lead else result['text']
+            if not rest or re.search(r'\d', rest):
+                continue
+            result = {**result, 'start': result['start'] + lead.end(), 'text': rest}
+        # The custom model's one trusted-label leak so far: a year followed by
+        # capitalised words and no street word ("2027 Halvorsen Scholarship",
+        # test6) is an event or a title, not an address.
+        if entity == 'ADDRESS' and source == 'custom_ner' \
+                and re.fullmatch(r'(?:19|20)\d{2}\b[^\d]*', result['text']) \
+                and not _STREET_TYPE.search(result['text']):
+            continue
+        # An address that stops after the outward half of a UK postcode takes
+        # the inward half, whichever layer found it.
+        if entity in ('ADDRESS', 'ADDRESS_LINE'):
+            new_end = complete_postcode(text, result['start'], result['end'])
+            if new_end != result['end']:
+                result = {**result, 'end': new_end, 'text': text[result['start']:new_end]}
         # A standalone city/region stays; redact only in residence context
         # or straight after a street address on the same line (commas and
         # spaces between — never across a sentence or line break).
@@ -496,9 +652,37 @@ def apply_policy_filters(results, text):
     return filtered
 
 
+# First names that are also ordinary sentence-initial English words; the
+# first-name echo leaves these alone.
+_ECHO_FIRST_NAME_STOP = frozenset(
+    "Will Mark Grace Hope Bill Frank Dean Earl Gene Jack Rose Dawn Faith Rich Carol "
+    "Victor Wade Chase Grant Hunter Mason Lane Page Price Summer Autumn Chance "
+    "Christian Major General Sandy Rusty Rocky Cliff Drew Pierce Herb Reed Lance "
+    "Jade Pearl Sage June April August Sunny Angel Blue Brook Cash Clay Dale Forest "
+    "Glen Jewel King Knight Marshall Miles Moss North Ocean Penny Rain Ridge Rock "
+    "Sterling Stone Wells West Winter Trust Care Home".split())
+_TITLE_WORD = re.compile(r"^(?:Mr|Mrs|Ms|Mx|Miss|Dr|Prof|Sr|Sra|Herr|Frau|Mme|Mlle|M)\.?$")
+
+
 def echo_person_names(results, text):
-    """Stage 3: repeat each detected person name over its other occurrences."""
+    """Stage 3: repeat each detected person name over its other occurrences.
+
+    A multi-word name also lends its first name: "Sigrún Hallgrímsdóttir" on
+    the pupil line makes the later bare "Sigrún" the same person (test6).
+    Case-sensitive, four letters or more, and never a word that opens
+    sentences in its own right.
+    """
     extra, seen = [], set()
+    person_spans = [(r['start'], r['end']) for r in results if r['entity_type'] == 'PERSON']
+
+    def echo_first_name(name):
+        for match in re.finditer(r'\b' + re.escape(name) + r'\b', text):
+            if any(s <= match.start() and match.end() <= e for s, e in person_spans):
+                continue  # inside a detected person already
+            extra.append({'entity_type': 'PERSON', 'start': match.start(),
+                          'end': match.end(), 'score': 0.9,
+                          'text': name, 'source': 'echo'})
+
     for result in results:
         name = result['text']
         if result['entity_type'] != 'PERSON' or len(name) < 4 or name in seen:
@@ -509,6 +693,12 @@ def echo_person_names(results, text):
                 extra.append({'entity_type': 'PERSON', 'start': match.start(),
                               'end': match.end(), 'score': 0.9,
                               'text': name, 'source': 'echo'})
+        words = [w for w in name.split() if not _TITLE_WORD.match(w)]
+        first = words[0] if len(words) > 1 else None
+        if first and len(first) >= 4 and first.isalpha() and first[0].isupper() \
+                and first not in _ECHO_FIRST_NAME_STOP and first not in seen:
+            seen.add(first)
+            echo_first_name(first)
     return extra
 
 

@@ -380,6 +380,70 @@ forklift models as facilities, "Tue 17 Nov at 09:40" and "January" (twice)
 as birth dates, and a scholarship name as an address. Corpus round 3 has
 its brief.
 
+### test6 fixes (2026-11-07)
+
+Twenty-seven of the thirty-three findings were fixed, all in
+`policy_rules.py`; test6 is semi-dev from here. Facility words: Care /
+Nursing / Residential Home and Health / NHS / Foundation / Hospital Trust
+join the list, so the two facilities the model had found now pass the gate.
+Addresses: the town segment of the address extension may carry its UK
+postcode ("Kingsmere KM2 7QL" instead of the stranded "Kingsmere KM2"), and
+any address span, whichever layer found it, that stops after the outward half
+of a UK postcode takes the inward half ("8 Bryn Teg, Caernarfon LL55" → "...
+LL55 1AB"); a Romance-order street line (`address_line_es`: "Calle Mayor 12,
+3ºB", then the ", 28013 Madrid" segment). Names: the particles "ap", "ab",
+"'t", "ibn", "bint", "abu", "af", "av" and "zu"; a courtesy title ahead of a
+labelled name no longer uses up a name slot ("Mr Khalid bin Tariq Al-Farsi");
+a role label may carry a number, a bracket or an "if" clause before its colon
+("Applicant 1:", "Emergency contact if the parent cannot be reached:"), and
+"hirer", "lessee", "borrower", "cardholder", "keeper", "carer",
+"parent/carer" and "referred by" are role labels, but a label that is the
+second item of a comma list is not ("Employer, Applicant 1: Fenland Water
+Services" stays an employer line); `name_field` reads the ALL-CAPS or Title
+Case value after a line-initial name label ("SURNAME: ONYEKWERE", "GIVEN
+NAMES: CHIDI EMEKA", "Full name: ..."; the bare "Name:" is left out on
+purpose); `greeting_person` takes the bare first name a greeting or reminder
+addresses ("Hi Ifeoma,", "Reminder for Bartek:", "Thanks Rhys.") with a
+stoplist of collective addressees; the echo rule also lends the first name of
+a detected full name to its later bare occurrences ("Sigrún"), case-sensitive,
+four letters or more, never a word that opens sentences in its own right
+("Mark", "Will", "Grace"). ID labels: DNI / NIE / NIF / CURP / CPF / BSN /
+PESEL label a number on their own; "application", "visa" and "permit" need a
+reference word; `pcn_number` ("PCN number: EV 44021873", spaced prefix) and
+`agreement_number` ("Agreement: 55-20931"; the value needs a separator or six
+characters, and an employment contract number stays visible); a labelled
+driving licence falls back to a regex at the passport fallback's score,
+because Presidio's UK recognizer scores a valid number 0.5 with or without
+its label. Formats: `phone_intl` takes the 00 dialling prefix (only when no
+digit group precedes it, so the "0044 0532 0130 00" inside an IBAN is still
+not a phone) and subscriber blocks of up to eight digits ("+49 171 2345678");
+a Presidio identifier strictly inside a "+"/"00" phone yields to it (the
+Spanish mobile had lost to a checksum-valid "Australian company number"
+nested in it); `license_plate_de` ("M-RK 4471", a year-shaped block excluded
+so "EU-UK 2026" never qualifies). Chat: the time may be unbracketed in both
+`chat_speaker` and `chat_reply_ids`. Over-redactions: a general-NER PERSON
+with a digit in it is a product code ("Jungheinrich EFG 216"), unless the
+digit sits in a leading same-line token ("14:03 Rhys" → "Rhys"); a
+custom-model ADDRESS that is a year followed by words with no street word
+("2027 Halvorsen Scholarship") is dropped.
+
+One thing was adjusted during the round: the first version of the digit
+trim stripped across line breaks and turned spaCy's cross-line
+"QRT-55302 / Guest" (test2) into a single-line "Guest" stray; the trim now
+stays on one line and the span dies in dedup as before.
+
+Result: test6 84/111 → 110/111 (99.1%), keep 158/164 → 160/164 (97.6%), 0
+strays. Every other set is unchanged: dev 123/123 and 135/135 (strays still
+4), test and test2 100% / 100%, test3 75/76, test4 61/63 and 81/83, test5
+71/72 and 87/89; both regression suites and the 19 unit tests pass. The six
+failures left on test6 and the eight on test3–test5 are the two structural
+classes: plural pronouns ("they" for the staff and for the keys, "their"
+for the Centre's families and "them" for the parcels redacted near a person;
+"they" for the two applicants three lines below their names kept) and bare
+first names in prose with no full name in the document ("Nkechi",
+"Thandiwe", "Hannelore"), plus "Halden Kitchenware" from general NER, which
+carries no digit for the product-code rule to see.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -441,26 +505,23 @@ on them.
 
 ### Next steps
 
-1. Fix the test6 findings, rules first (run of 2026-11-07): the facility
-   words Care Home and Health Trust, the UK postcode segment after a town the
-   address extension reached, the particles "ap" and "'t" and the
-   particle-plus-hyphenated-surname shape, ALL-CAPS names after SURNAME /
-   GIVEN NAMES labels, the ID labels DNI, PCN, driving licence, application
-   reference and agreement, the phone shapes (nine-digit Spanish, seven-digit
-   German block, 00 prefix), the German plate, the Spanish-order address, the
-   chat transcript without brackets, and the first-name echo. Test6 is then
-   semi-dev too, and the next measurement needs a blind test7.
+1. Blind test7: the next measurement. Test6 is semi-dev since the fixes of
+   2026-11-07, and every set since test3 has been tuned against, so the rule
+   layer has no blind score. Probe the shapes the fixes assumed: greeting
+   addressees that are not names, titled names under role labels, 00-prefix
+   numbers that are not phones, ALL-CAPS fields other than names, Romance
+   addresses without a floor, hyphenated district codes that are not plates.
 2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
    fields, bare first names in prose and sign-offs (test6 model alone: PERSON
-   13/31), plus letterheads, employer lines and date or time spans as
-   negatives (the model labels them as facilities and birth dates).
+   13/31; "Nkechi", "Thandiwe", "Hannelore" have no full name to echo from),
+   plus letterheads, employer lines and date or time spans as negatives (the
+   model labels them as facilities and birth dates), and a year-plus-title
+   line as an ADDRESS negative.
 3. Plural pronouns need reference, not proximity: test6 adds five cases
-   (documents 01, 02, 06 and 08) to test4 06/07 and test5 01/09; they are the
-   largest remaining error class.
+   (documents 01, 02, 06 and 08) to test4 06/07 and test5 01/09; with the
+   test6 fixes in they are the largest remaining error class by far.
 4. The remaining over-redactions: "them"/"their" far from a person and
-   "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) and "Jungheinrich
-   EFG 216" (test6) from general NER; "2027 Halvorsen Scholarship" as a
-   trusted ADDRESS from the custom model (test6).
+   "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 

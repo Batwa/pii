@@ -206,3 +206,94 @@ def test_rule_layer_fixes_from_test5():
          ner("PERSON", "Yanmar 3YM30", "custom_ner"), ner("ORGANIZATION", "Bosch Serie 4")],
         sites)
     assert [r["text"] for r in kept] == ["Bergen"]
+
+
+def test_rule_layer_fixes_from_test6():
+    import policy_rules
+
+    text = ("Placement: Willowbrook Care Home, 4 Orchard Rise, Kingsmere KM2 7QL\n"
+            "The community nurse from Kingsmere Health Trust visits weekly.\n"
+            "Tenant: María José García Lopez, DNI 48213976K\n"
+            "Phone: +34 612 345 678\n"
+            "Address of the property: Calle Mayor 12, 3ºB, 28013 Madrid\n"
+            "SURNAME: ONYEKWERE\n"
+            "GIVEN NAMES: CHIDI EMEKA\n"
+            "NATIONALITY: NIGERIAN\n"
+            "APPLICATION REFERENCE: VAF-2026-118822\n"
+            "14:02 Agent (Sunita): Could I take your membership number?\n"
+            "14:03 Rhys ap Gruffudd: It's 7719-2034-88.\n"
+            "14:03 Agent (Sunita): Thanks Rhys. And the model?\n"
+            "Hi Ifeoma, your appointment is on Tue 17 Nov. Reminder for Bartek: flu jab.\n"
+            "Dear Customer, Hi Team, thanks again.\n"
+            "Applicant 1: Mr Jan-Willem 't Hooft, born 7 March 1979\n"
+            "Employer, Applicant 1: Fenland Water Services\n"
+            "PCN number: EV 44021873\n"
+            "Emergency contact if the parent cannot be reached: Ms Caoimhe Ní Bhriain (aunt)\n"
+            "Patient: Mr Khalid bin Tariq Al-Farsi, DOB 15 Sep 1990\n"
+            "Agreement: 55-20931 under EMPLOYMENT CONTRACT No. 44/26\n"
+            "Driving licence: FONTA812034AS9XY\n"
+            "Vehicle: Peugeot 2008, registration M-RK 4471; the EU-UK 2026 summit\n"
+            "Contact: +49 171 2345678 or 0047 55 12 34 56\n"
+            "IBAN DE89 3704 0044 0532 0130 00\n")
+    found = {(r["entity_type"], r["text"]) for r in policy_rules.run_pattern_rules(text)}
+    assert ("SENSITIVE_ORGANIZATION", "Willowbrook Care Home") in found
+    assert ("SENSITIVE_ORGANIZATION", "Kingsmere Health Trust") in found
+    assert ("ADDRESS_LINE", "4 Orchard Rise, Kingsmere KM2 7QL") in found
+    assert ("GENERIC_ID", "48213976K") in found
+    assert ("PHONE", "+34 612 345 678") in found
+    assert ("ADDRESS_LINE", "Calle Mayor 12, 3ºB, 28013 Madrid") in found
+    assert ("PERSON", "ONYEKWERE") in found
+    assert ("PERSON", "CHIDI EMEKA") in found
+    assert not any(value == "NIGERIAN" for _, value in found)
+    assert ("GENERIC_ID", "VAF-2026-118822") in found
+    assert ("PERSON", "Rhys ap Gruffudd") in found
+    assert ("GENERIC_ID", "7719-2034-88") in found
+    assert ("PERSON", "Rhys") in found
+    assert ("PERSON", "Ifeoma") in found
+    assert ("PERSON", "Bartek") in found
+    assert not any(label == "PERSON" and value in ("Customer", "Team") for label, value in found)
+    assert ("PERSON", "Mr Jan-Willem 't Hooft") in found
+    assert ("PERSON", "Fenland Water Services") not in found
+    assert ("GENERIC_ID", "EV 44021873") in found
+    assert ("PERSON", "Ms Caoimhe Ní Bhriain") in found
+    assert ("PERSON", "Mr Khalid bin Tariq Al-Farsi") in found
+    assert ("GENERIC_ID", "55-20931") in found
+    assert not any(label == "GENERIC_ID" and "44/26" in value for label, value in found)
+    assert ("DRIVING_LICENCE", "FONTA812034AS9XY") in found
+    assert ("LICENSE_PLATE", "M-RK 4471") in found
+    assert not any(label == "LICENSE_PLATE" and "2026" in value for label, value in found)
+    assert ("PHONE", "+49 171 2345678") in found
+    assert ("PHONE", "0047 55 12 34 56") in found
+    assert not any(label == "PHONE" and "0044" in value for label, value in found)
+
+    def ner(label, needle, source="spacy", score=0.85, where=text):
+        start = where.index(needle)
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": score, "text": needle, "source": source}
+
+    # A checksum-only identifier inside an international phone is the phone.
+    phone = next(r for r in policy_rules.run_pattern_rules(text) if r["text"] == "+34 612 345 678")
+    kept = policy_rules.apply_policy_filters([phone, ner("AU_ACN", "612 345 678", "presidio", 1.0)], text)
+    assert [r["text"] for r in kept] == ["+34 612 345 678"]
+
+    sites = ("Forklift models in service: Jungheinrich EFG 216.\n"
+             "14:03 Rhys said hello.\nQRT-55302\nGuest\n"
+             "We award the 2027 Halvorsen Scholarship. Ships to 8 Bryn Teg, Caernarfon LL55 1AB today.")
+    kept = policy_rules.apply_policy_filters(
+        [ner("PERSON", "Jungheinrich EFG 216", where=sites),
+         ner("PERSON", "14:03 Rhys", where=sites),
+         ner("PERSON", "QRT-55302\nGuest", where=sites),
+         ner("ADDRESS", "2027 Halvorsen Scholarship", "custom_ner", 0.95, sites),
+         ner("ADDRESS", "8 Bryn Teg, Caernarfon LL55", "custom_ner", 0.95, sites)],
+        sites)
+    assert [(r["entity_type"], r["text"]) for r in kept] == [
+        ("PERSON", "Rhys"), ("ADDRESS", "8 Bryn Teg, Caernarfon LL55 1AB")]
+
+    # The first name of a detected full name is the same person later on;
+    # a first name that is also an ordinary word is left alone.
+    pupil = ("Pupil: Sigrún Hallgrímsdóttir, Class 4M\n"
+             "Medical notes: Sigrún carries an inhaler. Mark Will attends. Mark the box.")
+    echoed = policy_rules.echo_person_names(
+        [ner("PERSON", "Sigrún Hallgrímsdóttir", "regex", 1.0, pupil),
+         ner("PERSON", "Mark Will", "regex", 1.0, pupil)], pupil)
+    assert [(r["text"], r["start"]) for r in echoed] == [("Sigrún", pupil.index("Sigrún carries"))]
