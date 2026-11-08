@@ -2,7 +2,7 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 documents
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 / 13 test6 documents
 are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
@@ -1290,6 +1290,296 @@ TEST5 = [
 ]
 
 
+# ------------------------------------------------- test6 set (13), blind batch
+# Authored 2026-11-07 after the test5 fixes (commit 60e4326) and the model
+# move, without running the detector. Fresh names, streets, cities and
+# organizations. Probes: more particles ('t, ap, Ní, bin/Al-) and Icelandic
+# letters; ALL-CAPS form fields; initials and the Mx title; a chat transcript
+# without brackets round the times; labels the rules may not know (NHS, PCN,
+# DNI, driving licence, student number); dotted and ordinal birth dates; the
+# 00 international prefix, Spanish and Norwegian phones; a German plate; a
+# Spanish-order address and a Spanish school; facilities without a listed word
+# (Care Home, Health Trust, Colegio); BIC and "card ending" as keeps; plural
+# pronouns in both directions, including singular "they" for a named person;
+# a travel city that also names an institute; and a no-PII site bulletin.
+TEST6 = [
+ dict(id="gold_v6_01_care_review.txt",
+  text=("Hartswell Borough Council — Adult Social Care\n"
+        "Annual review of care and support\n\n"
+        "Resident: Mrs Beatrix Adebowale-Hart\n"
+        "Date of birth: 03.11.1941\n"
+        "NHS number: 943 476 5919\n"
+        "Placement: Willowbrook Care Home, 4 Orchard Rise, Kingsmere KM2 7QL\n\n"
+        "Mrs Adebowale-Hart was seen on 12 November 2026 with her daughter, Ms "
+        "Funmi Adebowale. She is settled and uses the garden daily. The staff "
+        "said they would review the mobility aids before winter. The community "
+        "nurse from Kingsmere Health Trust visits weekly. Her contribution to "
+        "the cost remains £214.60 a week under the Care Act 2014.\n\n"
+        "Reviewing officer: Daniel Verhoeven, 01632 960 417, "
+        "adultcare@hartswell.gov.uk"),
+  redact=[("Beatrix Adebowale-Hart","PERSON"),("Adebowale-Hart","PERSON"),
+          ("03.11.1941","DOB"),("943 476 5919","GENERIC_ID"),
+          ("Willowbrook Care Home","SENSITIVE_ORG"),("4 Orchard Rise","ADDRESS"),
+          ("Kingsmere","CITY_RESIDENCE"),("KM2 7QL","ZIP"),
+          ("Funmi Adebowale","PERSON"),("she","PRONOUN"),("her","PRONOUN"),
+          ("Kingsmere Health Trust","SENSITIVE_ORG"),
+          ("Daniel Verhoeven","PERSON"),("01632 960 417","PHONE"),
+          ("adultcare@hartswell.gov.uk","EMAIL")],
+  keep=["Hartswell Borough Council","Adult Social Care","Annual review",
+        "12 November 2026","garden","they","mobility aids","winter","weekly",
+        "£214.60","Care Act 2014","Reviewing officer"]),
+
+ dict(id="gold_v6_02_spanish_tenancy.txt",
+  text=("Confirmación de reserva / Booking confirmation\n\n"
+        "Tenant: María José García Lopez, DNI 48213976K\n"
+        "Phone: +34 612 345 678\n"
+        "Address of the property: Calle Mayor 12, 3ºB, 28013 Madrid\n"
+        "Landlord: Sr. Joaquín de la Fuente\n"
+        "Rent: €950 per month, deposit €1,900, from 1 December 2026 for twelve "
+        "months.\n"
+        "Rent is paid to IBAN ES91 2100 0418 4502 0005 1332 (BIC CAIXESBBXXX) "
+        "on the first working day of each month.\n"
+        "He will hand over two sets of keys at the property; they are labelled "
+        "A and B. The building has a lift and a shared roof terrace."),
+  redact=[("María José García Lopez","PERSON"),("48213976K","GENERIC_ID"),
+          ("+34 612 345 678","PHONE"),("Calle Mayor 12, 3ºB","ADDRESS"),
+          ("28013","ZIP"),("Madrid","CITY_RESIDENCE"),
+          ("Joaquín de la Fuente","PERSON"),
+          ("ES91 2100 0418 4502 0005 1332","IBAN"),("he","PRONOUN")],
+  keep=["Booking confirmation","€950","€1,900","1 December 2026",
+        "twelve months","CAIXESBBXXX","first working day","two sets of keys",
+        "they","lift","shared roof terrace"]),
+
+ dict(id="gold_v6_03_caps_application.txt",
+  text=("APPLICATION FOR A SKILLED WORKER VISA — SECTION 3: APPLICANT DETAILS\n"
+        "SURNAME: ONYEKWERE\n"
+        "GIVEN NAMES: CHIDI EMEKA\n"
+        "DATE OF BIRTH: 22/08/1987\n"
+        "NATIONALITY: NIGERIAN\n"
+        "PASSPORT NO: A08765432\n"
+        "CURRENT ADDRESS: FLAT 9, 31 CASTLE STREET, DERBY DE1 3AB\n"
+        "EMAIL: C.ONYEKWERE@EXAMPLE.COM\n"
+        "TELEPHONE: +44 7700 900811\n"
+        "EMPLOYER: TRENT VALLEY ENGINEERING LTD\n"
+        "POSITION: WELDER\n"
+        "APPLICATION REFERENCE: VAF-2026-118822\n"
+        "I CONFIRM THAT THE INFORMATION GIVEN IS TRUE."),
+  redact=[("ONYEKWERE","PERSON"),("CHIDI EMEKA","PERSON"),("22/08/1987","DOB"),
+          ("A08765432","PASSPORT"),("FLAT 9, 31 CASTLE STREET","ADDRESS"),
+          ("DERBY","CITY_RESIDENCE"),("DE1 3AB","ZIP"),
+          ("C.ONYEKWERE@EXAMPLE.COM","EMAIL"),("+44 7700 900811","PHONE"),
+          ("TRENT VALLEY ENGINEERING LTD","EMPLOYER_ORG"),
+          ("VAF-2026-118822","GENERIC_ID")],
+  keep=["SKILLED WORKER VISA","SECTION 3","APPLICANT DETAILS","SURNAME",
+        "GIVEN NAMES","DATE OF BIRTH","NATIONALITY","NIGERIAN","CURRENT ADDRESS",
+        "WELDER","APPLICATION REFERENCE","I CONFIRM"]),
+
+ dict(id="gold_v6_04_chat_unbracketed.txt",
+  text=("Brightwave Support — live chat transcript\n"
+        "14:02 Agent (Sunita): Hi, thanks for contacting Brightwave Support. "
+        "Could I take your membership number?\n"
+        "14:03 Rhys ap Gruffudd: It's 7719-2034-88.\n"
+        "14:03 Agent (Sunita): Thanks Rhys. And the model?\n"
+        "14:04 Rhys ap Gruffudd: Model: Dyson V11, bought in March. The battery "
+        "light blinks and it cuts out after two minutes.\n"
+        "14:05 Agent (Sunita): I've raised ticket TK-55021. A replacement "
+        "battery ships to 8 Bryn Teg, Caernarfon LL55 1AB within five working "
+        "days. Order no. 20261107-4481 for your records."),
+  redact=[("Rhys ap Gruffudd","PERSON"),("Rhys","PERSON"),("Sunita","PERSON"),
+          ("7719-2034-88","GENERIC_ID"),("8 Bryn Teg","ADDRESS"),
+          ("Caernarfon","CITY_RESIDENCE"),("LL55 1AB","ZIP"),
+          ("20261107-4481","ORDER_NUMBER")],
+  keep=["Brightwave Support","live chat transcript","membership number",
+        "Dyson V11","March","battery light","two minutes","TK-55021",
+        "five working days","14:02","14:04","14:05","your records"]),
+
+ dict(id="gold_v6_05_appointment_sms.txt",
+  text=("Two messages from Merlin Health Messaging\n\n"
+        "1) Hi Ifeoma, your appointment at St Aldric's Hospital Fracture Clinic "
+        "is on Tue 17 Nov at 09:40. Please bring your NHS number (ending 5919) "
+        "and a list of current medicines. Call 0300 123 4567 to rebook. Reply "
+        "STOP to opt out.\n\n"
+        "2) Reminder for Bartek: flu jab walk-in at Thornbury Surgery, Thu "
+        "10:00 to 12:00, no booking needed. Wear a short-sleeved top."),
+  redact=[("Ifeoma","PERSON"),
+          ("St Aldric's Hospital Fracture Clinic","SENSITIVE_ORG"),
+          ("0300 123 4567","PHONE"),("Bartek","PERSON"),
+          ("Thornbury Surgery","SENSITIVE_ORG")],
+  keep=["Merlin Health Messaging","Tue 17 Nov","09:40","NHS number","5919",
+        "current medicines","Reply STOP","flu jab","walk-in","10:00","12:00",
+        "no booking needed","short-sleeved top"]),
+
+ dict(id="gold_v6_06_mortgage_summary.txt",
+  text=("Oakmere Mortgages — application summary (draft)\n\n"
+        "Applicant 1: Mr Jan-Willem 't Hooft, born 7 March 1979\n"
+        "Applicant 2: Mx Taylor Reid-Okafor, DOB 1981-11-30\n"
+        "Current address (both): 12 Nightingale Walk, Apt 4, Chelmsford CM1 "
+        "2QX — owned for 6 years\n"
+        "Employer, Applicant 1: Fenland Water Services, salary £48,200\n"
+        "Employer, Applicant 2: self-employed illustrator, average £31,400\n"
+        "Repayments from sort code 20-45-18, account 71093364\n"
+        "Credit card ending 4421 to be closed before completion\n"
+        "Property: three-bedroom semi, valuation £412,000, loan to value 78%\n"
+        "Notes: both applicants attended the meeting; they asked for a "
+        "five-year fix."),
+  redact=[("Jan-Willem 't Hooft","PERSON"),("7 March 1979","DOB"),
+          ("Taylor Reid-Okafor","PERSON"),("1981-11-30","DOB"),
+          ("12 Nightingale Walk, Apt 4","ADDRESS"),
+          ("Chelmsford","CITY_RESIDENCE"),("CM1 2QX","ZIP"),
+          ("Fenland Water Services","EMPLOYER_ORG"),
+          ("20-45-18","BANK_ACCOUNT"),("71093364","BANK_ACCOUNT"),
+          ("they","PRONOUN")],
+  keep=["Oakmere Mortgages","application summary","Applicant 1","Applicant 2",
+        "6 years","£48,200","self-employed illustrator","£31,400","4421",
+        "three-bedroom semi","£412,000","78%","five-year fix","completion"]),
+
+ dict(id="gold_v6_07_parking_notice.txt",
+  text=("Eastvale City Council — Parking Services\n"
+        "PENALTY CHARGE NOTICE\n\n"
+        "To the registered keeper: Dr A. Quaye, 55 Ridgeway Court, Westbrook "
+        "WB3 8HD\n"
+        "Vehicle: Volkswagen Golf, grey, registration LB21 XYZ\n"
+        "PCN number: EV 44021873\n"
+        "Contravention: parked in a loading bay, Station Road car park, "
+        "03/11/2026 at 18:52\n"
+        "Penalty: £70, reduced to £35 if paid within 14 days of service.\n"
+        "You may challenge this notice online or in writing. The CCTV footage "
+        "is held for 90 days."),
+  redact=[("A. Quaye","PERSON"),("55 Ridgeway Court","ADDRESS"),
+          ("Westbrook","CITY_RESIDENCE"),("WB3 8HD","ZIP"),
+          ("LB21 XYZ","LICENSE_PLATE"),("EV 44021873","GENERIC_ID")],
+  keep=["Eastvale City Council","Parking Services","PENALTY CHARGE NOTICE",
+        "registered keeper","Volkswagen Golf","grey","PCN number","loading bay",
+        "Station Road car park","03/11/2026","18:52","£70","£35","14 days",
+        "CCTV footage","90 days"]),
+
+ dict(id="gold_v6_08_volunteer_email.txt",
+  text=("From: Anjali Venkataraman <a.venkataraman@hollowbrook-foodbank.example>\n"
+        "To: volunteers@hollowbrook-foodbank.example\n"
+        "Subject: Saturday rota\n\n"
+        "Hi all,\n"
+        "Thanks for Saturday. Ms Delphine Rousseau-Mbeki from Larkfield Family "
+        "Support Centre will join us at 10:00 to collect the parcels for their "
+        "families; please have them ready by 09:45. Temitope said they can "
+        "cover the van run after all.\n\n"
+        "On Wed, 4 Nov 2026 at 16:20, Temitope <temi.a@example.com> wrote:\n"
+        "> Can someone cover the van run? My car is in the garage and it won't "
+        "be back until Friday.\n\n"
+        "Best,\nAnjali"),
+  redact=[("Anjali Venkataraman","PERSON"),("Anjali","PERSON"),
+          ("a.venkataraman@hollowbrook-foodbank.example","EMAIL"),
+          ("volunteers@hollowbrook-foodbank.example","EMAIL"),
+          ("Delphine Rousseau-Mbeki","PERSON"),
+          ("Larkfield Family Support Centre","SENSITIVE_ORG"),
+          ("Temitope","PERSON"),("temi.a@example.com","EMAIL"),
+          ("they","PRONOUN")],
+  keep=["Saturday rota","Hi all","10:00","parcels","their","them","09:45",
+        "van run","My car","garage","Friday","Best"]),
+
+ dict(id="gold_v6_09_site_bulletin.txt",
+  text=("SITE SAFETY BULLETIN — Felixstowe terminal and Doncaster depot\n\n"
+        "Forklift models in service: Jungheinrich EFG 216, Toyota 8FBE18 and "
+        "Hyster J2.5XN. Daily checks are due before the 06:00 shift. The "
+        "Doncaster depot moves to the new racking layout on 1 December; the "
+        "Felixstowe terminal follows in January. Incidents in October: two "
+        "near-misses, no injuries. Report hazards on the yellow cards at the "
+        "gatehouse or to the shift leads. The Zeebrugge hub is closed for "
+        "maintenance on 15 November."),
+  redact=[],
+  keep=["Felixstowe terminal","Doncaster depot","Jungheinrich EFG 216",
+        "Toyota 8FBE18","Hyster J2.5XN","06:00 shift","1 December","January",
+        "October","near-misses","yellow cards","gatehouse","shift leads",
+        "Zeebrugge hub","15 November"]),
+
+ dict(id="gold_v6_10_trip_consent.txt",
+  text=("Ashcombe Primary School\n"
+        "Consent form — Year 4 trip to Bramblewood Nature Reserve, Thursday 26 "
+        "November\n\n"
+        "Pupil: Sigrún Hallgrímsdóttir, Class 4M\n"
+        "Parent/carer: Mr Þórður Hallgrímsson, 07700 900214, "
+        "thordur.h@example.is\n"
+        "Medical notes: Sigrún carries an inhaler and she can self-administer.\n"
+        "Emergency contact if the parent cannot be reached: Ms Caoimhe Ní "
+        "Bhriain (aunt), 07700 900388\n"
+        "Previous school: Hafnarfjörður International School (records "
+        "transferred)\n"
+        "Cost: £8.50, payable via the school app by 20 November. Packed lunch "
+        "required."),
+  redact=[("Sigrún Hallgrímsdóttir","PERSON"),("Sigrún","PERSON"),
+          ("4M","GROUP_CLASS"),("Þórður Hallgrímsson","PERSON"),
+          ("07700 900214","PHONE"),("thordur.h@example.is","EMAIL"),
+          ("she","PRONOUN"),("Caoimhe Ní Bhriain","PERSON"),
+          ("07700 900388","PHONE"),
+          ("Hafnarfjörður International School","SENSITIVE_ORG")],
+  keep=["Ashcombe Primary School","Consent form","Bramblewood Nature Reserve",
+        "Thursday 26 November","inhaler","self-administer","Emergency contact",
+        "aunt","records transferred","£8.50","school app","20 November",
+        "Packed lunch"]),
+
+ dict(id="gold_v6_11_physio_discharge.txt",
+  text=("Brookfield Physiotherapy — discharge summary\n\n"
+        "Patient: Mr Khalid bin Tariq Al-Farsi, DOB 15 Sep 1990\n"
+        "Referred by: Dr Ingrid Haugland, Fernhill Sports Medicine Clinic\n"
+        "Diagnosis: grade 2 hamstring strain (right)\n"
+        "Sessions: six, from 2 Oct to 5 Nov 2026\n\n"
+        "He has returned to full training. His club, Westfield Harriers, has "
+        "been informed with his consent. He should continue the Nordic curls "
+        "three times a week; the home exercise sheet is attached.\n"
+        "Copy to: Dr P. Nwosu, Elm Street Medical Practice"),
+  redact=[("Khalid bin Tariq Al-Farsi","PERSON"),("15 Sep 1990","DOB"),
+          ("Ingrid Haugland","PERSON"),
+          ("Fernhill Sports Medicine Clinic","SENSITIVE_ORG"),
+          ("he","PRONOUN"),("his","PRONOUN"),("P. Nwosu","PERSON"),
+          ("Elm Street Medical Practice","SENSITIVE_ORG")],
+  keep=["Brookfield Physiotherapy","discharge summary",
+        "grade 2 hamstring strain","right","six","2 Oct to 5 Nov 2026",
+        "full training","Westfield Harriers","Nordic curls",
+        "three times a week","home exercise sheet"]),
+
+ dict(id="gold_v6_12_hire_damage.txt",
+  text=("Vehicle hire — damage report\n"
+        "Agreement: 55-20931\n"
+        "Hirer: Ms Anne-Sophie de la Fontaine, born on the 3rd of March 1990\n"
+        "Driving licence: FONTA812034AS9XY\n"
+        "Vehicle: Peugeot 2008, registration M-RK 4471\n"
+        "Returned to: our Hamburg Airport branch, 6 Nov 2026 at 08:15\n"
+        "Damage noted: scuffed rear bumper, 12 cm; charge €180\n"
+        "She disputes the charge and says the mark was present at pick-up from "
+        "our Lübeck branch. Her photos from the pick-up are attached. Contact: "
+        "+49 171 2345678. Her employer, Nordlicht Reisen GmbH, holds the "
+        "company account used for the booking."),
+  redact=[("55-20931","GENERIC_ID"),("Anne-Sophie de la Fontaine","PERSON"),
+          ("3rd of March 1990","DOB"),("FONTA812034AS9XY","GENERIC_ID"),
+          ("M-RK 4471","LICENSE_PLATE"),("she","PRONOUN"),("her","PRONOUN"),
+          ("+49 171 2345678","PHONE"),("Nordlicht Reisen GmbH","EMPLOYER_ORG")],
+  keep=["damage report","Peugeot 2008","Hamburg Airport branch","6 Nov 2026",
+        "08:15","scuffed rear bumper","12 cm","€180","Lübeck branch","photos",
+        "company account"]),
+
+ dict(id="gold_v6_13_scholarship_letter.txt",
+  text=("Halvorsen Foundation\n\n"
+        "Dear Ms Castellanos-Reyes,\n\n"
+        "We are pleased to award Lucía Castellanos-Reyes the 2027 Halvorsen "
+        "Scholarship (student number 2027-04419). The award covers tuition at "
+        "Trondheim Technical Institute for two years. Funds are paid to IBAN "
+        "NO93 8601 1117 947 on 15 January and 15 August. She studied previously "
+        "at Colegio San Esteban, whose reference we found compelling. Travel to "
+        "Trondheim in January is reimbursed at economy rates. Please sign and "
+        "return the acceptance by 1 December.\n\n"
+        "Yours sincerely,\n"
+        "Tomasz Wieczorek, Programme Director, 0047 55 12 34 56"),
+  redact=[("Lucía Castellanos-Reyes","PERSON"),("Castellanos-Reyes","PERSON"),
+          ("2027-04419","GENERIC_ID"),
+          ("Trondheim Technical Institute","SENSITIVE_ORG"),
+          ("NO93 8601 1117 947","IBAN"),("she","PRONOUN"),
+          ("Colegio San Esteban","SENSITIVE_ORG"),("Trondheim","CITY_TRAVEL"),
+          ("Tomasz Wieczorek","PERSON"),("0047 55 12 34 56","PHONE")],
+  keep=["Halvorsen Foundation","2027 Halvorsen Scholarship","student number",
+        "tuition","two years","15 January","15 August","economy rates",
+        "1 December","acceptance","Programme Director"]),
+]
+
+
 def occurrences(needle, haystack):
     pattern = re.escape(needle)
     if needle[0].isalnum():
@@ -1333,7 +1623,8 @@ def emit(docs, docs_path, cases_path):
 def main():
     problems = (validate(DEV, "dev") + validate(TEST, "test")
                 + validate(TEST2, "test2") + validate(TEST3, "test3")
-                + validate(TEST4, "test4") + validate(TEST5, "test5"))
+                + validate(TEST4, "test4") + validate(TEST5, "test5")
+                + validate(TEST6, "test6"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -1344,11 +1635,13 @@ def main():
     emit(TEST3, GOLD_DIR / "test3_docs.jsonl", GOLD_DIR / "test3_cases.jsonl")
     emit(TEST4, GOLD_DIR / "test4_docs.jsonl", GOLD_DIR / "test4_cases.jsonl")
     emit(TEST5, GOLD_DIR / "test5_docs.jsonl", GOLD_DIR / "test5_cases.jsonl")
-    everything = DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5
+    emit(TEST6, GOLD_DIR / "test6_docs.jsonl", GOLD_DIR / "test6_cases.jsonl")
+    everything = DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5 + TEST6
     n_redact = sum(len(d["redact"]) for d in everything)
     n_keep = sum(len(d["keep"]) for d in everything)
     print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
-          f"{len(TEST3)} test3 + {len(TEST4)} test4 + {len(TEST5)} test5 docs "
+          f"{len(TEST3)} test3 + {len(TEST4)} test4 + {len(TEST5)} test5 + "
+          f"{len(TEST6)} test6 docs "
           f"({n_redact} redact spans, {n_keep} keep "
           f"spans) to {GOLD_DIR}")
 

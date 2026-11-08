@@ -306,6 +306,80 @@ from their names ("Their forwarding address", test4 document 07), and first
 names in prose the model does not know ("Hannelore", "Thandiwe", "Nkechi").
 Plus "Halden Kitchenware" as a person from general NER on test3.
 
+### test6 blind run (2026-11-07)
+
+Thirteen documents, 111 must-redact items and 164 must-keep phrases, written
+without running the detector, after the test5 fixes and the move of the
+models to `~/pii-models`. They probe more name particles ('t, ap, Ní, bin
+with Al-) and Icelandic letters; ALL-CAPS form fields; initials and the Mx
+title; a chat transcript without brackets round the times; ID labels the
+rules may not know (NHS, PCN, DNI, driving licence, hire agreement, visa
+application reference); dotted and ordinal birth dates; the 00 international
+prefix and Spanish, German and Norwegian phone shapes; a German plate; a
+Spanish-order address and a Spanish school; facilities without a listed word
+(Care Home, Health Trust, Colegio); BIC and "card ending" as keeps; plural
+pronouns in both directions including singular "they" for a named person; a
+travel city that also names an institute; and a no-PII site bulletin.
+
+Full pipeline (candidate 2 live, relaxed gate, test5 fixes in): redact
+coverage 84/111 (75.7%), keep intact 158/164 (96.3%), 0 stray spans. Model
+alone: 29/53 model-entity items (54.7%; PERSON 13/31, ADDRESS 4/6, DOB 4/6,
+SENSITIVE_ORG 8/10), keep 143/164, 1 stray. Nothing has been fixed against
+it. What held: every ALL-CAPS field except the names (address, city,
+postcode, e-mail, phone, employer, passport, birth date); the dotted
+"03.11.1941" and the ordinal "3rd of March 1990"; the initials "A. Quaye" and
+"P. Nwosu", "Mx Taylor Reid-Okafor", "Caoimhe Ní Bhriain", "Þórður
+Hallgrímsson", "Anne-Sophie de la Fontaine", "Joaquín de la Fuente", "María
+José García Lopez" and the hyphenated greeting "Dear Ms Castellanos-Reyes"
+(the rules carried ten names the model missed); "Colegio San Esteban"; the
+travel city "Trondheim" beside the institute of the same name; both IBANs,
+the sort code, the UK plate, the display-name e-mail headers, the "4M"
+class; and every keep that is not a pronoun: the letterheads, the thing
+labels ("Dyson V11", "Volkswagen Golf", "Peugeot 2008"), the five site
+nouns, the BIC, "card ending 4421", "NHS number (ending 5919)", the
+unbracketed chat timestamps. The twenty-seven misses and six over-redactions:
+
+- The model finds the facilities but the keyword gate drops them:
+  "Willowbrook Care Home" and "Kingsmere Health Trust" (2 misses, plus the
+  "Kingsmere" inside the Trust).
+- UK postcodes stranded after a town the address extension reached but the
+  postcode segment did not: "Kingsmere KM2 7QL", "Caernarfon LL55 1AB",
+  "Westbrook WB3 8HD" (3), while "Chelmsford CM1 2QX" and "DERBY DE1 3AB"
+  passed.
+- Names: the particles "ap" and "'t" ("Rhys ap Gruffudd", "Jan-Willem 't
+  Hooft"), a four-token name mixing a particle and a hyphenated surname
+  ("Khalid bin Tariq Al-Farsi"), the ALL-CAPS "ONYEKWERE" and "CHIDI EMEKA"
+  (model and regexes both want Title Case), the prose first names "Ifeoma"
+  and "Bartek", and the second, bare "Sigrún" that the echo rule did not
+  carry (8).
+- ID labels the rules do not know: DNI, PCN number, driving licence, visa
+  application reference, hire agreement (5).
+- Formats: the nine-digit Spanish mobile "+34 612 345 678", the seven-digit
+  German subscriber block "+49 171 2345678", the 00 prefix "0047 55 12 34
+  56", the German plate "M-RK 4471", the Spanish-order address "Calle Mayor
+  12, 3ºB" with its postcode "28013" (6).
+- The chat-reply ID "7719-2034-88" when the transcript has no brackets round
+  the times (1).
+- Plural pronouns: "they" for two named applicants three lines below their
+  names was kept (1 miss); "they" for the staff and for the keys, "their" for
+  the Centre's families and "them" for the parcels were redacted (4 keep
+  failures). Singular "they" for Temitope passed, by proximity.
+- "Jungheinrich EFG 216" as a PERSON from general NER, as "Halden
+  Kitchenware" before (1); "2027 Halvorsen Scholarship" as an ADDRESS from
+  the custom model, the first trusted-label leak since the gate was relaxed
+  (1).
+
+Model alone, the picture behind the rules: PERSON 13/31. It missed every
+hyphenated surname (Adebowale-Hart, Reid-Okafor, Rousseau-Mbeki,
+Castellanos-Reyes), every particle name but "Caoimhe Ní Bhriain", both
+ALL-CAPS names and all five bare first names in prose and sign-offs
+("Ifeoma", "Bartek", "Temitope", the sign-off "Anjali", the second
+"Sigrún"); it missed the ISO birth date and the ordinal one and two of the
+six addresses; and it labelled five letterheads, an employer line and two
+forklift models as facilities, "Tue 17 Nov at 09:40" and "January" (twice)
+as birth dates, and a scholarship name as an address. Corpus round 3 has
+its brief.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -367,22 +441,26 @@ on them.
 
 ### Next steps
 
-1. Author a blind gold batch test6 before the next milestone: every existing
-   set has absorbed fixes (test5 on 2026-11-05). Worth probing there: the
-   new rules on fresh surface forms (other particles and diacritics, other
-   national phone and postcode formats, other site nouns and thing labels,
-   chat transcripts with several codes), and whatever test6's author thinks
-   the rule layer has never seen.
-2. Corpus round 3 for the model: names with lowercase particles, accents and
-   hyphens (the model gave "Fenna van", "Németh", "Bartholomew Oyelaran" on
-   test5, and the rules carried those), German-order addresses, facilities
-   it mislabels, and more first names in running prose.
-3. Plural pronouns need reference, not proximity: both failure directions are
-   in gold (test4 documents 06 and 07, test5 documents 01 and 09) and they
-   are now the largest remaining error class.
-4. The remaining rule-layer over-redactions: "them"/"their" far from a person
-   and "Pallet"/"Meter" from general NER on dev (strays); "Halden Kitchenware"
-   on test3 (keep failure).
+1. Fix the test6 findings, rules first (run of 2026-11-07): the facility
+   words Care Home and Health Trust, the UK postcode segment after a town the
+   address extension reached, the particles "ap" and "'t" and the
+   particle-plus-hyphenated-surname shape, ALL-CAPS names after SURNAME /
+   GIVEN NAMES labels, the ID labels DNI, PCN, driving licence, application
+   reference and agreement, the phone shapes (nine-digit Spanish, seven-digit
+   German block, 00 prefix), the German plate, the Spanish-order address, the
+   chat transcript without brackets, and the first-name echo. Test6 is then
+   semi-dev too, and the next measurement needs a blind test7.
+2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
+   fields, bare first names in prose and sign-offs (test6 model alone: PERSON
+   13/31), plus letterheads, employer lines and date or time spans as
+   negatives (the model labels them as facilities and birth dates).
+3. Plural pronouns need reference, not proximity: test6 adds five cases
+   (documents 01, 02, 06 and 08) to test4 06/07 and test5 01/09; they are the
+   largest remaining error class.
+4. The remaining over-redactions: "them"/"their" far from a person and
+   "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) and "Jungheinrich
+   EFG 216" (test6) from general NER; "2027 Halvorsen Scholarship" as a
+   trusted ADDRESS from the custom model (test6).
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
