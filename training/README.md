@@ -56,8 +56,8 @@ before re-running it.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 89 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 115 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 each for test3 to test7) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -77,12 +77,14 @@ before any fix: **test** (15 docs; its first run absorbed five fixes),
 **test2** (10 docs; first blind run 97.2% / 100%, one fix since, and corpus
 round 2 targeted its reference-letter miss, so it is no longer blind for prose
 names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
-change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes), and
-**test5** (13 docs, authored 2026-11-05 after the test4 fixes). `--set all`
-runs all six. Current state: dev, test and test2 at 100% coverage / 100% keep;
-test3 at 98.7% / 99.0%, test4 at 96.8% / 97.6% and test5 at 98.6% / 97.8%
-after the fixes recorded below. Every set has absorbed fixes, so the next
-measurement needs a fresh blind batch (test6).
+change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
+**test5** (13 docs, authored 2026-11-05 after the test4 fixes), **test6** (13
+docs, authored 2026-11-07 after the test5 fixes) and **test7** (13 docs,
+authored 2026-11-08 after the test6 fixes). `--set all` runs all eight.
+Current state: dev, test and test2 at 100% coverage / 100% keep; test3 at
+98.7% / 99.0%, test4 at 96.8% / 97.6%, test5 at 98.6% / 97.8% and test6 at
+99.1% / 97.6% after the fixes recorded below. Test7 is the only blind score:
+80.1% / 87.9%, with nothing fixed against it yet.
 
 ### test3 blind run (2026-11-04)
 
@@ -444,6 +446,135 @@ first names in prose with no full name in the document ("Nkechi",
 "Thandiwe", "Hannelore"), plus "Halden Kitchenware" from general NER, which
 carries no digit for the product-code rule to see.
 
+### test7 blind run (2026-11-08)
+
+Thirteen documents, 141 must-redact items and 223 must-keep phrases, written
+without running the detector, after the test6 fixes (commit 6c3f889). The
+batch aims at the assumptions those fixes made more than at new formats:
+greeting addressees that are not names ("Dear Householder,", "Hi Finance,",
+"Dear Committee,", "Dear Visa Officer,") beside greetings the rule does not
+list ("Good morning Katarzyna,", "Hello Tevita and Mele,"); titled names
+under role labels (Dr., Prof., Rev., Sra., Herr, Dott.ssa, Eng.ª) and a
+company under one ("Registered keeper: Lexford Leasing Ltd"); 00-prefixed
+numbers that are not phones (the Polish postcode "00-590", an SSCC, an
+invoice number, a batch); ALL-CAPS fields other than names, with "MIDDLE
+NAME: NONE"; Romance-order addresses without a floor (Spanish, Italian,
+Portuguese) and "Via Royal Mail 48"; hyphenated codes shaped like German
+plates ("USB-C 3.2", "AC-DC 12 V", "DIN-A 4", "DE-HE 3", bay "B-C 4") beside
+two real plates; a date range after "hire agreement"; and the first-name
+echo against a city of the same name ("the Florence warehouse"), a
+stop-listed first name ("Faith") and a three-letter one ("Ana"). New ground:
+a chat export with bracketed date and time, Vietnamese and Polish names, a
+two-letter surname, a house-name address, an Eircode, an Italian fiscal
+code, plate and chassis number, a spaced National Insurance number, a
+slash-separated claim number, "half past six in the evening", and plural
+pronouns in both directions.
+
+Full pipeline (candidate 2 live, relaxed gate, test6 fixes in): redact
+coverage 113/141 (80.1%), keep intact 196/223 (87.9%), 1 stray span. Model
+alone: 31/63 model-entity items (49.2%; PERSON 16/41, ADDRESS 5/9, DOB 6/7,
+SENSITIVE_ORG 4/6), keep 195/223, 1 stray. Nothing has been fixed against
+it; every other set, both regression suites and the 19 unit tests are
+unchanged. Recall is a little above the test6 blind run (75.7%). Keep is the
+lowest of any batch (test6 blind: 96.3%), which is what this batch was built
+to find: fifteen of the twenty-seven keep failures are test6 rules reaching
+too far.
+
+What held: the titled names under role labels except one ("Dr. Ngozi
+Chukwuemeka-Bell", "Prof. Alasdair MacKinnon", "Sra. Inmaculada Ortega Ruiz"
+and "Mrs Gwenllian Llewellyn-Hughes" by rule, "Rev. Tobenna Achike", "Herr
+Jürgen Weißmüller" and "Eng.ª Leonor Vasconcelos" by NER); "Dear Visa
+Officer," kept, the unlisted greetings carried by NER ("Good morning
+Katarzyna,", "Hello Tevita and Mele,") and "Hi Ana," by rule; every ALL-CAPS
+field
+that is not a name except "NONE" (title, sex, marital status, occupation,
+country of birth, allergies), with the caps full name, birth date, address,
+town, postcode, phones and "DR M. FAIRWEATHER"; the Spanish and Italian
+addresses whole ("Avenida de Andalucía 8, 41005 Sevilla", "Via Garibaldi 27,
+20121 Milano") and the Portuguese street; both real German plates, the
+E-suffix one included, and the UK plate; the unspaced SSCC, "DN-118204",
+"INV-20417" and "2026/0931" kept, "TPS/0044/71920" as one member ID and
+"0048 22 555 01 47" as a phone; every speaker of the dated chat export
+("Mamadou Sy" included), its five dates kept, "Thanks Eilidh." and the bare
+"Roisin"; the Vietnamese names, "Zdeněk Novotný", "Agnieszka Wróblewska",
+"Maureen O'Dowd-Farrell" and every hyphenated surname; the slash claim
+number, the driving licence, the spaced National Insurance number, hospital
+and NHS numbers, both passports, the chassis number under "Telaio / VIN",
+the IBAN, the order, policy and serial numbers; six of seven birth dates;
+all sixteen pronouns that refer to people, the plural ones for the
+witnesses, the couple and the two visitors included; "Alnmouth Community
+Hospital" and "Hadston Day Centre", with the letterhead "Wansbeck Valley NHS
+Foundation Trust", "nursing home", "sheltered housing" and "Boots" left
+alone; and the sites and things ("Sheffield plant", "Kassel depot", "Leipzig
+hub", "Mill Lane", "Seat Ibiza", "Fiat Panda 1.2", "Gardena Classic 30",
+"Visa ending 3310", the Royal Mail tracking number, "Driving licence:
+category B, held since 2010").
+
+The twenty-seven keep failures and the stray:
+
+- Greeting rule: "Householder", "Finance" and "Committee" as persons (3).
+- German-plate rule: "USB-C 3.2", "AC-DC 12 V", "DIN-A 4", "DE-HE 3", "DE-SN
+  2" and "B-C 4" as plates (6).
+- The 00 prefix: the invoice number "0042 0117 3381" and the batch
+  "0031-22-456" as phones (2); the spaced SSCC as a payment card from its
+  first sixteen digits (1).
+- Agreement rule: the first date of "hire agreement 31/10/2026 to
+  03/11/2026" as an ID (1). Name-field rule: "MIDDLE NAME: NONE" (1).
+  Romance address rule: "Via Royal Mail 48" (1). First-name echo: "Florence"
+  in "the Florence warehouse" (1). Role label: "Registered keeper: Lexford
+  Leasing Ltd" as a person (1).
+- The older address-line rule read "00 while the main in Tannery Road" as an
+  address, which costs "13:00" and "Tannery Road" (2).
+- NER persons: "Albatros Versicherung" and "Felco 2" from the custom model
+  (the digit rule covers general NER only), "Officina Bellandi S.r.l",
+  "Grazie" and the "MM" of "DD/MM/YYYY" from general NER (5), and the stray
+  "Telefono".
+- Plural pronouns for things or an unnamed group: "they" for the cutters,
+  "them" for the patterns and the samples, "Their" for the dye house (3).
+
+The twenty-eight misses:
+
+- Sign-off names with no full name in the document: "Thanks, Bronagh" and
+  "Regards, Margaux" (2).
+- ALL-CAPS: "PREVIOUS SURNAME: ADESANYA" and "NEXT OF KIN: KWABENA ADESANYA"
+  (labels the name-field rule does not list) and the facility "PRIORY LANE
+  SURGERY" (3).
+- Names: "Dott.ssa Fiammetta Carbone" under "Cliente / Customer:"; "Name:
+  Thiago Monteiro dos Santos" under the bare label the rule leaves out (the
+  model stops at "Thiago Monteiro"); "Faith Oyinlola" in prose, which general
+  NER calls an organization, and the two bare "Faith" the echo stop-list
+  skips (4).
+- Address parts: the Polish "00-590 Warszawa" after a street the model
+  labelled a person (2), the Portuguese postcode "3000-180", the Eircode
+  "V92 X7K3" (the model's address stops at "V92") and the house name "The
+  Old Forge" (3).
+- IDs: "Codice fiscale", the Italian plate "FX 482 LD", the loyalty card
+  "6338 4410 0027", and the membership number "AL-2291" whose label sits
+  earlier in the sentence (4).
+- A format hint between label and value: "Date of birth (DD/MM/YYYY):
+  02/09/1959" (1).
+- Phones: "0044 114 496 0827" is masked only from "114" on, because a nested
+  national match outranks the international pattern's 0.99 score; the Irish
+  freephone "1800 555 014" (2).
+- Facilities and employers the gate dropped: "Coquet Medical Group" (no
+  listed word, and the model's span ran on into "after two"), "Instituto
+  Politécnico do Mondego" and "Colégio São Bento" (Portuguese spellings; the
+  model's span crossed a line break), "Granja & Filhos" on a CV line and
+  "Sông Hồng Precision Co" after "at our supplier" (5).
+- Context rules: the travel city in "fly to Birmingham" and the time "half
+  past six in the evening" (2).
+
+Model alone: PERSON 16/41. It again missed every hyphenated surname
+(Chukwuemeka-Bell, Adesanya-Price, Llewellyn-Hughes twice, Armstrong-Lowe,
+Haddad-Whitlock, O'Dowd-Farrell), three of the four ALL-CAPS names, both
+sign-offs and the greeting names ("Good morning Katarzyna,", "Hi Ana,",
+"Hello Tevita"); all three Romance-order streets and the house name; and it
+labelled four ordinary dates, "GHANA", "Qty 1" and "Qty 2" as birth dates,
+three letterheads, two employers, a leasing company, "Wi-Fi 6", "Gardena
+Classic 30", "DD/MM/YYYY" and "Birmingham on 6 December" as facilities, an
+insurer, a garage and "Felco 2" as persons, with three spans that cross line
+breaks. The brief for corpus round 3 stands and grows by these.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -505,22 +636,31 @@ on them.
 
 ### Next steps
 
-1. Blind test7: the next measurement. Test6 is semi-dev since the fixes of
-   2026-11-07, and every set since test3 has been tuned against, so the rule
-   layer has no blind score. Probe the shapes the fixes assumed: greeting
-   addressees that are not names, titled names under role labels, 00-prefix
-   numbers that are not phones, ALL-CAPS fields other than names, Romance
-   addresses without a floor, hyphenated district codes that are not plates.
-2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
-   fields, bare first names in prose and sign-offs (test6 model alone: PERSON
-   13/31; "Nkechi", "Thandiwe", "Hannelore" have no full name to echo from),
-   plus letterheads, employer lines and date or time spans as negatives (the
-   model labels them as facilities and birth dates), and a year-plus-title
-   line as an ADDRESS negative.
-3. Plural pronouns need reference, not proximity: test6 adds five cases
-   (documents 01, 02, 06 and 08) to test4 06/07 and test5 01/09; with the
-   test6 fixes in they are the largest remaining error class by far.
-4. The remaining over-redactions: "them"/"their" far from a person and
+1. Test7 fix round, rules first; test7 becomes semi-dev with it. Over-reach
+   before misses, because fifteen keep failures come from seven test6 rules:
+   role and collective greeting addressees; technical and region codes
+   shaped like German plates; 00-prefixed numbers under an invoice, batch
+   or SSCC label; a date after "agreement"; "NONE" and "N/A" in name
+   fields; "Via" ahead of a carrier; the first-name echo ahead of a site
+   noun; a company suffix under a role label. Then the misses that are
+   formats: the name labels "PREVIOUS SURNAME", "NEXT OF KIN" and bare
+   "Name:", "Dott.ssa", ALL-CAPS facility words, a format hint between a
+   birth label and its date, Polish, Portuguese and Irish postcodes, a
+   house name ahead of the street, "Codice fiscale", loyalty-card numbers,
+   "Medical Group", "Instituto" and "Colégio", "fly to", "half past", and
+   the nested phone that outranks its own 00 prefix.
+2. Blind test8 after that round; no set is blind once test7 is fixed.
+3. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
+   fields, bare first names in prose and sign-offs (model alone: PERSON
+   13/31 on test6, 16/41 on test7; "Nkechi", "Thandiwe", "Hannelore",
+   "Bronagh" and "Margaux" have no full name to echo from), plus
+   letterheads, employer lines, ordinary dates, quantities and products
+   with a digit as negatives (the model labels them as facilities, birth
+   dates and persons), and a year-plus-title line as an ADDRESS negative.
+4. Plural pronouns need reference, not proximity: test7 adds three keep
+   failures (document 09) to test6 documents 01, 02, 06 and 08, test4 06/07
+   and test5 01/09.
+5. The remaining over-redactions: "them"/"their" far from a person and
    "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.

@@ -2,7 +2,7 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 / 13 test6 documents
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 / 13 test6 / 13 test7 documents
 are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
@@ -1580,6 +1580,371 @@ TEST6 = [
 ]
 
 
+# ------------------------------------------------- test7 set (13), blind batch
+# Authored 2026-11-08 after the test6 fixes (commit 6c3f889), without running
+# the detector. Fresh names, streets, cities and organizations. Probes the
+# shapes those fixes assumed: greeting addressees that are not names
+# (Householder, Finance, Committee, Visa Officer) beside greetings the rule
+# does not list ("Good morning X,", "Hello X and Y,"); titled names under
+# role labels (Dr., Prof., Rev., Sra., Herr, Dott.ssa, Eng.ª) and a company
+# under one ("Registered keeper: ... Ltd"); 00-prefixed numbers that are not
+# phones (a Polish postcode, an SSCC, an invoice number, a batch); ALL-CAPS
+# fields other than names, with "MIDDLE NAME: NONE"; Romance-order addresses
+# without a floor (Spanish, Italian, Portuguese) and "Via Royal Mail 48";
+# hyphenated codes that look like German plates (USB-C 3.2, AC-DC 12 V,
+# DIN-A 4, DE-HE 3, bay B-C 4) beside two real ones; a date range after
+# "hire agreement"; the first-name echo against a city of the same name, a
+# stop-listed first name and a three-letter one. New ground: a bracketed
+# date-and-time chat export, Vietnamese and Polish names, a two-letter
+# surname, a house-name address, an Eircode, an Italian fiscal code, plate
+# and chassis number, a spaced National Insurance number, a slash-separated
+# claim number, "half past six in the evening", and plural pronouns in both
+# directions.
+TEST7 = [
+ dict(id="gold_v7_01_community_app.txt",
+  text=("Four messages from the Larchfield Community App\n\n"
+        "1) Dear Householder, the water will be off on Tuesday 17 November "
+        "from 09:00 to 13:00 while the main in Tannery Road is replaced.\n\n"
+        "2) Hi Finance, please pay the attached invoice INV-20417 for the "
+        "lift service by Friday. Thanks, Bronagh\n\n"
+        "3) Good morning Katarzyna, the parents' evening for class 6B has "
+        "moved to Thursday at 17:30 in the main hall. Please tell Leszek as "
+        "well.\n\n"
+        "4) Dear Committee, I cannot attend on Thursday. Zdeněk Novotný from "
+        "the roof group will present the three quotes in my place; he has "
+        "the paperwork. Regards, Margaux"),
+  redact=[("Bronagh","PERSON"),("Katarzyna","PERSON"),("6B","GROUP_CLASS"),
+          ("Leszek","PERSON"),("Zdeněk Novotný","PERSON"),("he","PRONOUN"),
+          ("Margaux","PERSON")],
+  keep=["Larchfield Community App","Householder","Tuesday 17 November","09:00",
+        "13:00","Tannery Road","Finance","INV-20417","lift service","Friday",
+        "Good morning","parents' evening","Thursday","17:30","main hall",
+        "Committee","roof group","three quotes","paperwork","Regards"]),
+
+ dict(id="gold_v7_02_collision_report.txt",
+  text=("Road traffic collision — report form\n"
+        "Claim no. RTC/2026/004471\n\n"
+        "Driver: Dr. Ngozi Chukwuemeka-Bell, date of birth 09/04/1984\n"
+        "Driving licence number: CHUKW854094N99AB\n"
+        "Vehicle: Seat Ibiza, registration KR19 PLM\n"
+        "Registered keeper: Lexford Leasing Ltd\n"
+        "Passenger: Prof. Alasdair MacKinnon\n"
+        "Witness 1: Rev. Tobenna Achike, 07700 900552\n"
+        "Witness 2: Sra. Inmaculada Ortega Ruiz, Avenida de Andalucía 8, "
+        "41005 Sevilla, +34 954 55 01 23\n"
+        "Other party: Herr Jürgen Weißmüller, insured with Albatros "
+        "Versicherung, policy no. AV-7730219\n"
+        "Location: junction of Mill Lane and the A614, 6 November 2026 at "
+        "17:35\n\n"
+        "The driver said she braked for a deer. Both witnesses confirm it; "
+        "they were walking on the verge. No injuries were reported."),
+  redact=[("RTC/2026/004471","GENERIC_ID"),
+          ("Ngozi Chukwuemeka-Bell","PERSON"),("09/04/1984","DOB"),
+          ("CHUKW854094N99AB","GENERIC_ID"),("KR19 PLM","LICENSE_PLATE"),
+          ("Alasdair MacKinnon","PERSON"),("Tobenna Achike","PERSON"),
+          ("07700 900552","PHONE"),("Inmaculada Ortega Ruiz","PERSON"),
+          ("Avenida de Andalucía 8","ADDRESS"),("41005","ZIP"),
+          ("Sevilla","CITY_RESIDENCE"),("+34 954 55 01 23","PHONE"),
+          ("Jürgen Weißmüller","PERSON"),("AV-7730219","POLICY_NUMBER"),
+          ("she","PRONOUN"),("they","PRONOUN")],
+  keep=["Road traffic collision","report form","Driver","Seat Ibiza",
+        "Registered keeper","Lexford Leasing Ltd","Passenger","Witness 1",
+        "Witness 2","Other party","Albatros Versicherung","Mill Lane","A614",
+        "6 November 2026","17:35","deer","verge","No injuries"]),
+
+ dict(id="gold_v7_03_polish_delivery.txt",
+  text=("Bursztyn Logistyka Sp. z o.o. — delivery note DN-118204\n\n"
+        "Consignee: Agnieszka Wróblewska\n"
+        "Deliver to: ul. Marszałkowska 84/12, 00-590 Warszawa\n"
+        "Contact: 0048 22 555 01 47 or a.wroblewska@example.pl\n"
+        "SSCC: 0035 9012 3400 0001 7421\n"
+        "Tracking: 00359012340000017421\n"
+        "Invoice no. 0042 0117 3381\n"
+        "Goods: 2 cartons, 14.6 kg, batch 0031-22-456\n"
+        "Driver's note: left with the concierge as she asked. Signed for at "
+        "11:20 on 4 November 2026."),
+  redact=[("Agnieszka Wróblewska","PERSON"),
+          ("Marszałkowska 84/12","ADDRESS"),("00-590","ZIP"),
+          ("Warszawa","CITY_RESIDENCE"),("0048 22 555 01 47","PHONE"),
+          ("a.wroblewska@example.pl","EMAIL"),("she","PRONOUN")],
+  keep=["Bursztyn Logistyka","delivery note","DN-118204","Consignee",
+        "0035 9012 3400 0001 7421","00359012340000017421","0042 0117 3381",
+        "2 cartons","14.6 kg","0031-22-456","concierge","11:20",
+        "4 November 2026"]),
+
+ dict(id="gold_v7_04_caps_registration.txt",
+  text=("PATIENT REGISTRATION FORM — PLEASE COMPLETE IN BLOCK CAPITALS\n"
+        "TITLE: MS\n"
+        "FULL NAME: OLUWAFUNMILAYO ADESANYA-PRICE\n"
+        "MIDDLE NAME: NONE\n"
+        "PREVIOUS SURNAME: ADESANYA\n"
+        "DATE OF BIRTH: 30 JUNE 1996\n"
+        "SEX: FEMALE\n"
+        "MARITAL STATUS: SINGLE\n"
+        "OCCUPATION: STRUCTURAL ENGINEER\n"
+        "COUNTRY OF BIRTH: GHANA\n"
+        "ADDRESS: 18 SALTMARSH CLOSE, GRIMSBY DN32 9HX\n"
+        "MOBILE: 07700 900671\n"
+        "NEXT OF KIN: KWABENA ADESANYA (BROTHER), 07700 900672\n"
+        "PREVIOUS GP: DR M. FAIRWEATHER, PRIORY LANE SURGERY\n"
+        "NHS NUMBER: 485 777 3456\n"
+        "ALLERGIES: PENICILLIN\n"
+        "ORGAN DONOR: YES"),
+  redact=[("OLUWAFUNMILAYO ADESANYA-PRICE","PERSON"),("ADESANYA","PERSON"),
+          ("30 JUNE 1996","DOB"),("18 SALTMARSH CLOSE","ADDRESS"),
+          ("GRIMSBY","CITY_RESIDENCE"),("DN32 9HX","ZIP"),
+          ("07700 900671","PHONE"),("KWABENA ADESANYA","PERSON"),
+          ("07700 900672","PHONE"),("M. FAIRWEATHER","PERSON"),
+          ("PRIORY LANE SURGERY","SENSITIVE_ORG"),
+          ("485 777 3456","GENERIC_ID")],
+  keep=["PATIENT REGISTRATION FORM","BLOCK CAPITALS","TITLE","FULL NAME",
+        "MIDDLE NAME","NONE","PREVIOUS SURNAME","DATE OF BIRTH","SEX","FEMALE",
+        "MARITAL STATUS","SINGLE","OCCUPATION","STRUCTURAL ENGINEER",
+        "COUNTRY OF BIRTH","GHANA","NEXT OF KIN","BROTHER","PREVIOUS GP",
+        "NHS NUMBER","ALLERGIES","PENICILLIN","ORGAN DONOR"]),
+
+ dict(id="gold_v7_05_italian_invoice.txt",
+  text=("Officina Bellandi S.r.l. — Fattura / Invoice 2026/0931\n\n"
+        "Cliente / Customer: Dott.ssa Fiammetta Carbone\n"
+        "Indirizzo / Address: Via Garibaldi 27, 20121 Milano\n"
+        "Codice fiscale: CRBFMT85T49F205U\n"
+        "Telefono: +39 02 5550 0142\n"
+        "Veicolo / Vehicle: Fiat Panda 1.2\n"
+        "Targa / Plate: FX 482 LD\n"
+        "Telaio / VIN: ZFA31200003456789\n"
+        "Work: timing belt and water pump, 3.5 hours labour; 84,300 km on "
+        "the clock\n"
+        "Courtesy car: hire agreement 31/10/2026 to 03/11/2026, no charge\n"
+        "Total: €412.80 including IVA at 22%\n"
+        "Payable by bank transfer to IBAN IT60 X054 2811 1010 0000 0123 456 "
+        "within 10 days.\n"
+        "She collected the car on 3 November. Grazie!"),
+  redact=[("Fiammetta Carbone","PERSON"),("Via Garibaldi 27","ADDRESS"),
+          ("20121","ZIP"),("Milano","CITY_RESIDENCE"),
+          ("CRBFMT85T49F205U","GENERIC_ID"),("+39 02 5550 0142","PHONE"),
+          ("FX 482 LD","LICENSE_PLATE"),("ZFA31200003456789","VIN"),
+          ("IT60 X054 2811 1010 0000 0123 456","IBAN"),("she","PRONOUN")],
+  keep=["Officina Bellandi","Invoice","2026/0931","Customer","Codice fiscale",
+        "Fiat Panda 1.2","timing belt","water pump","3.5 hours","84,300 km",
+        "Courtesy car","31/10/2026","03/11/2026","no charge","€412.80","IVA",
+        "22%","10 days","3 November","Grazie"]),
+
+ dict(id="gold_v7_06_fleet_rollout.txt",
+  text=("Fleet telematics rollout — depot notes, week 45\n\n"
+        "Units fitted this week: 14 at the Kassel depot and 9 at the Leipzig "
+        "hub. Each unit has two USB-C 3.2 ports, an AC-DC 12 V converter and "
+        "Wi-Fi 6; the mounting template prints on DIN-A 4. Firmware region "
+        "DE-HE 3 is loaded for Kassel and DE-SN 2 for Leipzig.\n\n"
+        "Two vehicles are outstanding: KS-FT 2209 (the driver, Herr Yilmaz, "
+        "is on leave until 16 November) and L-EV 318E, which is in the body "
+        "shop. Bay B-C 4 is reserved for the fitter's van. The unit with "
+        "serial number TLM-88213-A was returned faulty.\n\n"
+        "Questions to the rollout desk on extension 4410."),
+  redact=[("KS-FT 2209","LICENSE_PLATE"),("Yilmaz","PERSON"),
+          ("L-EV 318E","LICENSE_PLATE"),("TLM-88213-A","SERIAL_NUMBER")],
+  keep=["Fleet telematics rollout","depot notes","week 45","Kassel depot",
+        "Leipzig hub","USB-C 3.2","AC-DC 12 V","Wi-Fi 6","DIN-A 4","DE-HE 3",
+        "DE-SN 2","16 November","body shop","B-C 4","fitter's van",
+        "rollout desk","extension 4410"]),
+
+ dict(id="gold_v7_07_group_chat.txt",
+  text=("WhatsApp chat export — Allotment keys\n"
+        "[07/11/2026, 18:02] Mamadou Sy: Has anyone got the spare key for the "
+        "tool shed?\n"
+        "[07/11/2026, 18:05] Eilidh Farquharson: I gave it to Roisin on "
+        "Sunday. She said she'd drop it back tonight.\n"
+        "[07/11/2026, 18:06] Mamadou Sy: Thanks Eilidh. My number's changed "
+        "btw, it's 07700 900934 now.\n"
+        "[07/11/2026, 18:11] Roisin: Sorry both! It's at mine, 3 Weaver's "
+        "Cottages. I'll bring it at 8.\n"
+        "[07/11/2026, 18:12] Eilidh Farquharson: No rush. Membership renewals "
+        "are due Friday, mine is AL-2291 if the treasurer is reading."),
+  redact=[("Mamadou Sy","PERSON"),("Eilidh Farquharson","PERSON"),
+          ("Eilidh","PERSON"),("Roisin","PERSON"),("she","PRONOUN"),
+          ("07700 900934","PHONE"),("3 Weaver's Cottages","ADDRESS"),
+          ("AL-2291","GENERIC_ID")],
+  keep=["WhatsApp chat export","Allotment keys","spare key","tool shed",
+        "Sunday","tonight","07/11/2026","18:02","18:11","No rush",
+        "Membership renewals","Friday","treasurer"]),
+
+ dict(id="gold_v7_08_portuguese_cv.txt",
+  text=("CURRICULUM VITAE\n\n"
+        "Name: Thiago Monteiro dos Santos\n"
+        "Morada / Address: Rua Ferreira Borges 45, 3000-180 Coimbra\n"
+        "Telemóvel / Mobile: +351 912 345 678\n"
+        "E-mail: thiago.msantos@example.pt\n"
+        "Date of birth: 12/05/1991\n"
+        "Nationality: Brazilian\n"
+        "Driving licence: category B, held since 2010\n\n"
+        "Experience\n"
+        "2019–2026  Site engineer, Construtora Ribeira Lda\n"
+        "2015–2019  Junior surveyor, Granja & Filhos\n\n"
+        "Education\n"
+        "2015  MSc Civil Engineering, Instituto Politécnico do Mondego\n"
+        "2009  Colégio São Bento\n\n"
+        "Languages: Portuguese (native), English (C1), Spanish (B2)\n"
+        "Referee: Eng.ª Leonor Vasconcelos, Construtora Ribeira Lda, "
+        "leonor.v@ribeira.example"),
+  redact=[("Thiago Monteiro dos Santos","PERSON"),
+          ("Rua Ferreira Borges 45","ADDRESS"),("3000-180","ZIP"),
+          ("Coimbra","CITY_RESIDENCE"),("+351 912 345 678","PHONE"),
+          ("thiago.msantos@example.pt","EMAIL"),("12/05/1991","DOB"),
+          ("Construtora Ribeira Lda","EMPLOYER_ORG"),
+          ("Granja & Filhos","EMPLOYER_ORG"),
+          ("Instituto Politécnico do Mondego","SENSITIVE_ORG"),
+          ("Colégio São Bento","SENSITIVE_ORG"),
+          ("Leonor Vasconcelos","PERSON"),
+          ("leonor.v@ribeira.example","EMAIL")],
+  keep=["CURRICULUM VITAE","Brazilian","category B","held since 2010",
+        "Experience","Site engineer","Junior surveyor","Education",
+        "MSc Civil Engineering","Languages","Portuguese","native","English",
+        "C1","Spanish","B2","Referee"]),
+
+ dict(id="gold_v7_09_sample_run_email.txt",
+  text=("From: Florence Abernethy <florence.abernethy@castellomoda.example>\n"
+        "To: Ana Beltrán Soler <ana.beltran@castellomoda.example>\n"
+        "Cc: warehouse@castellomoda.example\n"
+        "Subject: Sample run for the spring line\n\n"
+        "Hi Ana,\n\n"
+        "The sample run is confirmed. The cutters want the patterns by "
+        "Wednesday; they work from paper, so please print them at full scale. "
+        "The samples go to the Florence warehouse on Friday and Faith "
+        "Oyinlola will sign them in. Faith is in from 07:30.\n\n"
+        "Could you ring the dye house on 055 123 4567 and ask about the "
+        "indigo? Their last batch was uneven.\n\n"
+        "Thanks,\n"
+        "Florence Abernethy\n"
+        "Production Manager"),
+  redact=[("Florence Abernethy","PERSON"),
+          ("florence.abernethy@castellomoda.example","EMAIL"),
+          ("Ana Beltrán Soler","PERSON"),("Ana","PERSON"),
+          ("ana.beltran@castellomoda.example","EMAIL"),
+          ("warehouse@castellomoda.example","EMAIL"),
+          ("Faith Oyinlola","PERSON"),("Faith","PERSON"),
+          ("055 123 4567","PHONE")],
+  keep=["Sample run","spring line","cutters","patterns","Wednesday","they",
+        "them","full scale","Florence warehouse","Friday","07:30","dye house",
+        "indigo","Their","last batch","Thanks","Production Manager"]),
+
+ dict(id="gold_v7_10_pension_statement.txt",
+  text=("Tideswell Pension Scheme\n"
+        "Member statement — year to 5 April 2026\n\n"
+        "Member: Mr Emrys Llewellyn-Hughes\n"
+        "Member ID: TPS/0044/71920\n"
+        "Date of birth (DD/MM/YYYY): 02/09/1959\n"
+        "National Insurance number: JT 48 13 92 B\n"
+        "Spouse: Mrs Gwenllian Llewellyn-Hughes, d.o.b. 11.01.1962\n"
+        "Address on file: The Old Forge, 6 Chapel Row, Bakewell DE45 1EW\n"
+        "Normal retirement date: 2 September 2026\n"
+        "Annual pension at that date: £9,418.20; lump sum option £41,300\n\n"
+        "His nominated beneficiary is his spouse. They last updated the "
+        "nomination in 2019. He does not need to take any action unless his "
+        "details have changed.\n\n"
+        "Queries: pensions helpline 0800 496 0143, weekdays 9 to 5."),
+  redact=[("Emrys Llewellyn-Hughes","PERSON"),("TPS/0044/71920","GENERIC_ID"),
+          ("02/09/1959","DOB"),("JT 48 13 92 B","UK_NINO"),
+          ("Gwenllian Llewellyn-Hughes","PERSON"),("11.01.1962","DOB"),
+          ("The Old Forge","ADDRESS"),("6 Chapel Row","ADDRESS"),
+          ("Bakewell","CITY_RESIDENCE"),("DE45 1EW","ZIP"),
+          ("his","PRONOUN"),("he","PRONOUN"),("they","PRONOUN"),
+          ("0800 496 0143","PHONE")],
+  keep=["Tideswell Pension Scheme","Member statement","5 April 2026",
+        "Member ID","DD/MM/YYYY","Spouse","Normal retirement date",
+        "2 September 2026","£9,418.20","£41,300","nominated beneficiary",
+        "2019","pensions helpline","weekdays","9 to 5"]),
+
+ dict(id="gold_v7_11_cardiology_letter.txt",
+  text=("Wansbeck Valley NHS Foundation Trust\n"
+        "Cardiology Outpatients\n\n"
+        "Dear Dr Hetherington,\n\n"
+        "Re: Mr Cuthbert Armstrong-Lowe, DOB 23 Aug 1948, hospital number "
+        "H4471902, NHS no. 401 023 2137\n\n"
+        "I reviewed this gentleman on 2 November 2026. He was referred from "
+        "Coquet Medical Group after two falls at home. His echocardiogram at "
+        "Alnmouth Community Hospital showed mild aortic stenosis. He lives "
+        "alone in sheltered housing and attends Hadston Day Centre on "
+        "Tuesdays; his daughter, Mrs Philippa Storey, collects his "
+        "prescriptions from Boots. He does not want to move to a nursing "
+        "home.\n\n"
+        "Plan: ECG in six months; continue bisoprolol 2.5 mg. I have not "
+        "changed his other medicines.\n\n"
+        "Yours sincerely,\n"
+        "Dr Soraya Haddad-Whitlock, Consultant Cardiologist\n"
+        "Secretary: 01632 960 733"),
+  redact=[("Hetherington","PERSON"),("Cuthbert Armstrong-Lowe","PERSON"),
+          ("23 Aug 1948","DOB"),("H4471902","GENERIC_ID"),
+          ("401 023 2137","GENERIC_ID"),("he","PRONOUN"),("his","PRONOUN"),
+          ("Coquet Medical Group","SENSITIVE_ORG"),
+          ("Alnmouth Community Hospital","SENSITIVE_ORG"),
+          ("Hadston Day Centre","SENSITIVE_ORG"),
+          ("Philippa Storey","PERSON"),("Soraya Haddad-Whitlock","PERSON"),
+          ("01632 960 733","PHONE")],
+  keep=["Wansbeck Valley NHS Foundation Trust","Cardiology Outpatients",
+        "this gentleman","2 November 2026","two falls","echocardiogram",
+        "mild aortic stenosis","sheltered housing","Tuesdays","prescriptions",
+        "Boots","nursing home","ECG","six months","bisoprolol 2.5 mg",
+        "Yours sincerely","Consultant Cardiologist","Secretary"]),
+
+ dict(id="gold_v7_12_order_confirmation.txt",
+  text=("Fernleaf Garden Supplies — order confirmation\n\n"
+        "Hello Tevita and Mele,\n\n"
+        "Thank you for your order no. FG-2026-774102, placed on 6 November "
+        "2026.\n\n"
+        "Item 1 — Name: Gardena Classic 30 hose reel; Qty 1; €64.95\n"
+        "Item 2 — Name: Felco 2 secateurs; Qty 2; €119.80\n"
+        "Dispatch: Via Royal Mail 48, tracked; tracking number RM 4471 2209 "
+        "5GB\n"
+        "Deliver to: Mele Taufa, 9 Sráid an Mhuilinn, Dingle, Co. Kerry, V92 "
+        "X7K3\n"
+        "Billing name: Tevita Taufa\n"
+        "Paid with Visa ending 3310. Your loyalty card 6338 4410 0027 earned "
+        "184 points.\n\n"
+        "If the parcel has not arrived within five working days, email "
+        "help@fernleaf.example or call 1800 555 014."),
+  redact=[("Tevita","PERSON"),("Mele","PERSON"),
+          ("FG-2026-774102","ORDER_NUMBER"),("Mele Taufa","PERSON"),
+          ("9 Sráid an Mhuilinn","ADDRESS"),("Dingle","CITY_RESIDENCE"),
+          ("V92 X7K3","ZIP"),("Tevita Taufa","PERSON"),
+          ("6338 4410 0027","GENERIC_ID"),("help@fernleaf.example","EMAIL"),
+          ("1800 555 014","PHONE")],
+  keep=["Fernleaf Garden Supplies","order confirmation","6 November 2026",
+        "Gardena Classic 30","hose reel","Felco 2","secateurs","Qty 1",
+        "€64.95","€119.80","Dispatch","Royal Mail 48","RM 4471 2209 5GB",
+        "Billing name","Visa ending","3310","184 points",
+        "five working days"]),
+
+ dict(id="gold_v7_13_invitation_letter.txt",
+  text=("Aldergrove Instruments Ltd\n"
+        "12 November 2026\n\n"
+        "Dear Visa Officer,\n\n"
+        "We invite Ms Nguyễn Thị Hồng Nhung (passport no. C4471902, born 18 "
+        "March 1989), a senior buyer at our supplier Sông Hồng Precision Co., "
+        "to visit our Sheffield plant from 7 to 18 December 2026. She will "
+        "fly to Birmingham on 6 December. Her colleague Mr Trần Văn Khoa "
+        "travels with her; his passport number is C5520318.\n\n"
+        "We will meet them at the airport at half past six in the evening and "
+        "cover all local costs. Their return flight is booked for 19 "
+        "December.\n\n"
+        "For verification call our HR desk on 0044 114 496 0827 or 0114 496 "
+        "0827 (ext. 215).\n\n"
+        "Yours faithfully,\n"
+        "Maureen O'Dowd-Farrell\n"
+        "Head of Procurement"),
+  redact=[("Nguyễn Thị Hồng Nhung","PERSON"),("C4471902","PASSPORT"),
+          ("18 March 1989","DOB"),("Sông Hồng Precision Co","EMPLOYER_ORG"),
+          ("she","PRONOUN"),("Birmingham","CITY_TRAVEL"),("her","PRONOUN"),
+          ("Trần Văn Khoa","PERSON"),("his","PRONOUN"),
+          ("C5520318","PASSPORT"),("them","PRONOUN"),
+          ("half past six in the evening","TIME"),("their","PRONOUN"),
+          ("0044 114 496 0827","PHONE"),("0114 496 0827","PHONE"),
+          ("Maureen O'Dowd-Farrell","PERSON")],
+  keep=["Aldergrove Instruments Ltd","12 November 2026","Visa Officer",
+        "senior buyer","Sheffield plant","7 to 18 December 2026","6 December",
+        "airport","local costs","19 December","HR desk","ext. 215",
+        "Yours faithfully","Head of Procurement"]),
+]
+
+
 def occurrences(needle, haystack):
     pattern = re.escape(needle)
     if needle[0].isalnum():
@@ -1624,7 +1989,7 @@ def main():
     problems = (validate(DEV, "dev") + validate(TEST, "test")
                 + validate(TEST2, "test2") + validate(TEST3, "test3")
                 + validate(TEST4, "test4") + validate(TEST5, "test5")
-                + validate(TEST6, "test6"))
+                + validate(TEST6, "test6") + validate(TEST7, "test7"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -1636,12 +2001,13 @@ def main():
     emit(TEST4, GOLD_DIR / "test4_docs.jsonl", GOLD_DIR / "test4_cases.jsonl")
     emit(TEST5, GOLD_DIR / "test5_docs.jsonl", GOLD_DIR / "test5_cases.jsonl")
     emit(TEST6, GOLD_DIR / "test6_docs.jsonl", GOLD_DIR / "test6_cases.jsonl")
-    everything = DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5 + TEST6
+    emit(TEST7, GOLD_DIR / "test7_docs.jsonl", GOLD_DIR / "test7_cases.jsonl")
+    everything = DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5 + TEST6 + TEST7
     n_redact = sum(len(d["redact"]) for d in everything)
     n_keep = sum(len(d["keep"]) for d in everything)
     print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
           f"{len(TEST3)} test3 + {len(TEST4)} test4 + {len(TEST5)} test5 + "
-          f"{len(TEST6)} test6 docs "
+          f"{len(TEST6)} test6 + {len(TEST7)} test7 docs "
           f"({n_redact} redact spans, {n_keep} keep "
           f"spans) to {GOLD_DIR}")
 

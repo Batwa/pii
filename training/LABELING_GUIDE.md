@@ -184,6 +184,16 @@ One JSON object per line (JSONL):
     company number). The 00 dialling prefix counts like "+" unless another
     digit group precedes it, so "0044 0532 0130 00" inside an IBAN is not a
     phone (test6, 2026-11-07).
+15. Labels taken while authoring test7 (2026-11-08): a loyalty-card number
+    is a customer identifier and redacts; a house name ahead of the street
+    ("The Old Forge, 6 Chapel Row") is part of the address; a company under
+    a role label ("Registered keeper: Lexford Leasing Ltd"), an insurer and
+    a chain pharmacy ("Boots") stay visible; a supplier named as the place
+    a person works ("a senior buyer at our supplier X") is that person's
+    employer; a facility type with no name ("a nursing home", "sheltered
+    housing") stays; a plural pronoun for an unnamed group ("the cutters
+    ... they") stays, as for the staff in test6; "MIDDLE NAME: NONE" is
+    not a name.
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
