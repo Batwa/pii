@@ -82,9 +82,10 @@ change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 docs, authored 2026-11-07 after the test5 fixes) and **test7** (13 docs,
 authored 2026-11-08 after the test6 fixes). `--set all` runs all eight.
 Current state: dev, test and test2 at 100% coverage / 100% keep; test3 at
-98.7% / 99.0%, test4 at 96.8% / 97.6%, test5 at 98.6% / 97.8% and test6 at
-99.1% / 97.6% after the fixes recorded below. Test7 is the only blind score:
-80.1% / 87.9%, with nothing fixed against it yet.
+98.7% / 99.0%, test4 at 96.8% / 97.6%, test5 at 98.6% / 97.8%, test6 at
+99.1% / 97.6% and test7 at 98.6% / 98.7% after the fixes recorded below.
+Test7's blind score was 80.1% / 87.9%. Every set has absorbed fixes, so the
+next measurement needs a fresh blind batch (test8).
 
 ### test3 blind run (2026-11-04)
 
@@ -575,6 +576,98 @@ Classic 30", "DD/MM/YYYY" and "Birmingham on 6 December" as facilities, an
 insurer, a garage and "Felco 2" as persons, with three spans that cross line
 breaks. The brief for corpus round 3 stands and grows by these.
 
+### test7 fixes (2026-11-08)
+
+Fifty of the fifty-five findings were fixed, all in `policy_rules.py`; test7
+is semi-dev from here. The rules that reached too far came first:
+
+- Greeting addressees: `_GREETING_STOP` gains residents and account holders
+  (Householder, Occupier), departments and bodies (Finance, Committee) and
+  roles; the new sign-off rule shares it.
+- German plates: the shape counts only where the sentence speaks of a
+  vehicle or a registration (`PLATE_CONTEXT`) and never straight after a
+  place or type label (`PLACE_LABEL_PREFIX`: bay, room, region, type); a
+  decimal continuation ("3.2") ends the match.
+- The label decides (`THING_ID_LABEL_PREFIX`): a digit run straight after an
+  invoice, receipt, batch, tracking, SSCC, barcode, part, voucher, flight or
+  project label is that thing's number, whichever layer read it as a phone,
+  a card or an address.
+- An ID value is never a bare date (`_NOT_A_DATE`, agreement and generic
+  IDs); a name field or role label never holds "NONE", "N/A", "Not
+  applicable" (`_NOT_A_NAME`).
+- "Via", "Plaza", "Largo" and "Corso" are English words too: as street
+  words they need a postcode behind them or an address label in front.
+- The English street line: the house number is never the minutes of a clock
+  time or the decimals of an amount, and ordinary function words between
+  the number and the street word mean a sentence ("5 minutes from the main
+  Road").
+- The first-name echo stops ahead of a site noun ("the Florence
+  warehouse"), as general NER persons already did.
+- A person span that ends in a company word, or is followed by one, is a
+  company in every layer (`_COMPANY_TAIL`: Ltd, GmbH, S.r.l., Leasing,
+  Versicherung).
+- One-word NER persons that are a courtesy word ("Grazie"), a date-format
+  placeholder ("MM") or a line-initial label ahead of a number
+  ("Telefono: +39") are dropped; the no-digit rule for persons now covers
+  the custom model ("Felco 2").
+
+Then the misses:
+
+- Names: a sign-off rule (closing word, comma, one name word that ends the
+  line); the name-field labels previous / former / other / birth name and
+  mother's maiden name; role labels in block capitals with at least two
+  capital words ("NEXT OF KIN: KWABENA ADESANYA"; people-only labels, and
+  not "DRIVER: COMPANY POOL VEHICLE"); the titles Dott.ssa, Sig.ra, Eng.ª,
+  Rev, Sir and others; a bare "Name:" value when a NER layer saw a person
+  inside it, which repairs the model's "Thiago Monteiro" to "Thiago
+  Monteiro dos Santos".
+- Facilities and employers: Medical / Health Group and Partnership; the
+  block-capital form of every facility word ("PRIORY LANE SURGERY");
+  facility words that lead the name (Colégio, Instituto, Universidad,
+  Liceo, Klinik); "at our supplier X" as employer wording; a dated CV line
+  ("2015–2019  Junior surveyor, Granja & Filhos"), whose employer also
+  echoes to its other mentions.
+- Addresses: the Polish street line ("ul. Marszałkowska 84/12") and the
+  Polish, Portuguese and Irish postcode segments; an Eircode completed like
+  a UK postcode when the model stops after the routing key; a house name
+  ahead of the street number ("The Old Forge, 6 Chapel Row").
+- IDs: the labels codice fiscale, fiscal / tax code, national ID, ID card,
+  membership and loyalty; spaced card numbers after "loyalty card"; the
+  possessive form ("membership ..., mine is AL-2291"); a labelled plate in
+  any short capital format ("Targa / Plate: FX 482 LD", scored 0.45 like
+  the passport fallback).
+- Phones: a number carried by its label ("call 1800 555 014"); a shorter
+  regex phone nested in a +/00 phone yields to it, so "0044 114 496 0827"
+  is masked whole.
+- Context: a format hint between a birth label and its date; "fly to",
+  "flew to", "travelled to"; "half past six in the evening" and worded
+  hours.
+
+Three things were adjusted during the round. The company filter exposed the
+model's shorter "Officina Bellandi" ahead of "S.r.l.", so it also reads the
+next word. Removing the plate match on "DE-HE 3" exposed the pronoun
+pattern on its "HE", so a pronoun is never glued to a hyphen. And the first
+date guard also rejected registry numbers that start with a date (the shape
+"record No. 2014-03-09/0771", in two private documents), found by comparing every
+detection on all 161 gold, private and international documents before and
+after; the guard now rejects bare dates only. That comparison shows two
+other changes outside test7: "Colegio San Esteban" (test6) is now labelled
+a facility rather than an organization, and in one private document a road
+intersection in an accident report is no longer masked. It had been masked
+only because the year of the date before it was read as a house number; an
+intersection is a public place under the policy. (The examples quoted here
+are invented stand-ins of the same shape, not text from those documents.)
+
+Result: test7 113/141 → 139/141 (98.6%), keep 196/223 → 220/223 (98.7%), 1
+→ 0 strays. Every other set is unchanged: dev 123/123 and 135/135 (strays
+still 4), test and test2 100% / 100%, test3 75/76, test4 61/63 and 81/83,
+test5 71/72 and 87/89, test6 110/111 and 160/164; both regression suites
+and the 20 unit tests pass. The five failures left on test7 are the two
+structural classes again: "Faith Oyinlola" in prose, which general NER
+calls an organization, with the bare "Faith" the echo stop-list skips, and
+three plural pronouns for things ("they" for the cutters, "them" for the
+patterns, "Their" for the dye house).
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -636,31 +729,27 @@ on them.
 
 ### Next steps
 
-1. Test7 fix round, rules first; test7 becomes semi-dev with it. Over-reach
-   before misses, because fifteen keep failures come from seven test6 rules:
-   role and collective greeting addressees; technical and region codes
-   shaped like German plates; 00-prefixed numbers under an invoice, batch
-   or SSCC label; a date after "agreement"; "NONE" and "N/A" in name
-   fields; "Via" ahead of a carrier; the first-name echo ahead of a site
-   noun; a company suffix under a role label. Then the misses that are
-   formats: the name labels "PREVIOUS SURNAME", "NEXT OF KIN" and bare
-   "Name:", "Dott.ssa", ALL-CAPS facility words, a format hint between a
-   birth label and its date, Polish, Portuguese and Irish postcodes, a
-   house name ahead of the street, "Codice fiscale", loyalty-card numbers,
-   "Medical Group", "Instituto" and "Colégio", "fly to", "half past", and
-   the nested phone that outranks its own 00 prefix.
-2. Blind test8 after that round; no set is blind once test7 is fixed.
-3. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
+1. Blind test8: the next measurement. Test7 is semi-dev since the fixes of
+   2026-11-08 and no set is blind. Probe what this round assumed: greeting
+   and sign-off words outside the lists and one-word company sign-offs;
+   German plates with no vehicle wording, and after a place label; phones
+   under a thing label; identifiers that are dates; block-capital role
+   labels with values that are not names; "Via" and "Plaza" streets with no
+   postcode; street lines with a function word in them; surnames that are
+   company words ("Bank"); a bare "Name:" where NER is silent; CV lines
+   with no year range; house names with no house word.
+2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
    fields, bare first names in prose and sign-offs (model alone: PERSON
-   13/31 on test6, 16/41 on test7; "Nkechi", "Thandiwe", "Hannelore",
-   "Bronagh" and "Margaux" have no full name to echo from), plus
-   letterheads, employer lines, ordinary dates, quantities and products
-   with a digit as negatives (the model labels them as facilities, birth
-   dates and persons), and a year-plus-title line as an ADDRESS negative.
-4. Plural pronouns need reference, not proximity: test7 adds three keep
-   failures (document 09) to test6 documents 01, 02, 06 and 08, test4 06/07
-   and test5 01/09.
-5. The remaining over-redactions: "them"/"their" far from a person and
+   13/31 on test6, 16/41 on test7; "Nkechi", "Thandiwe", "Hannelore" and
+   "Faith Oyinlola" are still missed with the rules in), plus letterheads,
+   employer lines, ordinary dates, quantities and products with a digit as
+   negatives (the model labels them as facilities, birth dates and
+   persons), and a year-plus-title line as an ADDRESS negative.
+3. Plural pronouns need reference, not proximity: test7 document 09 adds
+   three keep failures to test6 documents 01, 02, 06 and 08, test4 06/07
+   and test5 01/09. With the test7 fixes in they are thirteen of the
+   nineteen failures left across all sets.
+4. The remaining over-redactions: "them"/"their" far from a person and
    "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.

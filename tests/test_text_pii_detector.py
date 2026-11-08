@@ -297,3 +297,111 @@ def test_rule_layer_fixes_from_test6():
         [ner("PERSON", "Sigrún Hallgrímsdóttir", "regex", 1.0, pupil),
          ner("PERSON", "Mark Will", "regex", 1.0, pupil)], pupil)
     assert [(r["text"], r["start"]) for r in echoed] == [("Sigrún", pupil.index("Sigrún carries"))]
+
+
+def test_rule_layer_fixes_from_test7():
+    import policy_rules
+
+    def rules(text, extra=()):
+        results = policy_rules.run_pattern_rules(text) + list(extra)
+        kept = policy_rules.apply_policy_filters(results, text)
+        return {(r["entity_type"], r["text"]) for r in kept
+                if r["entity_type"] != "PRONOUN"}
+
+    def ner(label, needle, where, source="spacy", score=0.9):
+        start = where.index(needle)
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": score, "text": needle, "source": source}
+
+    # Rules that reached too far on the blind run.
+    greetings = ("Hi Peter, the lift is fixed. Dear Occupier, bins go out on Monday. "
+                 "Hi Finance, please pay. Dear Committee, see below.\n"
+                 "Cheers,\nOlu\n\nThanks, Team\nBest,\nProduction Manager\nKind regards,\nWanjiru")
+    assert rules(greetings) == {("PERSON", "Peter"), ("PERSON", "Olu"), ("PERSON", "Wanjiru")}
+
+    codes = ("Kennzeichen HH-AB 1234. The van B-MW 512E was towed. Room A-B 12 is free. "
+             "Each unit has a USB-C 3.2 port and an AC-DC 240 V supply; region DE-HE 3 is loaded.")
+    assert rules(codes) == {("LICENSE_PLATE", "HH-AB 1234"), ("LICENSE_PLATE", "B-MW 512E")}
+
+    numbers = ("Tracking no. 0049 30 901820\nPhone: 0049 30 901820\n"
+               "Invoice no. 0042 0117 3381\nbatch 0031-22-456\nSSCC: 0035 9012 3400 0001 7421\n"
+               "Call the desk on 0044 114 496 0827 or call 1800 555 014.\n")
+    assert rules(numbers) == {("PHONE", "0049 30 901820"), ("PHONE", "0044 114 496 0827"),
+                              ("PHONE", "1800 555 014")}
+
+    ids = ("Agreement: 55-20931\nCourtesy car: hire agreement 31/10/2026 to 03/11/2026\n"
+           "Birth record No. 2014-03-09/0771\nCodice fiscale: CRBFMT85T49F205U\n"
+           "Your loyalty card 6338 4410 0027 earned points. "
+           "Membership renewals are due Friday, mine is AL-2291.\n"
+           "Targa / Plate: FX 482 LD\nRegistration: 12 November 2026\n"
+           "Date of birth (DD/MM/YYYY): 02/09/1959\n")
+    assert rules(ids) == {
+        ("GENERIC_ID", "55-20931"), ("GENERIC_ID", "2014-03-09/0771"),
+        ("GENERIC_ID", "CRBFMT85T49F205U"), ("GENERIC_ID", "6338 4410 0027"),
+        ("GENERIC_ID", "AL-2291"), ("LICENSE_PLATE", "FX 482 LD"),
+        ("DATE_OF_BIRTH", "02/09/1959")}
+
+    form = ("MIDDLE NAME: NONE\nPREVIOUS SURNAME: OKORO\nNEXT OF KIN: ADAEZE NWOSU-KERR (SISTER)\n"
+            "DRIVER: COMPANY POOL VEHICLE\nPATIENT: MALE\n"
+            "PREVIOUS GP: DR M. HALE, OAKFIELD DENTAL PRACTICE\n"
+            "Cliente / Customer: Dott.ssa Fiammetta Carbone\n"
+            "Registered keeper: Lexford Leasing Ltd\nEmergency contact: Not Applicable\n")
+    assert rules(form) == {
+        ("PERSON", "OKORO"), ("PERSON", "ADAEZE NWOSU-KERR"),
+        ("SENSITIVE_ORGANIZATION", "OAKFIELD DENTAL PRACTICE"),
+        ("PERSON", "Dott.ssa Fiammetta Carbone")}
+
+    streets = ("Dispatch: Via Royal Mail 48, tracked\nIndirizzo: Via Garibaldi 27, 20121 Milano\n"
+               "Deliver to: ul. Długa 5, 31-147 Kraków\nMorada: Rua Augusta 112, 1100-053 Lisboa\n"
+               "The water is off until 13:00 while the main in Tannery Road is replaced; "
+               "it is 5 minutes from the main Road.\n"
+               "Address on file: The Old Forge, 6 Chapel Row, Bakewell DE45 1EW\n")
+    assert rules(streets) == {
+        ("ADDRESS_LINE", "Via Garibaldi 27, 20121 Milano"),
+        ("ADDRESS_LINE", "ul. Długa 5, 31-147 Kraków"),
+        ("ADDRESS_LINE", "Rua Augusta 112, 1100-053 Lisboa"),
+        ("ADDRESS_LINE", "The Old Forge, 6 Chapel Row, Bakewell DE45 1EW")}
+
+    places = ("She studied at Colégio São Bento and was referred from Coquet Medical Group.\n"
+              "2019–2024  Data analyst, Brightwell & Sons\n2019–2021  Revenue up, costs down\n"
+              "She will fly to Birmingham and we meet her at half past six in the evening.\n")
+    found = rules(places, [ner("LOCATION", "Birmingham", places)])
+    assert ("SENSITIVE_ORGANIZATION", "Colégio São Bento") in found
+    assert ("SENSITIVE_ORGANIZATION", "Coquet Medical Group") in found
+    assert ("ORGANIZATION", "Brightwell & Sons") in found
+    assert ("LOCATION", "Birmingham") in found
+    assert ("TIME", "half past six in the evening") in found
+    assert not any("Revenue" in value or "costs" in value for _, value in found)
+
+    # What the NER layers say is checked against the same principles.
+    mixed = ("Name: Thiago Monteiro dos Santos\nItem 1 — Name: Felco 2 secateurs\n"
+             "Telefono: +39 02 5550 0142\nDate of birth (DD/MM/YYYY)\n"
+             "Insured with Albatros Versicherung. Officina Bellandi S.r.l. thanks you. Grazie!\n"
+             "Deliver to: 9 Sráid an Mhuilinn, Dingle, Co. Kerry, V92 X7K3\n")
+    found = rules(mixed, [
+        ner("PERSON", "Thiago Monteiro", mixed, "custom_ner", 0.95),
+        ner("PERSON", "Felco 2", mixed, "custom_ner", 0.95),
+        ner("PERSON", "Telefono", mixed), ner("PERSON", "MM", mixed),
+        ner("PERSON", "Albatros Versicherung", mixed, "custom_ner", 0.95),
+        ner("PERSON", "Officina Bellandi", mixed, "custom_ner", 0.95),
+        ner("PERSON", "Grazie", mixed),
+        ner("ADDRESS", "9 Sráid an Mhuilinn, Dingle, Co. Kerry, V92", mixed, "custom_ner", 0.95)])
+    assert found == {("PERSON", "Thiago Monteiro dos Santos"), ("PERSON", "Thiago Monteiro"),
+                     ("PHONE", "+39 02 5550 0142"),
+                     ("ADDRESS", "9 Sráid an Mhuilinn, Dingle, Co. Kerry, V92 X7K3")}
+    # Without a NER person inside it, a bare "Name:" value stays a candidate.
+    assert ("PERSON", "Thiago Monteiro dos Santos") not in rules(mixed)
+
+    # The first-name echo stops at a site; a CV employer echoes, a letterhead does not.
+    email = ("Brightwell & Sons\n\nFrom: Florence Abernethy\n"
+             "The samples go to the Florence warehouse on Friday. Florence will sign them in.\n"
+             "2019–2024  Data analyst, Brightwell & Sons\nReferee: Ada Obi, Brightwell & Sons\n")
+    line = email.index("2019")
+    employer = {"entity_type": "ORGANIZATION", "start": email.index("Brightwell", line),
+                "end": email.index("Brightwell", line) + len("Brightwell & Sons"),
+                "score": 1.0, "text": "Brightwell & Sons", "source": "regex"}
+    echoed = policy_rules.echo_person_names(
+        [ner("PERSON", "Florence Abernethy", email, "regex", 1.0), employer], email)
+    assert [(r["entity_type"], r["text"], r["start"]) for r in echoed] == [
+        ("PERSON", "Florence", email.index("Florence will")),
+        ("ORGANIZATION", "Brightwell & Sons", email.index("Brightwell & Sons\n", line + 40))]

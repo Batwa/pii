@@ -64,6 +64,14 @@ One JSON object per line (JSONL):
   Nissan Qashqai", "Product: Halden Kitchenware"), whatever the NER says;
   nor is anything with a digit in it ("Jungheinrich EFG 216") — a name never
   contains one (test6, 2026-11-07).
+- A sign-off name is a person ("Thanks, Bronagh", "Regards,\nMargaux"), as
+  is a block-capital value under a role label that takes people ("NEXT OF
+  KIN: KWABENA ADESANYA"). A value under the bare label "Name:" is a person
+  when it reads as one; at runtime it needs a NER layer to agree. Form
+  values such as "NONE" or "N/A" are not names, nor are courtesy words
+  ("Grazie"), date-format placeholders ("MM") or a span that ends in a
+  company word ("Lexford Leasing Ltd", "Albatros Versicherung"); test7,
+  2026-11-08.
 
 ### SENSITIVE_ORGANIZATION
 - Facilities whose mention alone reveals something about a person: clinics,
@@ -74,7 +82,10 @@ One JSON object per line (JSONL):
   rehabilitation / language / speech / therapy / treatment / dialysis / cancer
   / diagnostic / crisis / day centers (either spelling), counselling services,
   care / nursing / residential homes, health / NHS / foundation / hospital
-  trusts.
+  trusts, medical / health groups and partnerships. The same words in
+  block capitals count ("PRIORY LANE SURGERY"), and so do the Romance and
+  German words that lead the name: Colegio / Colégio, Instituto, Escuela,
+  Universidad, Liceo, Clínica, Klinik, Hochschule (test7, 2026-11-08).
   The runtime keyword list (`SENSITIVE_ORG_KEYWORDS`) mirrors this line; a
   facility type missing from both is a miss, not a policy exception (test3,
   2026-11-04: Institute, Academy, Wellbeing Centre; test5, 2026-11-05:
@@ -105,6 +116,14 @@ One JSON object per line (JSONL):
   follow the number ("Calle Mayor 12, 3ºB, 28013 Madrid"). A UK postcode
   after the town is part of the line ("Kingsmere KM2 7QL"), never a stranded
   half ("Kingsmere KM2").
+- A Polish street line ("ul. Marszałkowska 84/12, 00-590 Warszawa"), a
+  Portuguese postcode ("3000-180 Coimbra") and an Eircode ("V92 X7K3") close
+  the line like the formats above; a house name ahead of the street number
+  is part of it ("The Old Forge, 6 Chapel Row"). A street word that is also
+  English ("Via Royal Mail 48") is an address only with a postcode behind it
+  or an address label in front; a number followed by ordinary words and a
+  street word is a sentence ("13:00 while the main in Tannery Road"); test7,
+  2026-11-08.
 - A year followed by capitalised words is a title or an event, not an address
   ("2027 Halvorsen Scholarship"), unless a street word says otherwise (test6,
   2026-11-07: the custom model's first trusted-label leak).
@@ -113,6 +132,8 @@ One JSON object per line (JSONL):
 - Only the date value, only when a birth label is nearby: "born", "DOB",
   "d.o.b.", "date of birth", "birth date", "birthday". Numeric, ISO
   ("1983-07-19") and worded forms ("5 May 1994", "14 Feb 1979") all count.
+- A format hint may sit between the label and the value ("Date of birth
+  (DD/MM/YYYY): 02/09/1959").
 - Issue dates, appointment dates, contract dates, hearing dates stay visible.
 
 ## Keep rules (must NOT be labeled, and must survive redaction)
@@ -194,6 +215,23 @@ One JSON object per line (JSONL):
     housing") stays; a plural pronoun for an unnamed group ("the cutters
     ... they") stays, as for the staff in test6; "MIDDLE NAME: NONE" is
     not a name.
+16. The label decides, both ways (test7 fixes, 2026-11-08): a digit run
+    straight after an invoice, receipt, batch, tracking, SSCC, barcode,
+    part, voucher, flight or project label is that thing's number and stays
+    visible, whatever its shape ("Invoice no. 0042 0117 3381" is not a
+    phone); a number straight after a phone word ("call 1800 555 014"), a
+    plate word ("Targa / Plate: FX 482 LD") or a loyalty or membership card
+    label is that person's and redacts. An identifier value is never a bare
+    date, but a registry number that starts with one is still an
+    identifier ("record No. 2014-03-09/0771").
+17. A German-shaped plate ("KS-FT 2209") counts only where the sentence
+    speaks of a vehicle or a registration, and never straight after a place
+    or type label: "USB-C 3.2", "DIN-A 4", "region DE-HE 3" and "Bay B-C
+    4" share the shape (test7 fixes, 2026-11-08).
+18. A dated CV line ("2015–2019  Junior surveyor, Granja & Filhos") is
+    employment wording: the organization after the role redacts, at its
+    other mentions too, except on the letterhead. "At our supplier X" names
+    an employer like "at X" (test7 fixes, 2026-11-08).
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
