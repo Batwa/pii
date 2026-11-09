@@ -56,8 +56,8 @@ before re-running it.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 115 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 each for test3 to test7) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 128 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 each for test3 to test8) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -79,13 +79,15 @@ round 2 targeted its reference-letter miss, so it is no longer blind for prose
 names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
 change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 **test5** (13 docs, authored 2026-11-05 after the test4 fixes), **test6** (13
-docs, authored 2026-11-07 after the test5 fixes) and **test7** (13 docs,
-authored 2026-11-08 after the test6 fixes). `--set all` runs all eight.
+docs, authored 2026-11-07 after the test5 fixes), **test7** (13 docs,
+authored 2026-11-08 after the test6 fixes) and **test8** (13 docs, authored
+2026-11-09 after the test7 fixes). `--set all` runs all nine.
 Current state: dev, test and test2 at 100% coverage / 100% keep; test3 at
 98.7% / 99.0%, test4 at 96.8% / 97.6%, test5 at 98.6% / 97.8%, test6 at
 99.1% / 97.6% and test7 at 98.6% / 98.7% after the fixes recorded below.
-Test7's blind score was 80.1% / 87.9%. Every set has absorbed fixes, so the
-next measurement needs a fresh blind batch (test8).
+Test7's blind score was 80.1% / 87.9%. Test8 has been run once and nothing
+has been fixed against it: 74.8% / 93.7%, recorded below. It is the one
+clean held-out set until a fix lands against it.
 
 ### test3 blind run (2026-11-04)
 
@@ -668,6 +670,150 @@ calls an organization, with the bare "Faith" the echo stop-list skips, and
 three plural pronouns for things ("they" for the cutters, "them" for the
 patterns, "Their" for the dye house).
 
+### test8 blind run (2026-11-09)
+
+Thirteen documents, 139 must-redact items and 238 must-keep phrases, written
+without running the detector, after the test7 fixes (commit e4f25fc). The
+batch aims at what those fixes assumed: greeting and sign-off words outside
+the lists ("Hiya Sunniva,", "Morning Dafydd —", "Ta, Gethin", "All the best,
+Ottilie Varga", "Hey Caretaker,") and a one-word company sign-off ("Kind
+regards, Brackenridge" under the letterhead "Brackenridge Lettings"); German
+plates in a parking bay list with no vehicle wording, beside a standard, a
+charger type and a project code of the same shape; phones under a thing
+label ("Parcel contact:", "Shipment phone:"); identifiers whose value is a
+date ("Delivery note: 2026-11-06") beside a case number that starts with
+one; block-capital fields whose values are not names ("NOT APPLICABLE", "TO
+BE CONFIRMED", "AS ABOVE", "ONE CAT"); "Via" and "Plaza" streets with no
+postcode beside "via email" and "Plaza Hotel"; a street name with a function
+word ("14 Stoke by Nayland Road"); surnames that are company words ("Fr.
+Annelise Bank", "Winifred Holding"); a bare "Name:" over a rare personal
+name and over a product; CV lines with no year range; and house names with
+no house word ("Braeside", "DUNROAMIN"). New ground: a French attestation, a
+pipe table, an address block with town and postcode on their own lines, a
+support transcript with "Agent (Marisol):" speakers, spaced account, serial
+and frame numbers, a bracketed area code, Spanish and Dutch plates, and
+plural pronouns in both directions.
+
+Full pipeline (candidate 2 live, relaxed gate, test7 fixes in): redact
+coverage 104/139 (74.8%), keep intact 223/238 (93.7%), 3 stray spans. Model
+alone: 30/71 model-entity items (42.3%; PERSON 18/53, ADDRESS 6/11, DOB 4/4,
+SENSITIVE_ORG 2/3), keep 225/238, 0 strays. Nothing has been fixed against
+it; every other set, both regression suites and the 20 unit tests are
+unchanged.
+
+Blind recall has now been 75.0%, 75.7%, 80.1% and 74.8% on test5 to test8,
+while every fix round has ended near 99%. The batches are not like for like,
+since each one aims at the newest rules and adds formats, but the reading is
+the same four times: a rule fixes the wording it was written for and little
+beyond it. Keep is back above test7's 87.9% because fewer rules over-reach
+this time (four of the fifteen keep failures, against fifteen of
+twenty-seven).
+
+Probe by probe:
+
+- Phones under a thing label, identifiers that are dates, the date-led case
+  number, the caps values that are not names and the street with a function
+  word all held.
+- Greeting and sign-off words: "Hiya" and "Cheers," by rule, "Morning Dafydd"
+  and "Ta, Gethin" only because general NER knew the names; "All the best,"
+  is not a listed closing and general NER calls "Ottilie Varga" an
+  organization, so it is missed.
+- The one-word company sign-off failed: the sign-off rule takes
+  "Brackenridge" as a person and the echo then masks it in the letterhead.
+- German plates: the context rule is inverted on this document. The three
+  plates of the bay list are missed (no vehicle word on their lines), and
+  "DIN-EN 1090" is redacted because its sentence goes on to say "vehicles".
+- "Via" and "Plaza" without a postcode: all three addresses missed, which is
+  the price of the test7 fix for "Via Royal Mail 48"; "via email", "via the
+  portal" and "Plaza Hotel" are kept.
+- Company-word surnames failed three times: general NER found "Annelise
+  Bank" and the company-tail rule dropped it, "Frau Bank" and "Winifred
+  Holding" are organizations to general NER.
+- Bare "Name:": both rare personal names are redacted; the product under
+  "Name:" and the part under "Name of part:" are redacted too, by the custom
+  model as a person and as an address.
+- CV lines with no year range: "Corbel Freight" and "Tannahill Haulage" are
+  covered, but as persons from general NER and the echo, not as employers;
+  "Strathmore Wholesale" after "as a picker for" is missed.
+- House names: "Braeside" is missed; "DUNROAMIN" is covered only because
+  general NER calls it a person.
+
+What else held: every name in the fixture email, the occupational-health
+note and the support transcript, hyphenated and accented ones included
+("Thabo Nkosana-Fields", "Freya Sandberg-Moore", "Matilda Brzezińska",
+"Siobhán Kettlewell"), the speakers written "Agent (Marisol):", "Sr.
+Baltasar Quintero", "R. Nakamura" and the bare "Lotte" in the table, "Mr
+Joost van den Heuvel" on its own line; the whole block-capital form (name,
+birth date, address, emergency contact with the relation in brackets, "MRS
+P. ECCLESTONE", the spaced National Insurance number, the signature); the
+Italian mobile, the UK phones, both e-mail addresses of the CV; the payroll
+number, the account number given in a chat reply, the dashed serial number,
+the order number, the IBAN, the French ID card number; "quarter to nine in
+the evening"; both facilities and the college; all fifteen pronouns that
+refer to people, "their" for two named colleagues included; and the things
+("ending 2816", the meter reading, the refund reference that is a date, the
+tracking number, "WB-AC 22", "HV-LH 2026", "RL-77120", "Keswick store",
+"Store Manager", "Customer Accounts", "Maintenance Committee", "Otterburn
+Harriers Juniors", and the letterheads "Brindlemoor Occupational Health Ltd"
+and "Sparrowhawk Energy"). Four other letterheads are redacted, each by a
+different route; they are in the list below.
+
+The fifteen keep failures and the three strays:
+
+- Sign-off and greeting rules: "Brackenridge", through the echo also
+  "Brackenridge Lettings", and "Hey Caretaker," (3).
+- NER persons: "Ta", "Consignee", the shop "Corvid Cycles" and the provider
+  "Quillfield" with its echo into "Quillfield Broadband" from general NER;
+  "Hausverwaltung Lindenhof" and "Corvid Tarn" from the custom model; and
+  "Payroll number", because a general-NER span ran across a column gap from
+  the name into the next label (7). Strays: "Tel" and "Quillfield".
+- The custom model's address "SR Suntour XCR" under "Name of part:" (1).
+- German-plate rule: "DIN-EN 1090" (1).
+- Plural pronouns for an unnamed group: "they" for the surgeons and for the
+  referees, "their" for the engineers (3).
+- Stray: the badge "V-0420" as an ID. The gold leaves visitor badges
+  unlabelled, so it shows as a stray and not as a failure.
+
+The thirty-five misses:
+
+- The French attestation (8): "Mme" is not a listed title, so general NER
+  stops at "Mme Clémence" and the model's full name carries the wrong label;
+  "M. Idrissa Coulibaly"; both birth dates, which the model found and the
+  context filter dropped because "née le" and "né le" are not birth wording
+  to it; "passeport n°"; the phone "06 39 98 01 84" under "Tél. :"; the
+  town in "Fait à Dijon"; "Signature : C. Aubertin-Roche".
+- Plates (5): the three German ones in the bay list, and the Spanish "6205
+  KLM" and Dutch "9-XKR-27" in a table column headed "Vehicle reg".
+- Company-word surnames (3): "Annelise Bank", "Bank", "Winifred Holding".
+- Other names (6): "Ottilie Varga" after "All the best,"; "Oluchi
+  Nwachukwu-Tait" under "Consignee:", where the model stops at the hyphen;
+  "Morag Sutherland-Baird" alone on a line under "Referees"; "Dear Mr van
+  den Heuvel,", where the model's span is "Mr van"; "Chinedu Anozie" in a
+  table cell, a location to general NER; and "The mechanic, Pim, says".
+- Addresses (6): the three "Via" and "Plaza" streets, "Braeside", and
+  "Ludlow" and "SY8 1BB" on their own lines under the street.
+- Employers (2): "EMPLOYER: WESTMORLAND DAIRIES LTD" in capitals and
+  "Strathmore Wholesale".
+- Spaced identifiers (3): "gas account 8841 2207 16" is masked only to the
+  first space, "meter serial number G4A 00417 2209" and "Frame number: WTU
+  284 K 0931 M" not at all.
+- "(01632) 960044", an area code in brackets (1).
+- "I fly to Bologna": no NER layer returned the city as a location, so the
+  travel rule had nothing to act on (1).
+
+Model alone: PERSON 18/53. It missed nine of the ten hyphenated surnames
+(the tenth is covered under a facility label), every greeting and sign-off
+name of the tenants' board, three of the four ALL-CAPS names, the particle
+surname, first names when they come back alone ("Freya", "Kofi", "Oscar",
+"Lucinda") and three of the six table names; it found all four birth dates
+but also labelled five ordinary dates as birth dates, one of them in a span
+that begins with the phone number on the line above; and it labelled a
+letterhead, a company sign-off, a junior sports team, "DIN-EN 1090" and
+"Bologna on the 14th" as facilities, a property manager's letterhead and a
+bicycle as persons, and a fork as an address. Three of its spans cross a
+line break. Corpus round 3 grows by French documents, table cells, product
+names under "Name:" and column-gap layouts.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -729,26 +875,35 @@ on them.
 
 ### Next steps
 
-1. Blind test8: the next measurement. Test7 is semi-dev since the fixes of
-   2026-11-08 and no set is blind. Probe what this round assumed: greeting
-   and sign-off words outside the lists and one-word company sign-offs;
-   German plates with no vehicle wording, and after a place label; phones
-   under a thing label; identifiers that are dates; block-capital role
-   labels with values that are not names; "Via" and "Plaza" streets with no
-   postcode; street lines with a function word in them; surnames that are
-   company words ("Bank"); a bare "Name:" where NER is silent; CV lines
-   with no year range; house names with no house word.
+1. Test8 fix round, rules only, over-reach first: a one-word sign-off that
+   is the letterhead's first word is the company, and the echo must not
+   carry a sign-off name into a letterhead; "Caretaker" and "Ta"; label
+   words as NER persons ("Consignee", "Tel") and a NER span that runs
+   across a column gap into the next label; a standard label before a
+   plate shape ("to DIN-EN 1090"). Then the misses: a plate between list
+   separators or under a "Vehicle reg" column; a titled name survives the
+   company-tail rule ("Fr. Annelise Bank", "Frau Bank"); "Via" and "Plaza"
+   with a house number after "at", "confirmed:" or "offers"; town and
+   postcode on the lines under a street line; spaced identifiers after an
+   account, serial or frame label; a bracketed area code; "All the best,";
+   "Consignee:" and "Referees" as role labels; names in table cells; the
+   French labels ("Mme", "M.", "née le", "passeport n°", "Tél.", "Fait à",
+   "Signature :"); caps "EMPLOYER:"; "as a ... for X" on a CV. After that
+   test8 is semi-dev and the next measurement needs a blind test9.
 2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
-   fields, bare first names in prose and sign-offs (model alone: PERSON
-   13/31 on test6, 16/41 on test7; "Nkechi", "Thandiwe", "Hannelore" and
-   "Faith Oyinlola" are still missed with the rules in), plus letterheads,
-   employer lines, ordinary dates, quantities and products with a digit as
-   negatives (the model labels them as facilities, birth dates and
-   persons), and a year-plus-title line as an ADDRESS negative.
-3. Plural pronouns need reference, not proximity: test7 document 09 adds
-   three keep failures to test6 documents 01, 02, 06 and 08, test4 06/07
-   and test5 01/09. With the test7 fixes in they are thirteen of the
-   nineteen failures left across all sets.
+   fields, bare first names in prose, sign-offs and table cells (model
+   alone: PERSON 13/31 on test6, 16/41 on test7, 18/53 on test8; "Nkechi",
+   "Thandiwe", "Hannelore" and "Faith Oyinlola" are still missed with the
+   rules in), French documents, plus letterheads, employer lines, ordinary
+   dates, quantities, products with a digit and products under "Name:" as
+   negatives (the model labels them as facilities, birth dates, persons
+   and addresses), and a year-plus-title line as an ADDRESS negative. Four
+   blind batches in a row near 75% recall say the rule layer has stopped
+   generalizing; this is the step that can move that number.
+3. Plural pronouns need reference, not proximity: test8 documents 07, 10
+   and 12 add three keep failures to test7 document 09, test6 documents
+   01, 02, 06 and 08, test4 06/07 and test5 01/09. They are sixteen of the
+   failures on record and the only class no fix round has reduced.
 4. The remaining over-redactions: "them"/"their" far from a person and
    "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
 

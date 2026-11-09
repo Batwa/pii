@@ -233,6 +233,35 @@ One JSON object per line (JSONL):
     other mentions too, except on the letterhead. "At our supplier X" names
     an employer like "at X" (test7 fixes, 2026-11-08).
 
+19. Labels taken while authoring test8 (2026-11-09): an identifier whose
+    value is a bare date stays under any label ("Delivery note:
+    2026-11-06", "The refund reference is 2026-11-03"), and a case number
+    that starts with a date redacts, as in decision 16. A phone after a
+    label that names a thing and a contact ("Parcel contact:", "Shipment
+    phone:") is the person's phone. A gas account, a utility customer
+    number, a payroll number, a meter serial number and a bicycle frame
+    number redact; a meter reading and "ending 2816" stay. A plate in a
+    list or a table column redacts with no vehicle wording around it; a
+    standard ("DIN-EN 1090"), a device type and a project code of the same
+    shape stay. A surname that is a company word is still a person ("Fr.
+    Annelise Bank", "Frau Bank", "Winifred Holding"). A house name ahead of
+    the street is part of the address with no house word in it ("Braeside,
+    4 Station Road"). A "Via" or "Plaza" street with a house number is an
+    address without a postcode; "via email" and "Plaza Hotel" are not. A
+    sign-off that is the company or a department stays ("Kind regards,
+    Brackenridge" under that letterhead; "Customer Accounts"), and so does
+    a courtesy word ("Ta,") and a role addressee ("Hey Caretaker,"). The
+    product under a bare "Name:" stays. An employer on a CV line redacts
+    with no year range ("Present: team leader at X", "three years as a
+    picker for X"), and so does one in capitals under "EMPLOYER:". French
+    birth wording ("née le", "né le") makes a birth date; the date after
+    "Fait à <town>, le" stays and the town, when it is the host's home
+    town, redacts with the address. A plural pronoun redacts when it
+    stands for named people ("Thabo and Lucinda agreed ... their next
+    review") and stays for an unnamed group ("the surgeons ... they").
+    Visitor badge numbers and a support ticket number are left unlabelled:
+    the policy for them is open.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the
