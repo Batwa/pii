@@ -405,3 +405,23 @@ def test_rule_layer_fixes_from_test7():
     assert [(r["entity_type"], r["text"], r["start"]) for r in echoed] == [
         ("PERSON", "Florence", email.index("Florence will")),
         ("ORGANIZATION", "Brightwell & Sons", email.index("Brightwell & Sons\n", line + 40))]
+
+
+def test_gate_guards_added_with_candidate3():
+    import policy_rules
+
+    text = ("Engine: Kubota D902, 16 hp, serviced in May.\n"
+            "The keys are labelled A and B. Deliver to 14 Mill Lane, Otley LS21 3AB.\n"
+            "Issued in the City of Tver, Republic of Karelia.\n")
+
+    def ner(label, needle, source="custom_ner"):
+        start = text.index(needle)
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": 0.95, "text": needle, "source": source}
+
+    kept = policy_rules.apply_policy_filters(
+        [ner("ADDRESS", "Kubota D902, 16"), ner("PERSON", "B."),
+         ner("ADDRESS", "14 Mill Lane, Otley LS21 3AB"),
+         ner("PERSON", "Tver"), ner("PERSON", "Karelia")], text)
+    assert [(r["entity_type"], r["text"]) for r in kept] == [
+        ("ADDRESS", "14 Mill Lane, Otley LS21 3AB")]

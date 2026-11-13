@@ -109,6 +109,9 @@ THING_LABEL_PREFIX = re.compile(
     r'(?i)\b(?:vehicle|car|van|truck|motorcycle|vessel|boat|make|model'
     r'|make\s*/\s*model|product|item|device|equipment|machine|brand'
     r'|manufacturer|engine|motor|appliance|instrument|tool|software)\s*[:\-]\s*$')
+PLACE_OF_PREFIX = re.compile(
+    r'(?i)\b(?:city|town|village|municipality|district|region|republic|province'
+    r'|county|canton)\s+of\s+$')
 # A label naming a thing-ID directly before a digit run decides its type:
 # invoice, batch, flight, voucher, tracking and project identifiers stay
 # visible, so the run is not a phone or a card whatever its shape ("Invoice
@@ -864,9 +867,23 @@ def apply_policy_filters(results, text):
         if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
                 and THING_LABEL_PREFIX.search(prefix):
             continue
+        # Nor is it an address: the custom model reads "Engine: Kubota D902,
+        # 16 hp" as a street and a house number (candidate 3, 2026-11-13).
+        if entity == 'ADDRESS' and source == 'custom_ner' \
+                and THING_LABEL_PREFIX.search(prefix):
+            continue
+        # "City of Tver", "Republic of Karelia": the word after a place
+        # noun and "of" is a place, whatever the NER layers call it.
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
+                and PLACE_OF_PREFIX.search(prefix):
+            continue
+        # A single letter is an item label, not a name ("keys A and B.").
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
+                and sum(ch.isalpha() for ch in result['text']) < 2:
+            continue
         # "the Hull depot": a site, not a person, whatever general NER says.
         operational = OPERATIONAL_SITE_SUFFIX.match(text[result['end']:result['end'] + 24])
-        if entity == 'PERSON' and source in ('spacy', 'presidio') and operational:
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') and operational:
             continue
         # The same holds for a shorter regex phone inside one: "114 496
         # 0827" scores 1.0 and would outrank "0044 114 496 0827" at 0.99,

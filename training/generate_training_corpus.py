@@ -23,10 +23,16 @@ ranges and grades, a weekday before a quoted author, vehicle models, chat
 greetings, and names in running prose with no role label. They come from a
 second seeded RNG, so the 440 round-1 documents (and the adjudicated review
 sample drawn from them) are byte-for-byte unchanged.
+
+Round 3 (2026-11-13) appends 900 train / 90 dev documents from
+corpus_round3.py, again from its own RNG. Its spans carry character offsets,
+because a name may now return inside one document; see that module.
 """
 import json
 import random
 from pathlib import Path
+
+from corpus_round3 import SEED_ROUND3, build_round3, pools_for
 
 OUT_DIR = Path(__file__).resolve().parent / "data" / "generated"
 SEED = 20260831
@@ -628,6 +634,11 @@ def main():
                          ROUND2_POSITIVE, ROUND2_NEGATIVE)
     dev += build_split(rng2, dev_pools, 12, "gen2_dev",
                        ROUND2_POSITIVE, ROUND2_NEGATIVE)
+
+    # Round 3: its own module, pools and RNG; rounds 1 and 2 stay unchanged.
+    rng3 = random.Random(SEED_ROUND3)
+    train += build_round3(rng3, pools_for("TRAIN"), 900, "gen3_train")
+    dev += build_round3(rng3, pools_for("DEV"), 90, "gen3_dev")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for name, docs in (("train", train), ("dev", dev)):

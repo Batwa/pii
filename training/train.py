@@ -25,9 +25,15 @@ def load_examples(path):
         entities = []
         for span in record.get("spans", []):
             value, label = span["text"], span["label"]
-            start = text.find(value)
-            if start < 0 or text.find(value, start + 1) >= 0:
-                raise ValueError(f"{path}:{line_number}: span must appear exactly once: {value!r}")
+            if "start" in span:
+                # Round-3 records carry offsets, so a name may repeat.
+                start = span["start"]
+                if text[start:start + len(value)] != value:
+                    raise ValueError(f"{path}:{line_number}: offset {start} is not {value!r}")
+            else:
+                start = text.find(value)
+                if start < 0 or text.find(value, start + 1) >= 0:
+                    raise ValueError(f"{path}:{line_number}: span must appear exactly once: {value!r}")
             entities.append((start, start + len(value), label))
         entities.sort()
         if any(left[1] > right[0] for left, right in zip(entities, entities[1:])):
@@ -36,6 +42,22 @@ def load_examples(path):
     if not examples:
         raise ValueError(f"No examples found in {path}")
     return examples
+
+
+def dev_f1(nlp, dev_data, labels):
+    """Exact-span F1 over the trained labels on the dev set."""
+    correct = predicted = expected = 0
+    for text, annotations in dev_data:
+        gold = set(annotations["entities"])
+        found = {(ent.start_char, ent.end_char, ent.label_)
+                 for ent in nlp(text).ents if ent.label_ in labels}
+        correct += len(gold & found)
+        predicted += len(found)
+        expected += len(gold)
+    if not correct:
+        return 0.0
+    precision, recall = correct / predicted, correct / expected
+    return 2 * precision * recall / (precision + recall)
 
 
 def main():
@@ -49,6 +71,10 @@ def main():
     parser.add_argument("--base-model", default="en_core_web_lg")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--keep-best", action="store_true",
+                        help="score the dev set after every epoch and save the best "
+                             "epoch instead of the last one")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -63,16 +89,28 @@ def main():
     for label in labels:
         ner.add_label(label)
 
+    best_score, best_epoch, best_weights = -1.0, 0, None
     other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "ner"]
     with nlp.disable_pipes(*other_pipes):
         optimizer = nlp.resume_training()
         for epoch in range(args.epochs):
             random.shuffle(train_data)
             losses = {}
-            for batch in minibatch(train_data, size=4):
+            for batch in minibatch(train_data, size=args.batch_size):
                 examples = [Example.from_dict(nlp.make_doc(text), annotations) for text, annotations in batch]
                 nlp.update(examples, sgd=optimizer, drop=0.25, losses=losses)
-            print(f"epoch {epoch + 1:02d}: ner_loss={losses.get('ner', 0):.4f}")
+            line = f"epoch {epoch + 1:02d}: ner_loss={losses.get('ner', 0):.4f}"
+            if args.keep_best:
+                # The loss still swings late in training, so the last epoch
+                # can be a poor one; keep the weights of the best dev score.
+                score = dev_f1(nlp, dev_data, labels)
+                line += f" dev_f1={score:.4f}"
+                if score > best_score:
+                    best_score, best_epoch, best_weights = score, epoch + 1, ner.to_bytes()
+            print(line)
+        if args.keep_best:
+            ner.from_bytes(best_weights)
+            print(f"kept epoch {best_epoch:02d} (dev_f1={best_score:.4f})")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

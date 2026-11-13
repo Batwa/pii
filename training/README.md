@@ -14,10 +14,11 @@ live model (`config.MODELS_DIR`), and the evaluators default to the live model.
 Keep the model directories outside any synced folder: they are about 425 MB
 each, and iCloud Drive evicts such files to free disk space and then stalls
 every load for minutes, which cost this project hours in November 2026. The
-live model (candidate 2) and the seed backup moved to `~/pii-models/` on
-2026-11-07; the in-repository `models/` location remains supported and
-gitignored. Promote a candidate only after `evaluate.py` and the gold suites
-pass.
+live model and the seed backup moved to `~/pii-models/` on 2026-11-07; the
+in-repository `models/` location remains supported and gitignored. Since
+2026-11-13 the live model is candidate 3 and candidate 2 sits beside it as
+`custom_ner_candidate2`; to go back, swap the two directory names. Promote a
+candidate only after `evaluate.py` and the gold suites pass.
 
 The move itself lost two of the 44 model files to iCloud: every download of
 `custom_ner/vocab/strings.json` and `custom_ner_seed16/ner/moves` was
@@ -38,9 +39,11 @@ strays; the iCloud copies under `models/` were then removed.
 
 `generate_training_corpus.py` writes `training/data/generated/{train,dev}.jsonl`
 plus `*_decoys.jsonl` (the strings that must stay unlabeled): fully synthetic,
-labeled with the four model entities only, every span occurring exactly once in
-its document, train and dev drawn from disjoint name/street/city/facility pools,
-one document in five without entities. Round 1 (seed 20260831) is 400 train /
+labeled with the four model entities only, train and dev drawn from disjoint
+name/street/city/facility pools, one document in five without entities. In
+rounds 1 and 2 every span occurs exactly once in its document; round 3 spans
+carry character offsets instead, so a name may return. The corpus is 1,420
+train / 142 dev documents after round 3. Round 1 (seed 20260831) is 400 train /
 40 dev documents across 19 positive and 4 negative genres and went through the
 first adjudication round (`review_sample.jsonl`, 107 checks). Round 2
 (2026-11-04, seed 20261104, appended so round 1 stays byte-identical) adds 120
@@ -53,6 +56,39 @@ genres (job postings, vehicle listings). Round 2 has not been through an
 adjudication round yet; `build_review_sample.py` samples the whole corpus and
 overwrites `review_sample.jsonl`, so write a round-2 sample to a different file
 before re-running it.
+
+Round 3 (2026-11-13, seed 20261113, appended from `corpus_round3.py` so rounds
+1 and 2 stay byte-identical) adds 900 train / 90 dev documents in 30 genres
+with entities and 7 without. It follows the brief the blind runs of test5 to
+test7 left: hyphenated surnames, particles, accents, ALL-CAPS form values,
+initials, titled names, bare first names in greetings, sign-offs and prose, a
+first name or surname that returns after the full name, chat speakers and
+"Surname, First" rows; UK addresses with a flat or a house name and a
+postcode, streets with no street word, and the German, Spanish, Italian,
+Portuguese, Polish, Dutch and Irish orders; birth dates in ISO, dashed,
+abbreviated and block-capital forms under English and foreign labels; and the
+facility kinds of the labeling guide. Its negatives are what candidate 2
+mislabeled: letterheads, companies under role labels, employers, products with
+a digit, quantities, ordinary dates in every birth-date format and year, a
+year in front of a title, cities with a site word, role and department
+addressees, empty form fields, sentences and field values that open with an
+ordinary capitalised word, named public places, bank codes, and a nationality
+in front of an identity document. Names come from pools of about 200 first
+names and 210 surnames across many languages, against 45 and 40 in round 1.
+Every pool entry was checked against the gold documents and dropped when it
+shared a word with one, so the gold sets keep measuring the pattern and not
+the word. The pools of the official-record genres were checked against the
+private regression documents in the same way. The general first-name pool
+was not, and two common given names in it also occur there; the form labels
+of those genres ("Place of birth:", "Registry Office of") are the generic
+wording of such records.
+
+Round 3 deliberately leaves out what only the test8 blind run showed (French
+documents, table cells, products under a bare "Name:", column gaps, address
+blocks with the town on its own line, surnames that are company words):
+test8 was the held-out measurement for the candidate trained on this corpus.
+Those belong to round 4, after a test8 fix round. Round 3 has not been
+through an adjudication round either.
 
 ## Human-gold evaluation corpus
 
@@ -82,12 +118,13 @@ change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 docs, authored 2026-11-07 after the test5 fixes), **test7** (13 docs,
 authored 2026-11-08 after the test6 fixes) and **test8** (13 docs, authored
 2026-11-09 after the test7 fixes). `--set all` runs all nine.
-Current state: dev, test and test2 at 100% coverage / 100% keep; test3 at
-98.7% / 99.0%, test4 at 96.8% / 97.6%, test5 at 98.6% / 97.8%, test6 at
-99.1% / 97.6% and test7 at 98.6% / 98.7% after the fixes recorded below.
-Test7's blind score was 80.1% / 87.9%. Test8 has been run once and nothing
-has been fixed against it: 74.8% / 93.7%, recorded below. It is the one
-clean held-out set until a fix lands against it.
+Current state, with candidate 3 live since 2026-11-13: dev, test and test2
+at 100% coverage / 100% keep; test3 at 100% / 99.0%, test4 at 96.8% / 97.6%,
+test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
+Test7's blind score was 80.1% / 87.9%. Test8 scored 74.8% / 93.7% blind with
+candidate 2 and scores 80.6% / 93.3% with candidate 3; no rule has been
+fixed against it, and round 3 of the training corpus did not draw on it, so
+it is still the one set that measures the rules blind.
 
 ### test3 blind run (2026-11-04)
 
@@ -873,38 +910,142 @@ while the suite's 70 identifiers and keep checks still pass. Those additions
 have not been hand-reviewed; diff the redacted private documents before relying
 on them.
 
+## NER candidate 3 (2026-11-13)
+
+Candidate 3 was trained on rounds 1 to 3 of the generated corpus (1,420
+documents) with `train.py --keep-best --batch-size 8 --epochs 24`, seed 42,
+and replaced candidate 2 as the live model on 2026-11-13. Model alone:
+
+| | candidate 2 | candidate 3 (promoted) |
+|---|---|---|
+| generated dev (142 docs), exact-span F1 | 47.4% | 98.3% |
+| dev to test7: redact coverage (296 items) | 213 (72.0%) | 273 (92.2%) |
+| dev to test7: PERSON / ADDRESS / DOB / SENSITIVE_ORG | 125/189, 43/51, 21/28, 24/28 | 173/189, 51/51, 28/28, 21/28 |
+| dev to test7: keep intact (929) / stray spans | 869 / 2 | 924 / 2 |
+| test8, held out: redact coverage (71 items) | 30 (42.3%) | 62 (87.3%) |
+| test8: PERSON / ADDRESS / DOB / SENSITIVE_ORG | 18/53, 6/11, 4/4, 2/3 | 49/53, 7/11, 4/4, 2/3 |
+| test8: keep intact (238) / stray spans | 225 / 0 | 233 / 1 |
+
+Full pipeline, candidate 2 against candidate 3 with the three guards below:
+
+| set | candidate 2 | candidate 3 |
+|---|---|---|
+| dev, test, test2 | 100% / 100% (4 strays on dev) | unchanged |
+| test3 | 75/76, 102/103 | 76/76, 102/103 |
+| test4, test5, test6 | 61/63 and 81/83, 71/72 and 87/89, 110/111 and 160/164 | unchanged |
+| test7 | 139/141, 220/223 | 141/141, 220/223 |
+| test8 (no rule fixed against it) | 104/139, 223/238, 3 strays | 112/139, 222/238, 3 strays |
+
+On the older sets candidate 3 covers the prose first name "Nkechi" and
+"Faith Oyinlola" with both bare "Faith"; the sixteen failures left there are
+thirteen plural pronouns, "Thandiwe", "Hannelore" and "Halden Kitchenware".
+On test8 it covers ten items that were missed ("Ottilie Varga" after an
+unlisted closing, "Oluchi Nwachukwu-Tait", "Morag Sutherland-Baird" under a
+heading, "Dear Mr van den Heuvel,", "Chinedu Anozie" in a table cell, the
+three French names, one French birth date and "Via Saragozza 118") and loses
+"14 Stoke by Nayland Road" with its postcode, which candidate 2 had found.
+One keep is gained (the part under "Name of part:") and two are lost (the
+German word after a letterhead dash, and "Je" of "Je soussignée"). Blind
+recall of the pipeline on a fresh batch is 80.6%, against the 75% that four
+batches in a row had shown with rules alone moving.
+
+### The four training runs
+
+The corpus and the trainer changed between runs; the older gold sets and the
+private regression documents steered the changes, test8 did not.
+
+1. Round 3 as first written (660 documents, 20 epochs, last epoch saved).
+   Model alone 271/296 on the older sets, but in the pipeline thirteen new
+   keep failures: label words and sentence openers as persons ("Smoking",
+   "Photographs", "Consignee", "Householder"), a bank code, a company and a
+   city as persons, products and a nature reserve as addresses.
+2. More negatives (800 documents): one keep failure left, but the model lost
+   two addresses with no street word ("8 Bryn Teg"), which the pipeline
+   then missed, and simple two-word names it had always found. The loss
+   curve still swung between 30 and 90 at epoch 20, so the last epoch was a
+   draw.
+3. Streets with no street word, and `--keep-best`: the dev set is scored
+   after every epoch and the best epoch's weights are saved (epoch 10 of
+   24). Model alone 277/296. On test8 the pipeline scored 114/139 and
+   223/238. On the private documents it masked 414 more characters than
+   candidate 2 and 55 fewer: real streets and names gained, but also
+   medical terms and city names as persons, and one surname with an initial
+   lost.
+4. Official records in the Russian order, written in English with invented
+   names (surname first, patronymics, initials, postcode ahead of the
+   street), field values that open with a capital, "City of X" and regions
+   (900 documents; best epoch 11). This run is candidate 3. On the private
+   documents it masks 474 more characters than candidate 2 and 38 fewer.
+
+Test8 was therefore scored twice, once for run 3 and once for run 4. Run 4
+was chosen on the private documents, and it scores two redactions and one
+keep lower on test8 than run 3 did.
+
+### Guards added to the gate
+
+Three small filters in `policy_rules.py` came with the promotion; none of
+them changes a score with candidate 2:
+
+- a thing label vetoes a custom-model ADDRESS as it already vetoed a PERSON
+  ("Engine: Kubota D902, 16 hp" is not a street);
+- a PERSON of fewer than two letters is dropped ("keys A and B.");
+- a PERSON straight after a place noun and "of" is a place ("City of Tver",
+  "Republic of Karelia"), and the operational-site veto ("the Hull depot")
+  now covers custom-model persons too.
+
+### On the private documents
+
+Against candidate 2 on the 20 private-suite documents, candidate 3 newly
+masks full street lines with postcode and city in most of them and nine
+names or name parts in the surname-first order or with initials, all under
+the trusted `ADDRESS` and `PERSON` labels. Its new false positives are one
+medical term and one bank name as persons, three place names, and the
+street addresses of institutions, which the policy does not ask for. What it no longer masks is
+three false positives of candidate 2 and one certificate number that
+candidate 2 had labelled an address by accident: no rule covers certificate
+numbers, and whether they redact is an open policy question. The suite's
+reviewed identifiers and keep checks all pass. These differences were read
+on screen and not hand-reviewed line by line.
+
+### Limits
+
+- SENSITIVE_ORG fell from 24 to 21 of 28 on the older sets; the keyword
+  rules cover all of them in the pipeline, so no score moved.
+- Training is not stable from run to run: runs 1 to 4 gave 260 to 277 of
+  296 on the older sets as the corpus grew, and the loss still swings
+  late. `--keep-best` picks on the generated dev set, whose templates the
+  model has seen. A second seed and a selection set built from real layouts
+  are the next improvements.
+- Exact-span ADDRESS precision on generated dev is 86.8%: five boundary
+  errors, where the span stops at "apt." before the flat number or splits
+  after the Polish "ul.". The rule layer completes both in the pipeline.
+
 ### Next steps
 
-1. Test8 fix round, rules only, over-reach first: a one-word sign-off that
-   is the letterhead's first word is the company, and the echo must not
-   carry a sign-off name into a letterhead; "Caretaker" and "Ta"; label
-   words as NER persons ("Consignee", "Tel") and a NER span that runs
-   across a column gap into the next label; a standard label before a
-   plate shape ("to DIN-EN 1090"). Then the misses: a plate between list
-   separators or under a "Vehicle reg" column; a titled name survives the
-   company-tail rule ("Fr. Annelise Bank", "Frau Bank"); "Via" and "Plaza"
-   with a house number after "at", "confirmed:" or "offers"; town and
-   postcode on the lines under a street line; spaced identifiers after an
-   account, serial or frame label; a bracketed area code; "All the best,";
-   "Consignee:" and "Referees" as role labels; names in table cells; the
-   French labels ("Mme", "M.", "née le", "passeport n°", "Tél.", "Fait à",
-   "Signature :"); caps "EMPLOYER:"; "as a ... for X" on a CV. After that
-   test8 is semi-dev and the next measurement needs a blind test9.
-2. Corpus round 3 for the model: hyphenated surnames, particles, ALL-CAPS
-   fields, bare first names in prose, sign-offs and table cells (model
-   alone: PERSON 13/31 on test6, 16/41 on test7, 18/53 on test8; "Nkechi",
-   "Thandiwe", "Hannelore" and "Faith Oyinlola" are still missed with the
-   rules in), French documents, plus letterheads, employer lines, ordinary
-   dates, quantities, products with a digit and products under "Name:" as
-   negatives (the model labels them as facilities, birth dates, persons
-   and addresses), and a year-plus-title line as an ADDRESS negative. Four
-   blind batches in a row near 75% recall say the rule layer has stopped
-   generalizing; this is the step that can move that number.
-3. Plural pronouns need reference, not proximity: test8 documents 07, 10
-   and 12 add three keep failures to test7 document 09, test6 documents
-   01, 02, 06 and 08, test4 06/07 and test5 01/09. They are sixteen of the
-   failures on record and the only class no fix round has reduced.
-4. The remaining over-redactions: "them"/"their" far from a person and
+1. Test8 fix round, rules only, over-reach first. With candidate 3 live the
+   list is shorter than the blind run's: the one-word company sign-off and
+   its echo into the letterhead; "Caretaker" and "Ta"; label words and a
+   span across a column gap as NER persons ("Consignee", "Tel", "Payroll
+   number"); "DIN-EN 1090"; then plates in a list or a table column,
+   company-word surnames behind a title, "Via" and "Plaza" with no
+   postcode, town and postcode on their own lines, spaced identifiers, a
+   bracketed area code, the French labels, caps "EMPLOYER:" and "as a ...
+   for X". After that test8 is semi-dev and the next measurement needs a
+   blind test9.
+2. Corpus round 4 and candidate 4, after the test8 fix round frees its
+   findings: French documents, table cells, products under a bare "Name:",
+   column gaps, address blocks with the town on its own line, company-word
+   surnames, company sign-offs, a street with a function word. Also a
+   second training seed, a selection set from real layouts, more facility
+   mentions in prose (SENSITIVE_ORG 21/28), and an adjudication sample for
+   round 3.
+3. Plural pronouns need reference, not proximity: thirteen of the sixteen
+   failures left on the older sets and three more on test8. No fix round
+   and no model has reduced this class.
+4. Policy questions the private documents raised: certificate numbers
+   (title, birth, registration) have no rule, and the street address of an
+   institution is masked like a home address.
+5. The remaining over-redactions: "them"/"their" far from a person and
    "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
@@ -945,6 +1086,11 @@ This creates `train.jsonl`, `dev.jsonl`, `regression_cases.jsonl`, and `REVIEW_C
 python training/train.py \
   --train training/data/private/train.jsonl \
   --dev training/data/private/dev.jsonl
+
+# Candidate 3 was trained on the generated corpus like this (about 12 minutes on CPU):
+python training/train.py --keep-best --batch-size 8 --epochs 24 \
+  --train training/data/generated/train.jsonl \
+  --dev training/data/generated/dev.jsonl
 
 python training/evaluate.py \
   --model ~/pii-models/custom_ner_candidate \

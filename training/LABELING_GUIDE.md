@@ -34,6 +34,15 @@ One JSON object per line (JSONL):
   (`train.py` refuses ambiguous spans). If a name repeats, the detector's
   name-echo rule covers repeats — label the first occurrence only, and make
   sure the span string is unique (extend it with surrounding words if needed).
+- Or give the offsets: a span with `"start"` (and `"end"`) is taken at that
+  position, so the same string may be labeled several times in one document
+  (`{"text":"Abena","label":"PERSON","start":61,"end":66}`). The round-3
+  generated corpus uses this for a first name or a surname that returns
+  after the full name. With offsets, label every occurrence: an unlabeled
+  repeat teaches the model that the name is not a name.
+- For training, a courtesy title stays outside the PERSON span ("Dr" is not
+  labeled in "Dr Jeroen Hargreaves"). Gold scoring is coverage-based, so
+  either edge passes there; the training corpus keeps one convention.
 - Do NOT add spans for text that stays visible. Negative examples (documents
   with no spans at all) are valuable — keep the seed ratio of roughly 1 in 5.
 
@@ -261,6 +270,17 @@ One JSON object per line (JSONL):
     review") and stays for an unnamed group ("the surgeons ... they").
     Visitor badge numbers and a support ticket number are left unlabelled:
     the policy for them is open.
+
+20. Gate decisions taken with candidate 3 (2026-11-13): the value after a
+    thing label is a thing whatever a NER layer calls it, an address
+    included ("Engine: Kubota D902, 16 hp"); a single letter is an item
+    label, never a person ("keys A and B."); the name after a place noun
+    and "of" is a place ("City of Tver", "Republic of Karelia"), and a
+    place of birth is not labeled for training. A name in the surname-first
+    order, with a patronymic or with initials on either side, is one PERSON
+    span ("Zaitseva Zinaida Borisovna", "S. F. Gerasimov", "Voronin A.
+    B."). In that order the postcode and the city lead the street and
+    belong to the ADDRESS span ("170100, Tver, Sadovaya St., 12, apt. 4").
 
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
