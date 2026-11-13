@@ -80,6 +80,14 @@ ORG_AT_PREFIX = re.compile(
     r"(?:(?:our|the|their|his|her|its|a)\s+(?:supplier|client|customer|partner|subsidiary"
     r"|contractor|distributor|agency|firm|company|employer|sister\s+company"
     r"|parent\s+company)\s+)?[\"'“]?\s*$")
+# "three years as a picker for Strathmore Wholesale": a role, then for / at /
+# with, then the employer (test8).
+ORG_ROLE_FOR_PREFIX = re.compile(
+    r"(?i)\bas\s+an?\s+(?:[a-z][a-z-]*\s+){1,3}(?:for|at|with)\s+$")
+# The heading of a CV block makes every organization under it an employer.
+EMPLOYMENT_HEADING = re.compile(
+    r"(?i)^(?:(?:work|employment|career|professional|job)\s+(?:history|experience|record)"
+    r"|experience|employment|employers?|career|previous\s+(?:jobs|roles|employment))\s*:?$")
 # A detected city/region is redacted only in a residence or work-address context.
 RESIDENCE_CONTEXT = re.compile(
     r"(?i)\b(?:resid\w*|lives?\s+in|living\s+in|address|registered\s+at|home"
@@ -131,10 +139,18 @@ PLACE_LABEL_PREFIX = re.compile(
     r'(?i)\b(?:bay|room|zone|gate|dock|row|aisle|shelf|rack|slot|section|sector|area'
     r'|region|block|building|wing|level|floor|port|type|class|version|standard|norm'
     r'|size|format|category|code)\s*[:#]?\s*$')
+# Birth labels in French, German, Spanish, Italian and Portuguese ("née le
+# 27/08/1975", test8), and the French month names for the worded date.
+_BIRTH_LABELS_INTL = (r"n[ée]e?\s+le|date\s+de\s+naissance|geboren\s+am|geb\.|geburtsdatum"
+                      r"|fecha\s+de\s+nacimiento|nacid[oa]\s+el|data\s+di\s+nascita"
+                      r"|nat[oa]\s+il|data\s+de\s+nascimento|nascid[oa]\s+(?:em|a)")
+_MONTHS_FR = (r"(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre"
+              r"|octobre|novembre|d[ée]cembre)")
 # A date is a DOB only with an explicit birth label directly before it; a
 # format hint may sit between the two ("Date of birth (DD/MM/YYYY): ...").
 DOB_CONTEXT = re.compile(
-    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|birthday|d\.?o\.?b\.?)'
+    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|birthday|d\.?o\.?b\.?'
+    r'|' + _BIRTH_LABELS_INTL + r')'
     r'(?:\s*\([^)\n]{0,24}\))?\s*[:,-]?\s*$')
 
 # When an ID label sits directly before a number, the label decides the type —
@@ -192,7 +208,22 @@ _GREETING_STOP = (
     r"|Vendors?|Contractors?|Clients?|Buyers?|Sellers?|Employees?|Employers?|Recruiters?"
     r"|Hiring|Ladies|Gentlemen|Children|Kids|Class|Pupils|Graduates|Alumni|Players?"
     r"|Coach|Captain|Councillors?|Minister|Senator|President|Mayor|Judge|Sister|Brother"
-    r"|Father|Mother|Madame|Monsieur|Comrades?|Mates?|Darling|Love)")
+    r"|Father|Mother|Madame|Monsieur|Comrades?|Mates?|Darling|Love"
+    # Site and service roles ("Hey Caretaker,", test8).
+    r"|Caretakers?|Janitors?|Concierge|Wardens?|Receptionists?|Agents?|Operators?"
+    r"|Engineers?|Technicians?|Cleaners?|Secretary|Treasurer|Chair|Chairman|Chairwoman"
+    r"|Clerk|Organi[sz]ers?|Moderators?|Reviewers?|Hosts?|Stewards?|Administrators?)")
+# Lowercase nouns that name a person by role or relation, for the apposition
+# rule ("the mechanic, Pim, says").
+_PERSON_NOUNS = (
+    r"mechanic|engineer|technician|plumber|electrician|driver|manager|supervisor|owner"
+    r"|landlord|landlady|tenant|neighbou?r|caretaker|nurse|doctor|teacher|coach|receptionist"
+    r"|secretary|assistant|colleague|friend|brother|sister|son|daughter|wife|husband|partner"
+    r"|mother|father|mum|mom|dad|uncle|aunt|cousin|nephew|niece|boss|agent|advis[eo]r"
+    r"|solicitor|accountant|surveyor|inspector|officer|carer|cleaner|gardener|builder|foreman"
+    r"|chef|instructor|tutor|student|apprentice|trainee|intern|volunteer|director|chair"
+    r"|chairman|chairwoman|treasurer|representative|rep|courier|operator|dispatcher|fitter"
+    r"|installer|referee|witness|guarantor|applicant|patient|client|customer|visitor|guest")
 # Form values that fill a name field without being a name ("MIDDLE NAME:
 # NONE", test7).
 _NOT_A_NAME = (r"(?!(?:none|n/?a|nil|null|not|unknown|same|as|see|tbc|tba|tbd|blank|yes|no"
@@ -239,12 +270,17 @@ TEXT_PATTERNS = {
     # lookahead fixes the digit count so IBAN fragments never qualify.
     'phone_uk': re.compile(
         r'(?<!\w)(?=0(?:[ -]?\d){10}(?![ -]?\d))0\d{2,4}(?:[ -]\d{3,6}){1,2}(?!\w)'),
+    # The same number with the area code in brackets ("(01632) 960044",
+    # test8); the digit count is fixed in the same way.
+    'phone_uk_bracket': re.compile(
+        r'(?<!\w)\((?=0(?:[ )-]*\d){10}(?![ -]?\d))0\d{2,5}\)[ \t]?\d{3,4}(?:[ \t-]?\d{3,4})?(?!\w)'),
     # A national number in a shape no pattern above knows, carried by its
     # label ("call 1800 555 014", test7): seven to thirteen digits in
     # separated groups directly after a phone word.
     'phone_labelled': re.compile(
         r"\b(?:call(?:[ \t]+us)?(?:[ \t]+(?:on|at))?|phone|telephone|tel\.?|telefono|teléfono"
-        r"|téléphone|telefon|telemóvel|mobile|mob\.?|fax|helpline|hotline|freephone)"
+        r"|téléphone|tél\.?|portable|telefon|handy|telemóvel|móvil|cellulare|mobile|mob\.?|fax"
+        r"|helpline|hotline|freephone)"
         r"[ \t]*(?:no\.?|number)?[ \t]*[:.]?[ \t]*"
         r"(?P<pii>(?=(?:[ .-]?\d){7,13}(?![ .-]?\d))\d{2,5}(?:[ .-]\d{2,5}){1,4})(?!\w)",
         re.IGNORECASE),
@@ -266,7 +302,9 @@ TEXT_PATTERNS = {
     # the label alone is enough under the policy. Scored at the country
     # recognizers' level so a specific match wins the dedup tiebreak.
     'passport_labelled': re.compile(
-        r'\bpassport\s*(?:no\.?|number|#)?\s*[:#]?\s*(?P<pii>(?=[A-Z0-9]*\d)[A-Z0-9]{6,10})\b', re.IGNORECASE),
+        r'\b(?:passport|passeport|pasaporte|passaporte|passaporto|reisepass)\s*'
+        r'(?:no\.?|n[°ºo]\.?|nr\.?|number|numéro|número|numero|nummer|#)?\s*[:#]?\s*'
+        r'(?P<pii>(?=[A-Z0-9]*\d)[A-Z0-9]{6,10})\b', re.IGNORECASE),
     # The same fallback for a labelled driving licence: Presidio's UK
     # recognizer scores a valid number 0.5 with or without its label (test6),
     # so the label carries it here, at the passport fallback's score.
@@ -316,7 +354,10 @@ TEXT_PATTERNS = {
         r'(?:id|number|no\.?|record|reference|ref\.?|#)?'
         r'|(?:hospital|staff|payroll)\s+(?:id|number|no\.?)'
         r'|(?:application|visa|permit)\s+(?:reference|ref\.?|number|no\.?|id))\s*[:#.]?\s*'
-        r'(?P<pii>' + _NOT_A_DATE + r'(?=[A-Z0-9/-]{0,20}\d)[A-Z0-9][A-Z0-9/-]{3,19})', re.IGNORECASE),
+        # The value may be printed in spaced digit groups, eight digits or
+        # more in all ("gas account 8841 2207 16", test8).
+        r'(?P<pii>' + _NOT_A_DATE + r'(?:(?=(?:\d[ \t]?){8,20}(?!\d))\d{2,6}(?:[ \t]\d{2,6}){1,4}(?![ \t]?\d)'
+        r'|(?=[A-Z0-9/-]{0,20}\d)[A-Z0-9][A-Z0-9/-]{3,19}))', re.IGNORECASE),
     # A loyalty or membership card number is a customer identifier, usually
     # printed in spaced digit groups the generic value shape does not take
     # ("loyalty card 6338 4410 0027", test7).
@@ -336,8 +377,13 @@ TEXT_PATTERNS = {
     # Trackable purchase/product identifiers (review verdict: serial and order
     # numbers can be searched up and tracked). Batch numbers stay visible.
     'serial_number': re.compile(
-        r'\b(?:serial|hull)\s*(?:no\.?|number|id|#)?\s*[:#]?\s*'
-        r'(?P<pii>(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19})\b', re.IGNORECASE),
+        # A frame, chassis or IMEI number is a serial number under its own
+        # label, and the value may be printed in spaced capital groups
+        # ("Frame number: WTU 284 K 0931 M", test8).
+        r'\b(?:(?:serial|hull|imei)\s*(?:no\.?|number|id|#)?|(?:frame|chassis)\s*(?:no\.?|number|#))'
+        r'\s*[:#]?\s*'
+        r'(?P<pii>(?-i:(?=[A-Z0-9 \t]*\d)[A-Z0-9]{1,8}(?:[ \t][A-Z0-9]{1,8}){1,5})(?![A-Za-z0-9-])'
+        r'|(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19}\b)', re.IGNORECASE),
     'order_number': re.compile(
         r'\border\s*(?:no\.?|number|#)?\s*[:#]?\s*'
         r'(?P<pii>(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19})\b', re.IGNORECASE),
@@ -364,13 +410,15 @@ TEXT_PATTERNS = {
     # Month-day-year, day-month-year, and worded forms ("5 May 1994",
     # "March 3, 1985"), each anchored to an explicit birth label.
     'date_of_birth': re.compile(
-        r'\b(?:date\s+of\s+birth|birth\s+date|birthday|born(?:\s+on)?|d\.?o\.?b\.?)'
+        r'\b(?:date\s+of\s+birth|birth\s+date|birthday|born(?:\s+on)?|d\.?o\.?b\.?'
+        r'|' + _BIRTH_LABELS_INTL + r')'
         r'(?:\s*\([^)\n]{0,24}\))?\s*[:,-]?\s*(?:the\s+)?(?P<pii>'
         r'(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])'
         r'|(?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12][0-9]|3[01])[-/.](?:19|20)\d{2}'
         r'|(?:0?[1-9]|[12][0-9]|3[01])[-/.](?:0?[1-9]|1[0-2])[-/.](?:19|20)\d{2}'
         r'|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?' + _MONTHS + r',?\s+(?:19|20)\d{2}'
         r'|' + _MONTHS + r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+(?:19|20)\d{2}'
+        r'|\d{1,2}(?:er)?\s+' + _MONTHS_FR + r'\s+(?:19|20)\d{2}'
         r')\b', re.IGNORECASE),
 
     # --- organizations and addresses ---
@@ -515,8 +563,49 @@ TEXT_PATTERNS = {
     'signoff_person': re.compile(
         r"\b(?:Thanks|Thank you|Many thanks|Regards|Kind regards|Best regards|Warm regards"
         r"|Best wishes|Best|Cheers|Sincerely|Yours(?:[ \t]+(?:sincerely|faithfully|truly))?"
-        r"|Love|Take care)[,!][ \t]*\n?[ \t]*(?!" + _GREETING_STOP + r"\b)(?P<pii>"
+        r"|Love|Take care|Ta|Thx)[,!][ \t]*\n?[ \t]*(?!" + _GREETING_STOP + r"\b)(?P<pii>"
         + _NAME_WORD + r")[ \t]*(?=\n|$)"),
+    # A courtesy title carries the name behind it, also where the surname
+    # is a company word ("Frau Bank", test8). The title stays outside the
+    # span.
+    'titled_person': re.compile(
+        r"(?<![\w.])(?:Mr|Mrs|Ms|Mx|Miss|Dr|Prof|Herr|Frau|Hr\.|Fr\.|Mme|Mlle|Monsieur|Madame"
+        r"|Signora|Signor|Sig\.(?:ra|na)?|Dott\.(?:ssa)?|Señora?|Sra\.)\.?[ \t]+"
+        r"(?!" + _GREETING_STOP + r"\b)(?P<pii>(?:(?:van|der|den|de|von|da|di|du|la|le|del|della"
+        r"|dos|das|ten|ter|al|el|bin)[ \t]+){0,2}" + _NAME_WORD
+        + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,2})"),
+    # "The mechanic, Pim, says ...": a person noun, a comma, a name, a comma
+    # (test8).
+    'apposition_person': re.compile(
+        r"\b(?:[Tt]he|[Mm]y|[Oo]ur|[Hh]is|[Hh]er|[Tt]heir|[Yy]our)[ \t]+(?:[a-z][a-z'’-]*[ \t]+){0,2}"
+        r"(?:" + _PERSON_NOUNS + r"),[ \t]+(?!" + _GREETING_STOP + r"\b)(?P<pii>" + _TITLE_OPT
+        + _NAME_WORD + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,2})(?=,)"),
+    # A line-initial employer label names the employer, also in block
+    # capitals, where general NER runs on into the next line ("EMPLOYER:
+    # WESTMORLAND DAIRIES LTD", test8).
+    'employer_field': re.compile(
+        r"(?mi)^[ \t]*(?:(?:current|present|previous|former|last|most[ \t]+recent)[ \t]+)?"
+        r"(?:employer(?:['’]s)?(?:[ \t]+name)?|place[ \t]+of[ \t]+work|workplace)[ \t]*[:\-][ \t]*"
+        r"(?!(?:none|n/?a|nil|not|unknown|same|as|see|tbc|tba|self|unemployed|retired|student"
+        r"|various|agency|housewife|homemaker)\b)"
+        r"(?P<pii>(?-i:[A-ZÀ-ÖØ-Þ0-9])[^\n,;(|]{1,60}?)\.?[ \t]*(?=$|[,;(|]|[ \t]{2,})"),
+    # A city named as a person's journey destination ("I fly to Bologna on
+    # the 14th", test8), for the towns general NER does not tag. Sites,
+    # departments and venues are not destinations: a longer capitalised name
+    # ("trip to Bramblewood Nature Reserve", test6) or a venue word ends it.
+    'travel_city': re.compile(
+        r"\b(?i:fl(?:y|ies|ying|ew)|travel(?:s|led|ed|ling|ing)?|trip)[ \t]+(?:back[ \t]+)?to[ \t]+"
+        r"(?!(?:" + _GREETING_STOP + r"|Head|Site|Gate|Terminal|Platform|Customer|Hall|Room"
+        r"|Building|Block|Level|Floor|Stage|Phase|Version|Windows|January|February|March|April"
+        r"|May|June|July|August|September|October|November|December)\b)"
+        r"(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)(?![\w'’-])"
+        r"(?![ \t]+(?:[A-ZÀ-ÖØ-Þ]|(?i:hub|branch|depot|warehouse|exchange|terminal|plant|factory"
+        r"|showroom|office|site|yard|store|outlet|facility)\b))"),
+    # The French signing formula names the signer's town ("Fait à Dijon, le
+    # 2 novembre 2026", test8).
+    'signing_place': re.compile(
+        r"\bFait[ \t]+à[ \t]+(?P<pii>[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t-][A-ZÀ-ÖØ-Þ][\w'’-]+){0,2})"
+        r"(?=,|[ \t]+le\b)"),
     # The bare label "Name:" names products and companies as often as
     # people, so its value is only a candidate: apply_policy_filters keeps it
     # when a NER layer saw a person inside it ("Name: Thiago Monteiro dos
@@ -567,6 +656,12 @@ PATTERN_ENTITY_TYPES = {"inn_labelled": "INN", "apt_unit": "ADDRESS_LINE",
                         "possessive_id": "GENERIC_ID",
                         "labelled_person_caps": "PERSON",
                         "signoff_person": "PERSON",
+                        "titled_person": "PERSON",
+                        "apposition_person": "PERSON",
+                        "employer_field": "ORGANIZATION",
+                        "travel_city": "LOCATION",
+                        "signing_place": "LOCATION",
+                        "phone_uk_bracket": "PHONE",
                         "name_line": "NAME_LINE",
                         "employment_line": "ORGANIZATION",
                         "license_plate_de": "LICENSE_PLATE",
@@ -635,6 +730,44 @@ _ADDRESS_GAP_STOP = re.compile(
 _AMBIGUOUS_STREET_LEAD = re.compile(r"(?:Via|Plaza|Largo|Corso)[ \t]")
 _ADDRESS_LABEL_BEFORE = re.compile(
     r"(?i)\b(?:address|indirizzo|residenza|domicilio|sede|direcci[oó]n|morada|adresse)\b[^\n]{0,12}$")
+# Without a postcode or a label, three things still mark a Romance street:
+# a particle after the street word ("Plaza de Olavide 6"), a floor or door
+# after the number ("6, 2ºB"), and a capital mid-sentence ("lives next door
+# at Via Saragozza 120"; the preposition "via" is lowercase there). "Dispatch:
+# Via Royal Mail 48" has none of them (test7, test8).
+_ROMANCE_PARTICLE_NEXT = re.compile(
+    r"(?:Via|Plaza|Largo|Corso)[ \t]+(?:de|del|della|delle|degli|dei|di|do|da|dos|das|la|las|los)[ \t]")
+_FLOOR_OR_DOOR = re.compile(r"\d[ \t]?[ºª°]")
+_LOWERCASE_WORD_BEFORE = re.compile(r"[a-zß-öø-ÿ],?[ \t]$")
+# A destination that ends in a venue word is a venue, not a city.
+_VENUE_WORD = re.compile(
+    r"\b(?:Park|Reserve|Museum|Zoo|Centre|Center|Beach|Castle|Hall|Gardens?|Airport|Station"
+    r"|Stadium|Farm|Forest|Hotel|Arena|Theatre|Theater|Gallery|Abbey|Cathedral|Campus|Court"
+    r"|Tower|Bridge|Pier|Market|Mall|Wharf|Quay|School|College|University|Hospital|Clinic"
+    r"|Office|House|Camp|Lodge)$")
+# Lines of an address block under the street line.
+_BLOCK_TOWN_LINE = re.compile(
+    r"[ \t]*(?P<pii>[A-Z][\w'’-]+(?:[ \t-]+[A-Za-z][\w'’-]+){0,2}),?[ \t]*")
+_BLOCK_POSTCODE_LINE = re.compile(
+    r"[ \t]*(?P<pii>(?:[A-Z][\w'’-]+(?:[ \t]+[A-Z][\w'’-]+){0,2},?[ \t]+)?" + _UK_POSTCODE
+    + r"|\d{5}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?"
+    r"|\d{4}[ \t]?[A-Z]{2}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?),?[ \t]*")
+# Table columns that hold people and plates, and the cell shapes they take.
+_TABLE_NAME_HEADER = re.compile(
+    r"(?i)(?:(?:full|visitor|guest|driver|employee|staff|contact|host|tenant|member|customer"
+    r"|client|patient|student|pupil)[ \t]+)?names?|visitors?|guests?|hosts?|drivers?"
+    r"|employees?|attendees?|passengers?|tenants?|residents?|keepers?|participants?"
+    r"|signed[ \t]+(?:in|out)[ \t]+by|escort(?:ed[ \t]+by)?|visiting|person[ \t]+visited")
+_TABLE_PLATE_HEADER = re.compile(
+    r"(?i)(?:vehicle[ \t]+)?(?:reg(?:istration)?\.?(?:[ \t]+(?:no\.?|number|mark))?|plate"
+    r"|number[ \t]+plate|licen[cs]e[ \t]+plate|kennzeichen|vrm)")
+_TABLE_NAME_CELL = re.compile(
+    r"(?:" + _TITLES + r"[ \t]+)?(?!(?:None|N/?A|Nil|Unknown|Self|Staff|Contractor|Visitor"
+    r"|Delivery|Courier|Reception|Security|Tbc|Tba|Various)\b)"
+    r"(?P<pii>(?:[A-ZÀ-ÖØ-Þ]\.[ \t]?){0,2}" + _NAME_WORD
+    + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,3})")
+_TABLE_PLATE_CELL = re.compile(
+    r"(?P<pii>(?=[A-Z0-9 -]{4,12}$)(?=[^\d]*\d)(?=[^A-Z]*[A-Z])[A-Z0-9]{1,4}(?:[ -][A-Z0-9]{1,4}){0,3})")
 # A house name ahead of the street number, between the label and the street
 # ("Address on file: The Old Forge, 6 Chapel Row", test7).
 _HOUSE_NAME = re.compile(
@@ -675,9 +808,81 @@ def house_name_start(text, start):
     """Start of a house name that sits on the same line before a street number."""
     line_start = text.rfind('\n', 0, start) + 1
     match = _HOUSE_NAME.search(text[line_start:start])
-    if match and _HOUSE_WORD.search(match.group('house')):
+    # A house word marks the name ("The Old Forge"), or an address label in
+    # front of it does ("Address: Braeside, 4 Station Road", test8).
+    if match and (_HOUSE_WORD.search(match.group('house'))
+                  or _ADDRESS_LABEL_BEFORE.search(text[line_start:line_start + match.start('house')])):
         return line_start + match.start('house')
     return None
+
+
+def address_block_lines(text, end):
+    """Town and postcode lines under a street line that ends its own line.
+
+    "14 Mill Street / Ludlow / SY8 1BB" (test8): up to two town lines count
+    only when a postcode line closes the block. Each line is its own span, so
+    no span crosses a line break.
+    """
+    if not re.match(r',?[ \t]*\n', text[end:end + 4]):
+        return []
+    pos = text.find('\n', end) + 1
+    spans = []
+    for _ in range(3):
+        line_end = text.find('\n', pos)
+        line_end = len(text) if line_end == -1 else line_end
+        line = text[pos:line_end]
+        closing = _BLOCK_POSTCODE_LINE.fullmatch(line)
+        if closing:
+            spans.append((pos + closing.start('pii'), pos + closing.end('pii')))
+            return spans
+        town = _BLOCK_TOWN_LINE.fullmatch(line)
+        if not town:
+            return []
+        spans.append((pos + town.start('pii'), pos + town.end('pii')))
+        pos = line_end + 1
+    return []
+
+
+def table_column_spans(text):
+    """Names and plates in a pipe- or tab-separated table, read by column.
+
+    "Time in | Name | Host | Vehicle reg | Badge" (test8): the header cell
+    labels every cell below it, as a field label does on a form. A cell must
+    still have the shape of a name or of a plate ("on foot" has neither).
+    """
+    results = []
+    kinds, width = None, 0
+    for line in re.finditer(r'[^\n]*(?:\n|$)', text):
+        if not line.group().strip():
+            kinds = None
+            if line.end() >= len(text):
+                break
+            continue
+        cells = [(m.start(1) + line.start(), m.group(1))
+                 for m in re.finditer(r'[ \t]*([^|\t\n]*?)[ \t]*(?:[|\t]|\n|$)', line.group())
+                 if m.end() > m.start()]
+        if len(cells) < 3:
+            kinds = None
+            continue
+        header = ['PERSON' if _TABLE_NAME_HEADER.fullmatch(c) else
+                  'LICENSE_PLATE' if _TABLE_PLATE_HEADER.fullmatch(c) else None
+                  for _, c in cells]
+        if any(header):
+            kinds, width = header, len(cells)
+            continue
+        if kinds is None or len(cells) != width:
+            kinds = None
+            continue
+        for (start, cell), kind in zip(cells, kinds):
+            shape = {'PERSON': _TABLE_NAME_CELL, 'LICENSE_PLATE': _TABLE_PLATE_CELL}.get(kind)
+            match = shape.fullmatch(cell) if shape else None
+            if match:
+                results.append({'entity_type': kind, 'start': start + match.start('pii'),
+                                'end': start + match.end('pii'), 'score': 1.0,
+                                'text': match.group('pii'), 'source': 'regex'})
+        if line.end() >= len(text):
+            break
+    return results
 
 
 def sentence_around(text, start, end):
@@ -721,7 +926,7 @@ def chat_reply_ids(text):
 
 def run_pattern_rules(text):
     """Stage 1: every pattern rule over the text → candidate list."""
-    results = chat_reply_ids(text)
+    results = chat_reply_ids(text) + table_column_spans(text)
     for pii_type, pattern in TEXT_PATTERNS.items():
         for match in pattern.finditer(text):
             # Context patterns retain their surrounding text for matching,
@@ -743,7 +948,7 @@ def run_pattern_rules(text):
                     start += cuts[-1]
             if pii_type == 'labelled_person_caps' and _CAPS_NOT_A_NAME.search(text[start:end]):
                 continue
-            if pii_type == 'address_line' and _ADDRESS_GAP_STOP.search(text[start:end]):
+            if pii_type == 'travel_city' and _VENUE_WORD.search(text[start:end]):
                 continue
             if pii_type in ('address_line', 'address_line_de', 'address_line_es',
                             'address_line_pl'):
@@ -751,10 +956,23 @@ def run_pattern_rules(text):
                 # postal-code segments; the whole location identifies a home.
                 line_end = end
                 end = extend_address(text, end)
-                if pii_type == 'address_line_es' and _AMBIGUOUS_STREET_LEAD.match(text, start) \
-                        and not re.search(r'\d', text[line_end:end]) \
-                        and not _ADDRESS_LABEL_BEFORE.search(text[max(0, start - 40):start]):
+                labelled = _ADDRESS_LABEL_BEFORE.search(text[max(0, start - 40):start])
+                # A function word inside the street line means a sentence,
+                # unless a label or a postcode says it is an address ("Address:
+                # 14 Stoke by Nayland Road, Sudbury CO10 2XA", test8).
+                if pii_type == 'address_line' and _ADDRESS_GAP_STOP.search(text[start:line_end]) \
+                        and not labelled and not re.search(r'\d', text[line_end:end]):
                     continue
+                if pii_type == 'address_line_es' and _AMBIGUOUS_STREET_LEAD.match(text, start) \
+                        and not re.search(r'\d', text[line_end:end]) and not labelled \
+                        and not _ROMANCE_PARTICLE_NEXT.match(text, start) \
+                        and not _FLOOR_OR_DOOR.search(text[start:line_end]) \
+                        and not _LOWERCASE_WORD_BEFORE.search(text[max(0, start - 3):start]):
+                    continue
+                for block_start, block_end in address_block_lines(text, end):
+                    results.append({'entity_type': 'ADDRESS_LINE', 'start': block_start,
+                                    'end': block_end, 'score': 1.0,
+                                    'text': text[block_start:block_end], 'source': 'regex'})
             entity_override = None
             if pii_type == 'generic_id' and re.fullmatch(r'[1-9]\d{19}', text[start:end]):
                 # A labelled 20-digit value is a bank account, not a generic ID.
@@ -776,14 +994,126 @@ def run_pattern_rules(text):
 _COMPANY_TAIL = re.compile(
     r"(?:\b(?i:Ltd|Limited|Inc|Incorporated|Corp|Corporation|LLC|LLP|PLC|GmbH|Lda|Ltda|SARL|Pty"
     r"|Company|Holdings|Leasing|Insurance|Assurance|Versicherung(?:en)?|Assicurazioni|Seguros"
-    r"|Bank|Logistics|Services|Solutions|Enterprises|Industries|Associates|Partners)"
+    r"|Bank|Logistics|Services|Solutions|Enterprises|Industries|Associates|Partners"
+    # Trade nouns that end a company name ("Corvid Cycles", "Tannahill
+    # Haulage", test8; "Halden Kitchenware", test3).
+    r"|Lettings|Broadband|Cycles|Couriers|Freight|Haulage|Wholesale|Dairies|Energy|Motors"
+    r"|Telecom|Foods|Estates|Properties|Removals|Supplies|Systems|Technologies|Kitchenware"
+    r"|Hardware|Software|Furniture|Interiors|Builders|Roofing|Plumbing|Electrical"
+    r"|Scaffolding|Consulting|Consultancy|Recruitment|Airways|Airlines|Railways|Brewery"
+    r"|Bakery|Autos|Publishing|Pharma|Catering|Construction|Transport|Trading)"
     r"|\bS\.?r\.?l|\bS\.?p\.?A|\bS\.A|\bB\.?V|\bN\.?V|\b(?:AG|KG))\.?$")
+# Company words that lead the name in German, Italian, French and Spanish
+# ("Hausverwaltung Lindenhof", test8).
+_COMPANY_LEAD = re.compile(
+    r"^(?:Hausverwaltung|Autohaus|Firma|Spedition|Kanzlei|Bäckerei|Metzgerei|Stadtwerke"
+    r"|Sparkasse|Gasthaus|Gasthof|Officina|Autofficina|Agenzia|Agencia|Agence|Grupo|Gruppo"
+    r"|Groupe|Société|Cabinet)\b")
+# A courtesy title in front of a span, or at its start, makes it a person
+# even when the surname is a company word ("Fr. Annelise Bank", test8).
+_TITLE_BEFORE = re.compile(r"(?:^|[\s(,;:—–-])" + _TITLES + r"[ \t]+$")
+_TITLE_START = re.compile(_TITLES + r"[ \t]+(?=\S)")
+# A NER person span never runs across a column gap, a spaced dash or a pipe
+# ("Thabo Nkosana-Fields   Payroll", test8): the name is the first cell.
+_COLUMN_GAP = re.compile(r"[ \t]{2,}|\t|[ \t]+[—–|/](?:[ \t]+|$)")
+# Nor does it start with a greeting or a sign-off word ("Ta, Gethin").
+_PERSON_LEAD_WORD = re.compile(
+    r"^(?:Ta|Thx|Thanks|Cheers|Regards|Best|Love|Hi|Hiya|Hello|Hey|Dear|Morning|Evening"
+    r"|Afternoon|Ciao|Sincerely|Yours)[,!]?[ \t]+(?=\S)")
+# One-word NER "persons" that are a field label: a contact label ahead of a
+# number wherever it stands ("Tel. 089 ..."), a role label ahead of a colon
+# ("Consignee: ...").
+_GREETING_STOP_WORD = re.compile(_GREETING_STOP)
+_CONTACT_LABEL_WORDS = frozenset(
+    "Tel Tél Fax Mob Ext Telefon Telefono Teléfono Phone Mobile Handy Cell".split())
+_CONTACT_LABEL_NEXT = re.compile(r"[ \t]*[.:][ \t]*:?[ \t]*[+(\d]")
+_ROLE_LABEL_WORD = re.compile(
+    r"(?:" + _GREETING_STOP + r"|Consignee|Consignor|Recipient|Sender|Addressee|Shipper|Payee"
+    r"|Payer|Caller|Witness|Referee|Guarantor|Signatory|Lessor|Lessee|Claimant|Insured"
+    r"|Beneficiary|Proposer|Hirer|Keeper|Signed|Signature|Notes?|Subject|Attn)")
+# A German-shaped plate is a standard, not a plate, after a conformity phrase
+# or when it starts with a standards body ("certified to DIN-EN 1090", test8).
+_STANDARD_PREFIX = re.compile(
+    r"(?i)\b(?:certified|tested|rated|built|made|conforms?|complies|compliant|according"
+    r"|accordance|nach|gemäß)(?:\s+(?:to|with))?\s+$")
+_STANDARD_CODE = re.compile(r"^DIN-(?:EN|ISO|IEC|VDE)\b")
 _COURTESY_WORDS = frozenset(
     "Grazie Merci Danke Gracias Obrigado Obrigada Thanks Regards Cheers Sincerely Saluti "
     "Cordialmente Ciao Hello Hola Bonjour Salut Prego Sorry Welcome Congratulations "
-    "Greetings".split())
+    "Greetings Ta Thx "
+    # First-person and formal pronouns that open a declaration ("Je
+    # soussignée", test8).
+    "Je Nous Vous Ich Wir Yo Io Noi Eu".split())
 _DATE_PLACEHOLDER = re.compile(r"(?:D{1,2}|M{1,4}|Y{2,4})")
 _LABEL_WITH_NUMBER = re.compile(r"[ \t]*:[ \t]*[+(\d]")
+
+
+_NER_SOURCES = ('spacy', 'presidio', 'custom_ner')
+_BLANK_LINE = re.compile(r'\n[ \t]*\n')
+_HEADING_AUTHOR = re.compile(r"(?P<word>[A-ZÀ-ÖØ-Þ][\w'’&-]{3,})[ \t]+[A-ZÀ-ÖØ-Þ&]")
+
+
+def section_heading(text, pos):
+    """First line of the block of lines that holds pos, when pos lies below it."""
+    start = 0
+    for blank in _BLANK_LINE.finditer(text, 0, pos):
+        start = blank.end()
+    line_end = text.find('\n', start)
+    if line_end == -1 or line_end >= pos:
+        return ''
+    return text[start:line_end].strip()
+
+
+def document_start(text):
+    return len(text) - len(text.lstrip())
+
+
+def heading_author_word(text, person_spans):
+    """First word of the document when it opens with a capitalised phrase that
+    no layer reads as a person: the author's name ("Brackenridge Lettings —
+    messages ...", test8). A one-word "person" equal to that word is the
+    author signing or being named ("Kind regards, Brackenridge", "Thanks for
+    calling Quillfield"), and the author stays visible.
+    """
+    match = _HEADING_AUTHOR.match(text, document_start(text))
+    if not match or any(s <= match.start('word') < e for s, e in person_spans):
+        return None
+    return match.group('word')
+
+
+def is_company_shaped(text, start, end):
+    """True when the span ends in, is followed by, or starts with a company word."""
+    span = text[start:end]
+    following = re.match(r'[ \t]+[^\s,;:]+', text[end:end + 20])
+    return bool(_COMPANY_TAIL.search(span) or _COMPANY_LEAD.match(span)
+                or (following and _COMPANY_TAIL.search(span + following.group())))
+
+
+def org_is_tied(text, name):
+    """True when any mention of the organization carries employment wording.
+
+    An organization is personal data when the document ties a person to it;
+    the tie may sit at another mention than the one a layer detected ("team
+    leader at Corbel Freight" for the "Corbel Freight" on the referee line,
+    test8). The author's own heading mention never counts.
+    """
+    if len(name) < 4:
+        return False
+    for match in re.finditer(r'(?<!\w)' + re.escape(name) + r'(?!\w)', text):
+        if match.start() == document_start(text) \
+                or is_letterhead(text, match.start(), match.end(), name):
+            continue
+        prefix = text[max(0, match.start() - 48):match.start()]
+        # "as a picker for X" names the employer; "as a Senior X" a title.
+        if ORG_ROLE_FOR_PREFIX.search(prefix):
+            return True
+        if TITLE_PREFIX.search(prefix):
+            continue
+        if EMPLOYMENT_CONTEXT.search(sentence_around(text, match.start(), match.end())) \
+                or ORG_AT_PREFIX.search(prefix) \
+                or EMPLOYMENT_HEADING.search(section_heading(text, match.start())):
+            return True
+    return False
 
 
 def apply_policy_filters(results, text):
@@ -803,13 +1133,47 @@ def apply_policy_filters(results, text):
                    if r['entity_type'] == 'PHONE' and r.get('source') == 'regex'
                    and r['text'].startswith(('+', '00'))]
 
+    name_spans = [(r['start'], r['end']) for r in results if r['entity_type'] == 'PERSON']
+    author_word = heading_author_word(
+        text, [(s, e) for s, e in name_spans if not is_company_shaped(text, s, e)])
+
     def near_person(start, end, radius=PERSON_PROXIMITY_CHARS):
         return any(p_start - radius <= end and start <= p_end + radius
                    for p_start, p_end in person_spans)
 
+    def person_on_line(start, end):
+        line_start = text.rfind('\n', 0, start) + 1
+        line_end = text.find('\n', end)
+        line_end = len(text) if line_end == -1 else line_end
+        return any(line_start <= s and e <= line_end for s, e in name_spans)
+
     filtered = []
     for result in results:
         entity, source = result['entity_type'], result.get('source')
+        demoted = False
+        # General NER runs an organization on into the next line ("...
+        # DAIRIES LTD\nEMERGENCY"); the name is the part on its own line.
+        if entity == 'ORGANIZATION' and source in _NER_SOURCES and '\n' in result['text']:
+            first = result['text'].split('\n', 1)[0].rstrip()
+            if len(first) < 2:
+                continue
+            result = {**result, 'end': result['start'] + len(first), 'text': first}
+        if entity == 'PERSON' and source in _NER_SOURCES:
+            # The name is the first cell of a span that crosses a column gap,
+            # and it never starts with a greeting or sign-off word.
+            gap = _COLUMN_GAP.search(result['text'])
+            if gap:
+                if gap.start() < 2:
+                    continue
+                result = {**result, 'end': result['start'] + gap.start(),
+                          'text': result['text'][:gap.start()]}
+            lead = _PERSON_LEAD_WORD.match(result['text'])
+            if lead:
+                # "Dear Occupier": what is left may be a role, not a name.
+                if _GREETING_STOP_WORD.fullmatch(result['text'][lead.end():]):
+                    continue
+                result = {**result, 'start': result['start'] + lead.end(),
+                          'text': result['text'][lead.end():]}
         sentence = sentence_around(text, result['start'], result['end'])
         prefix = text[max(0, result['start'] - 32):result['start']]
 
@@ -823,11 +1187,19 @@ def apply_policy_filters(results, text):
         # Ltd", "Albatros Versicherung", "Officina Bellandi S.r.l"; test7).
         # The same when the company word follows the span: the model's
         # "Officina Bellandi" ahead of "S.r.l.".
-        if entity == 'PERSON':
-            following = re.match(r'[ \t]+[^\s,;:]+', text[result['end']:result['end'] + 20])
-            if _COMPANY_TAIL.search(result['text']) or (
-                    following and _COMPANY_TAIL.search(result['text'] + following.group())):
+        # A courtesy title makes it a person all the same ("Frau Bank"). A
+        # NER span is then judged as the organization it is: an employer is
+        # still redacted ("Dispatcher, Tannahill Haulage" under "Work
+        # history", test8); a role-label value is dropped.
+        if entity == 'PERSON' and is_company_shaped(text, result['start'], result['end']) \
+                and not (_TITLE_BEFORE.search(prefix) or _TITLE_START.match(result['text'])):
+            if source not in _NER_SOURCES:
                 continue
+            entity, demoted = 'ORGANIZATION', True
+            result = {**result, 'entity_type': 'ORGANIZATION'}
+        # The author's name from the document heading is not a person.
+        if entity == 'PERSON' and author_word and result['text'] == author_word:
+            continue
         # Custom-model spans are trusted for the labels the live model has
         # earned on the model-only gold run (config.CUSTOM_MODEL_TRUSTED_LABELS).
         # Anything else — in practice SENSITIVE_ORGANIZATION — still needs a
@@ -850,12 +1222,16 @@ def apply_policy_filters(results, text):
         # An organization is personal data only when a person is tied to it
         # (employment wording) or it is a sensitive facility. "position of X"
         # or "as a X" marks a job title, not an employer.
-        if entity == 'ORGANIZATION' and source in ('spacy', 'presidio'):
-            if TITLE_PREFIX.search(prefix):
+        # The tie may sit at another mention of the same organization.
+        if entity == 'ORGANIZATION' and (source in ('spacy', 'presidio') or demoted):
+            role_for = ORG_ROLE_FOR_PREFIX.search(text[max(0, result['start'] - 48):result['start']])
+            if TITLE_PREFIX.search(prefix) and not role_for:
                 continue
-            if not (SENSITIVE_ORG_KEYWORDS.search(result['text'])
+            if not (role_for or SENSITIVE_ORG_KEYWORDS.search(result['text'])
                     or EMPLOYMENT_CONTEXT.search(sentence)
-                    or ORG_AT_PREFIX.search(prefix)):
+                    or ORG_AT_PREFIX.search(prefix)
+                    or (result['start'] != document_start(text)
+                        and org_is_tied(text, result['text']))):
                 continue
         # The NER layers also mislabel single title words as people ("as a
         # Senior Dispatcher"); a real name never follows a title introducer.
@@ -893,10 +1269,15 @@ def apply_policy_filters(results, text):
                 and (e - s) > (result['end'] - result['start']) for s, e in intl_phones):
             continue
         # A German-shaped plate needs vehicle wording and no place label.
+        # A person on the same line links the plate to them, as in a list of
+        # parking bays ("Bay 03 — M-KT 5038 — Fr. Annelise Bank", test8). A
+        # standard is never a plate ("certified to DIN-EN 1090").
         if entity == 'LICENSE_PLATE' and source == 'regex' \
                 and TEXT_PATTERNS['license_plate_de'].fullmatch(result['text']) \
                 and (PLACE_LABEL_PREFIX.search(prefix)
-                     or not (PLATE_CONTEXT.search(sentence) or PLATE_CONTEXT.search(prefix))):
+                     or _STANDARD_PREFIX.search(prefix) or _STANDARD_CODE.match(result['text'])
+                     or not (PLATE_CONTEXT.search(sentence) or PLATE_CONTEXT.search(prefix)
+                             or person_on_line(result['start'], result['end']))):
             continue
         # One-word NER "persons" that are a courtesy word ("Grazie!"), a
         # date-format placeholder (the "MM" of "DD/MM/YYYY") or a field label
@@ -904,10 +1285,15 @@ def apply_policy_filters(results, text):
         if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
                 and ' ' not in result['text']:
             line_start = text.rfind('\n', 0, result['start']) + 1
+            after = text[result['end']:result['end'] + 8]
             if result['text'] in _COURTESY_WORDS \
                     or _DATE_PLACEHOLDER.fullmatch(result['text']) \
                     or (not text[line_start:result['start']].strip()
-                        and _LABEL_WITH_NUMBER.match(text[result['end']:result['end'] + 6])):
+                        and _LABEL_WITH_NUMBER.match(after)) \
+                    or (result['text'] in _CONTACT_LABEL_WORDS
+                        and _CONTACT_LABEL_NEXT.match(after)) \
+                    or (_ROLE_LABEL_WORD.fullmatch(result['text'])
+                        and re.match(r'[ \t]*:', after)):
                 continue
         # A person's name never contains a digit. General NER glues a chat
         # time onto a name ("14:03 Rhys") — strip it, on the same line only,
@@ -959,7 +1345,12 @@ def apply_policy_filters(results, text):
         # A line-initial greeting name counts only when the same name occurs
         # inside a fully detected person elsewhere in the document.
         if entity == 'GREETING_NAME':
-            if not any(result['text'] in p and result['text'] != p for p in person_texts):
+            # A sign-off word is not the name it stands in front of ("Ta,"
+            # inside a model span "Ta, Gethin"), nor is a role addressee
+            # ("Dear Occupier,").
+            if result['text'] in _COURTESY_WORDS \
+                    or _GREETING_STOP_WORD.fullmatch(result['text']) \
+                    or not any(result['text'] in p and result['text'] != p for p in person_texts):
                 continue
             result = {**result, 'entity_type': 'PERSON'}
         # A bare "Name:" value counts only when a NER layer saw a person in it.
@@ -1016,13 +1407,13 @@ def echo_person_names(results, text):
 
     for result in results:
         name = result['text']
-        # An employer found on a dated CV line is the same employer on the
-        # referee line; a letterhead occurrence still stays visible.
-        if result['entity_type'] == 'ORGANIZATION' and result.get('source') == 'regex' \
-                and len(name) >= 4 and name not in seen:
+        # An employer is the same employer at its other mentions, whichever
+        # layer found it; a letterhead or heading occurrence stays visible.
+        if result['entity_type'] == 'ORGANIZATION' and len(name) >= 4 and name not in seen:
             seen.add(name)
             for match in re.finditer(r'(?<!\w)' + re.escape(name) + r'(?!\w)', text):
                 if match.start() != result['start'] \
+                        and match.start() != document_start(text) \
                         and not is_letterhead(text, match.start(), match.end(), name):
                     extra.append({'entity_type': 'ORGANIZATION', 'start': match.start(),
                                   'end': match.end(), 'score': 0.9,

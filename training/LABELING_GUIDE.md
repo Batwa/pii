@@ -282,6 +282,22 @@ One JSON object per line (JSONL):
     B."). In that order the postcode and the city lead the street and
     belong to the ADDRESS span ("170100, Tver, Sadovaya St., 12, apt. 4").
 
+21. Rule decisions taken in the test8 fix round (2026-11-13). The author
+    named in the document heading stays visible where it signs or is named
+    by its first word ("Kind regards, Brackenridge"). A courtesy title
+    makes the words behind it a person even when the surname is a company
+    word ("Frau Bank"); the title itself stays outside the span. A company
+    that a NER layer reads as a person is judged as an organization: it
+    redacts when the document ties a person to it at any of its mentions,
+    and a CV block headed "Work history" is such a tie. A plate in a list
+    row or a table row with a person is linked to that person; a standard
+    is never a plate ("DIN-EN 1090"). A table header labels its column as
+    a field label does on a form. Town and postcode lines under a street
+    line are address, each line its own span. The signing place of a
+    French declaration ("Fait à Dijon") redacts as the signer's town. A
+    venue named as a trip destination stays ("trip to Bramblewood Nature
+    Reserve"). Visitor badge numbers stay an open question.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the

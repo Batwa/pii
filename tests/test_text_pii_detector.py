@@ -349,7 +349,10 @@ def test_rule_layer_fixes_from_test7():
     assert rules(form) == {
         ("PERSON", "OKORO"), ("PERSON", "ADAEZE NWOSU-KERR"),
         ("SENSITIVE_ORGANIZATION", "OAKFIELD DENTAL PRACTICE"),
-        ("PERSON", "Dott.ssa Fiammetta Carbone")}
+        ("PERSON", "Dott.ssa Fiammetta Carbone"),
+        # The title rule (test8) adds the bare name as a nested candidate;
+        # deduplication keeps the longer span.
+        ("PERSON", "Fiammetta Carbone")}
 
     streets = ("Dispatch: Via Royal Mail 48, tracked\nIndirizzo: Via Garibaldi 27, 20121 Milano\n"
                "Deliver to: ul. Długa 5, 31-147 Kraków\nMorada: Rua Augusta 112, 1100-053 Lisboa\n"
@@ -425,3 +428,112 @@ def test_gate_guards_added_with_candidate3():
          ner("PERSON", "Tver"), ner("PERSON", "Karelia")], text)
     assert [(r["entity_type"], r["text"]) for r in kept] == [
         ("ADDRESS", "14 Mill Lane, Otley LS21 3AB")]
+
+
+def test_rule_layer_fixes_from_test8():
+    import policy_rules
+
+    def rules(text, extra=(), echo=False):
+        results = policy_rules.run_pattern_rules(text) + list(extra)
+        kept = policy_rules.apply_policy_filters(results, text)
+        if echo:
+            kept = kept + policy_rules.echo_person_names(kept, text)
+        return {(r["entity_type"], r["text"]) for r in kept
+                if r["entity_type"] != "PRONOUN"}
+
+    def ner(label, needle, where, source="spacy", score=0.9, after=""):
+        start = where.index(needle, where.index(after))
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": score, "text": needle, "source": source}
+
+    # The author named in the heading signs and is named without being a person.
+    board = ("Marlowe Lettings — notices for the Quay Street residents\n\n"
+             "Hey Caretaker, the gate is stuck. Hi Ingrid, your key is ready.\n"
+             "Thanks for calling Marlowe. Kind regards, Marlowe\nTa, Emrys\n"
+             "Dear Occupier, parking is suspended on Friday.\n")
+    assert rules(board, [
+        ner("PERSON", "Ta, Emrys", board, "custom_ner", 0.95),
+        ner("PERSON", "Ta", board), ner("PERSON", "Dear Occupier", board, "custom_ner", 0.95),
+        ner("PERSON", "Marlowe", board, "custom_ner", 0.95, after="calling")]) == {
+            ("PERSON", "Ingrid"), ("PERSON", "Emrys")}
+
+    # A plate in a list row with a person; a standard and a product code are not plates.
+    bays = ("Stellplatzliste\nBay 04 — K-LM 4821 — Fr. Mareike Bank\nBay 05 — free\n"
+            "The lift is certified to DIN-EN 81; vehicles up to 2 t. The unit is a WB-AC 11 box.\n"
+            "Frau Bank has the remote, Tel. 030 5550 0111.\n")
+    assert rules(bays, [ner("PERSON", "Tel", bays), ner("PERSON", "Mareike Bank", bays)]) == {
+        ("LICENSE_PLATE", "K-LM 4821"), ("PERSON", "Mareike Bank"), ("PERSON", "Bank"),
+        ("PHONE", "030 5550 0111")}
+
+    # A table is read by column.
+    log = ("Time in | Name | Host | Vehicle reg | Badge\n"
+           "07:40 | Agnes Holding | T. Okafor | 4471 BCD | V-11\n"
+           "08:05 | Bram | Sr. Iker Zubiri | on foot | V-12\n")
+    assert rules(log) == {
+        ("PERSON", "Agnes Holding"), ("PERSON", "T. Okafor"), ("PERSON", "Bram"),
+        ("PERSON", "Iker Zubiri"), ("LICENSE_PLATE", "4471 BCD")}
+
+    # Addresses: a labelled house name, a function word in the street, Romance
+    # streets with no postcode, town and postcode on their own lines.
+    addresses = ("Address: Fernlea, 3 Mill Road, Crieff PH7 3AB\n"
+                 "Address: 14 Wyke by Marlow Road, Henley RG9 2AA\n"
+                 "Rosa lives next door at Via Farini 14 and keeps the keys. "
+                 "The agency offers Plaza de Chamberí 9, 3ºA.\n"
+                 "Send it via email, 5 minutes from the main Road. Dispatch: Via Royal Mail 48, tracked.\n\n"
+                 "Refund confirmation\n8 Wharf Street\nLeominster\nHR6 8AB\n\nDear customer,\n")
+    assert rules(addresses) == {
+        ("ADDRESS_LINE", "Fernlea, 3 Mill Road, Crieff PH7 3AB"),
+        ("ADDRESS_LINE", "14 Wyke by Marlow Road, Henley RG9 2AA"),
+        ("ADDRESS_LINE", "Via Farini 14"), ("ADDRESS_LINE", "Plaza de Chamberí 9, 3ºA"),
+        ("ADDRESS_LINE", "8 Wharf Street"), ("ADDRESS_LINE", "Leominster"),
+        ("ADDRESS_LINE", "HR6 8AB")}
+
+    # Spaced identifiers, French labels, a bracketed area code, a destination,
+    # a name in apposition, an employer in block capitals.
+    mixed = ("We closed your gas account 7731 4409 25; the account ending 4409 stays open.\n"
+             "Meter serial number K7B 00931 4420. Frame number: RTX 319 B 0457 Q\n"
+             "passeport n° 21GH30558\nTél. : 06 12 55 01 73\nDaytime phone: (01632) 960155\n"
+             "née le 14/02/1981 — né le 9 mars 1996\nFait à Rennes, le 3 novembre 2026\n"
+             "I fly to Trieste on the 9th. We travel to Head Office on Monday.\n"
+             "The class trip to Fernhill Nature Reserve leaves from Otley Park.\n"
+             "The plumber, Odhran, says it is fixed. Our supplier, Bosch, agreed.\n"
+             "EMPLOYER: NORTHGATE DAIRIES LTD\nCURRENT LANDLORD: HOUSING ASSOCIATION\n"
+             "Employer: Tallgrass Retail.\nPrevious employer: self-employed\n")
+    assert rules(mixed) == {
+        ("GENERIC_ID", "7731 4409 25"), ("SERIAL_NUMBER", "K7B 00931 4420"),
+        ("SERIAL_NUMBER", "RTX 319 B 0457 Q"), ("PASSPORT_NUMBER", "21GH30558"),
+        ("PHONE", "06 12 55 01 73"), ("PHONE", "(01632) 960155"),
+        ("DATE_OF_BIRTH", "14/02/1981"), ("DATE_OF_BIRTH", "9 mars 1996"),
+        ("LOCATION", "Rennes"), ("LOCATION", "Trieste"), ("PERSON", "Odhran"),
+        ("ORGANIZATION", "NORTHGATE DAIRIES LTD"), ("ORGANIZATION", "Tallgrass Retail")}
+
+    # NER spans: a column gap, label words, a company read as a person. An
+    # employer is judged at all its mentions and echoes to them; the heading
+    # stays visible.
+    cv = ("Kestrel Cycles — warranty desk\n\n"
+          "Employee: Tobias Lindqvist   Payroll number: 0041\n"
+          "Consignee: Mrs Adaeze Okoro\nJe soussignée, Mme Lucie Marchand\n\n"
+          "Work history\nPresent: Team leader at Ravensworth Freight\n"
+          "Earlier — Dispatcher, Calder Haulage (nights)\n"
+          "Before that, two years as a packer for Whinmoor Wholesale\n\n"
+          "Referees\nA manager, Ravensworth Freight\nA second referee from Calder Haulage.\n")
+    found = rules(cv, [
+        ner("PERSON", "Kestrel Cycles", cv),
+        ner("PERSON", "Tobias Lindqvist   Payroll", cv),
+        ner("PERSON", "Consignee", cv), ner("PERSON", "Je", cv, "custom_ner", 0.95),
+        ner("PERSON", "Calder Haulage", cv),
+        ner("PERSON", "Ravensworth Freight", cv, after="Referees"),
+        ner("ORGANIZATION", "Whinmoor Wholesale\n\nReferees", cv)], echo=True)
+    assert found == {
+        ("PERSON", "Tobias Lindqvist"), ("GENERIC_ID", "0041"), ("PERSON", "Adaeze Okoro"),
+        ("PERSON", "Lucie Marchand"), ("ORGANIZATION", "Ravensworth Freight"),
+        ("ORGANIZATION", "Calder Haulage"), ("ORGANIZATION", "Whinmoor Wholesale")}
+    kept = policy_rules.apply_policy_filters(
+        [ner("PERSON", "Ravensworth Freight", cv, after="Referees"),
+         ner("PERSON", "Calder Haulage", cv)], cv)
+    echoed = policy_rules.echo_person_names(kept, cv)
+    assert sorted((r["text"], r["start"]) for r in kept + echoed) == sorted(
+        [("Ravensworth Freight", cv.index("Ravensworth")),
+         ("Ravensworth Freight", cv.index("Ravensworth", cv.index("Referees"))),
+         ("Calder Haulage", cv.index("Calder")),
+         ("Calder Haulage", cv.index("Calder", cv.index("Referees")))])

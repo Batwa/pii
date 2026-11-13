@@ -122,9 +122,10 @@ Current state, with candidate 3 live since 2026-11-13: dev, test and test2
 at 100% coverage / 100% keep; test3 at 100% / 99.0%, test4 at 96.8% / 97.6%,
 test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
 Test7's blind score was 80.1% / 87.9%. Test8 scored 74.8% / 93.7% blind with
-candidate 2 and scores 80.6% / 93.3% with candidate 3; no rule has been
-fixed against it, and round 3 of the training corpus did not draw on it, so
-it is still the one set that measures the rules blind.
+candidate 2 and 80.6% / 93.3% with candidate 3 before any rule was fixed
+against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
+at 100% / 100%. Every set is now semi-dev: no set measures the rules blind
+until a test9 is authored.
 
 ### test3 blind run (2026-11-04)
 
@@ -851,6 +852,114 @@ bicycle as persons, and a fork as an address. Three of its spans cross a
 line break. Corpus round 3 grows by French documents, table cells, product
 names under "Name:" and column-gap layouts.
 
+### test8 fixes (2026-11-13)
+
+The round started from the run with candidate 3 live: 112/139, keep 222/238,
+3 strays, which is 46 findings. Forty-two were fixed, all in
+`policy_rules.py`; test8 is semi-dev from here. The rules and spans that
+reached too far came first:
+
+- The author in the heading: when the document opens with a capitalised
+  phrase that no layer reads as a person ("Brackenridge Lettings — messages
+  ..."), its first word is the author's name, and a one-word "person" equal
+  to it is the author signing or being named ("Kind regards, Brackenridge",
+  "Thanks for calling Quillfield"). This also ends the echo into the
+  letterhead.
+- Greetings and sign-offs: `_GREETING_STOP` gains site and service roles
+  ("Hey Caretaker,"); "Ta" and "Thx" are sign-off words; a NER person span
+  loses a leading greeting or sign-off word ("Ta, Gethin", "Hello Tevita"),
+  and what is left is dropped when it is a role ("Dear Occupier").
+- NER person spans stop at a column gap, a spaced dash or a pipe ("Thabo
+  Nkosana-Fields   Payroll"). One-word NER persons are dropped when they
+  are a contact label ahead of a number ("Tel. 089 ..."), a role label
+  ahead of a colon ("Consignee:") or a first-person pronoun ("Je").
+- A company read as a person: `_COMPANY_TAIL` gains trade nouns (Cycles,
+  Lettings, Haulage, Freight, Kitchenware, ...) and `_COMPANY_LEAD` holds
+  the words that lead a company name in other languages ("Hausverwaltung
+  Lindenhof"). Such a NER span is no longer dropped; it is judged as the
+  organization it is (see the employer rules below). A courtesy title in
+  front keeps it a person ("Fr. Annelise Bank", "Frau Bank").
+- A German-shaped plate is a standard after a conformity phrase or under a
+  standards body ("certified to DIN-EN 1090").
+
+Then the misses:
+
+- Plates: a person on the same line links a German-shaped plate to them
+  (the bay list "Bay 03 — M-KT 5038 — Fr. Annelise Bank"). A pipe or tab
+  table is read by column: the header cell labels the cells below it, so
+  "Vehicle reg" carries "6205 KLM" and "9-XKR-27", and "Name" and "Host"
+  carry "Winifred Holding" and "Lotte". A cell must still have the shape
+  of a plate or a name ("on foot" has neither).
+- Names: a courtesy title carries the name behind it (`titled_person`; the
+  title stays outside the span); a person noun, a comma, a name and a comma
+  ("The mechanic, Pim, says"; `apposition_person`).
+- Employers: the tie to a person may sit at another mention of the same
+  organization (`org_is_tied`): employment wording, "at X", "as a picker
+  for X", or the heading of the CV block the mention stands in ("Work
+  history"). An accepted employer echoes to its other mentions whichever
+  layer found it. A NER organization that runs on into the next line is
+  cut at the line end ("WESTMORLAND DAIRIES LTD" + "EMERGENCY"), and a
+  line-initial "Employer:" label names the employer by itself.
+- Addresses: a house name under an address label needs no house word
+  ("Address: Braeside, 4 Station Road"); a function word in the street
+  line is allowed under a label or ahead of a postcode ("14 Stoke by
+  Nayland Road, Sudbury CO10 2XA"); "Via" and "Plaza" streets count
+  without a postcode when a particle follows ("Plaza de Olavide 6"), a
+  floor or door follows the number ("6, 2ºB") or the word stands
+  capitalised mid-sentence ("at Via Saragozza 120"); town and postcode
+  lines under a street line are part of the address when a postcode line
+  closes the block ("14 Mill Street / Ludlow / SY8 1BB").
+- IDs: a person-ID value in spaced digit groups, eight digits or more
+  ("gas account 8841 2207 16"); serial numbers in spaced capital groups
+  and the labels frame, chassis and IMEI ("Frame number: WTU 284 K 0931
+  M"); the passport label in French, Spanish, Portuguese, Italian and
+  German with "n°" ("passeport n° 18FV20417").
+- Phones: a bracketed area code ("(01632) 960044"); the labels "Tél.",
+  "portable", "Handy", "móvil", "cellulare".
+- French documents: the birth labels "né(e) le" and "date de naissance"
+  with French month names, the same labels in German, Spanish, Italian
+  and Portuguese, and the signing formula "Fait à Dijon, le ...".
+- Travel: the word after "fly to", "travel to" or "trip to" is a
+  destination when no NER layer tagged it ("I fly to Bologna").
+
+Four things were adjusted during the round. `TITLE_PREFIX` is
+case-insensitive and read "as a picker for" as a job title, so the
+role-then-employer wording is checked first. The travel rule masked a trip
+venue on test6 ("trip to Bramblewood Nature Reserve"); a longer capitalised
+name or a venue word now ends the match. A line-initial "Ta," or "Dear
+Occupier," was promoted by the greeting-name rule when a model span
+contained it; courtesy and role words are excluded there. And the value
+under "Employer:" took a closing full stop.
+
+Two comparisons bound the side effects. Every detection on all 174 gold,
+private and international documents was compared before and after: outside
+test8 three change. "Halden Kitchenware" (test3) is no longer masked, which
+was that set's last over-redaction; "Porto" (test3) is labelled a location
+instead of a person; "Hello Tevita" (test7) is trimmed to "Tevita". Nothing
+changes on the private or the international documents. The old and the new
+rules were also run over the 142 generated dev documents, which no rule was
+written against: five documents change. An employer under an "Employer:"
+label is newly masked, a Spanish birth date ("Fecha de nacimiento:") is
+newly found, "Dear Occupier" is no longer masked, and no document gains a
+false positive.
+
+Result: test8 112/139 → 139/139 (100%), keep 222/238 → 235/238 (98.7%), 3
+→ 1 strays; test3 keep 102/103 → 103/103. Every other set is unchanged: dev
+123/123 and 135/135 (strays still 4), test and test2 100% / 100%, test4
+61/63 and 81/83, test5 71/72 and 87/89, test6 110/111 and 160/164, test7
+141/141 and 220/223; both regression suites and the 22 unit tests pass.
+Left on test8 are three plural pronouns for things or unnamed groups
+("they" for the surgeons and for the referees, "their" for the engineers'
+van) and the stray badge number "V-0420", whose policy is open. Across all
+sets the failures left are sixteen plural pronouns and the two prose first
+names "Thandiwe" and "Hannelore".
+
+Read the 100% as a fitted score. The blind runs are the measurement: 75.7%
+for test6, 80.1% for test7 and 74.8% for test8 with candidate 2.
+Several of the new rules rest on word lists (trade nouns, person nouns,
+venue words, role words) that cover what the gold sets showed, not the
+language.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -1022,31 +1131,26 @@ on screen and not hand-reviewed line by line.
 
 ### Next steps
 
-1. Test8 fix round, rules only, over-reach first. With candidate 3 live the
-   list is shorter than the blind run's: the one-word company sign-off and
-   its echo into the letterhead; "Caretaker" and "Ta"; label words and a
-   span across a column gap as NER persons ("Consignee", "Tel", "Payroll
-   number"); "DIN-EN 1090"; then plates in a list or a table column,
-   company-word surnames behind a title, "Via" and "Plaza" with no
-   postcode, town and postcode on their own lines, spaced identifiers, a
-   bracketed area code, the French labels, caps "EMPLOYER:" and "as a ...
-   for X". After that test8 is semi-dev and the next measurement needs a
-   blind test9.
-2. Corpus round 4 and candidate 4, after the test8 fix round frees its
-   findings: French documents, table cells, products under a bare "Name:",
-   column gaps, address blocks with the town on its own line, company-word
-   surnames, company sign-offs, a street with a function word. Also a
-   second training seed, a selection set from real layouts, more facility
-   mentions in prose (SENSITIVE_ORG 21/28), and an adjudication sample for
-   round 3.
-3. Plural pronouns need reference, not proximity: thirteen of the sixteen
-   failures left on the older sets and three more on test8. No fix round
-   and no model has reduced this class.
-4. Policy questions the private documents raised: certificate numbers
-   (title, birth, registration) have no rule, and the street address of an
-   institution is masked like a home address.
-5. The remaining over-redactions: "them"/"their" far from a person and
-   "Pallet"/"Meter" on dev; "Halden Kitchenware" (test3) from general NER.
+1. Corpus round 4 and candidate 4. The test8 fix round (2026-11-13) has
+   freed its findings: French documents, table cells, products under a bare
+   "Name:", column gaps, address blocks with the town on its own line,
+   company-word surnames, company sign-offs, a street with a function word.
+   Also a second training seed, a selection set from real layouts, more
+   facility mentions in prose (SENSITIVE_ORG 21/28), and an adjudication
+   sample for round 3.
+2. A blind test9. Every gold set is semi-dev now, so the next measurement
+   of the rules and of a candidate 4 needs a batch written without running
+   the detector.
+3. Plural pronouns need reference, not proximity: sixteen of the eighteen
+   failures left across all sets. No fix round and no model has reduced
+   this class.
+4. Policy questions: certificate numbers (title, birth, registration) have
+   no rule; the street address of an institution is masked like a home
+   address; visitor badge numbers are masked under the "badge" label but
+   left unlabelled in the gold (the stray on test8).
+5. The remaining over-redactions outside the pronoun class: "Pallet" and
+   "Meter" on dev. The two prose first names ("Thandiwe will send ...",
+   "Ring Hannelore on ...") are a model task.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
