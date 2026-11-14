@@ -42,8 +42,8 @@ plus `*_decoys.jsonl` (the strings that must stay unlabeled): fully synthetic,
 labeled with the four model entities only, train and dev drawn from disjoint
 name/street/city/facility pools, one document in five without entities. In
 rounds 1 and 2 every span occurs exactly once in its document; round 3 spans
-carry character offsets instead, so a name may return. The corpus is 1,420
-train / 142 dev documents after round 3. Round 1 (seed 20260831) is 400 train /
+carry character offsets instead, so a name may return. The corpus is 1,900
+train / 190 dev documents after round 4. Round 1 (seed 20260831) is 400 train /
 40 dev documents across 19 positive and 4 negative genres and went through the
 first adjudication round (`review_sample.jsonl`, 107 checks). Round 2
 (2026-11-04, seed 20261104, appended so round 1 stays byte-identical) adds 120
@@ -90,6 +90,34 @@ test8 was the held-out measurement for the candidate trained on this corpus.
 Those belong to round 4, after a test8 fix round. Round 3 has not been
 through an adjudication round either.
 
+Round 4 (2026-11-13, seed 202611134, appended from `corpus_round4.py` so
+rounds 1 to 3 stay byte-identical) adds 480 train / 48 dev documents in 16
+genres with entities and 6 without. It is written from the test8 brief
+above: French attestations, letters, e-mails and school certificates
+("Mme", "M.", "Mlle", "né le", French months, "Fait à <town>, le"); names,
+hosts and plates in pipe, tab and semicolon tables; a product and a person
+under the same bare "Name:"; two fields on one line with a column gap;
+address blocks with the house, the street, the town and the postcode each on
+its own line (every line is its own `ADDRESS` span, as decision 21 of the
+labeling guide has it); surnames that are company or brand words, behind a
+title and alone; a message board with greeting and closing words of every
+kind, one message signed by the company and one addressed to a role;
+streets with a function word ("48 Ivybridge by Beechcroft Crescent"); house
+names with no house word; block-capital values that are not names ("TO BE
+CONFIRMED"); support transcripts with the speaker's name in brackets; and
+more facility mentions in running prose. Its negatives are French notices,
+stock tables and parts forms whose "Name" holds a product, boards with no
+person on them, block-capital forms with no names, and bay lists with
+plate-shaped codes. The new pools (French names, towns and streets,
+company-word surnames, bare house names) passed the same freshness check as
+round 3, this time against test9 too.
+
+Round 4 deliberately leaves out what only the test9 blind run showed (a chat
+export with lowercase names, a JSON record, German and Spanish forms, tables
+without separators, venue-word surnames, serial columns): test9 is the
+held-out measurement for candidate 4. Round 4 has not been through an
+adjudication round.
+
 ## Human-gold evaluation corpus
 
 `build_gold_corpus.py` authors 141 fully synthetic labeled documents (25 dev /
@@ -127,8 +155,9 @@ Test7's blind score was 80.1% / 87.9%. Test8 scored 74.8% / 93.7% blind with
 candidate 2 and 80.6% / 93.3% with candidate 3 before any rule was fixed
 against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
 at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13) and nothing
-has been fixed against it: it is the only set that still measures blind, and
-it is held out for candidate 4. Every other set is semi-dev.
+has been fixed against it. Candidate 4 was measured on it once (2026-11-14)
+and was not promoted, so candidate 3 stays live. Every other set is
+semi-dev, and test9 becomes one with its fix round.
 
 ### test3 blind run (2026-11-04)
 
@@ -1243,28 +1272,117 @@ on screen and not hand-reviewed line by line.
   errors, where the span stops at "apt." before the flat number or splits
   after the Polish "ul.". The rule layer completes both in the pipeline.
 
+## NER candidate 4 (2026-11-14): trained, not promoted
+
+Candidate 4 was trained on rounds 1 to 4 of the generated corpus (1,900
+documents) with `train.py --keep-best --batch-size 8 --epochs 24
+--select-gold dev,test,...,test8`, once with seed 42 and once with seed 7.
+It is kept as `~/pii-models/custom_ner_candidate4`; candidate 3 stays the
+live model.
+
+`--select-gold` is new. `--keep-best` picks the epoch with the best F1 on
+the generated dev set, whose templates the model has seen. With
+`--select-gold` the trainer also scores every epoch on the named gold sets,
+model alone (items covered, minus keep phrases touched, minus stray spans),
+and saves the best epoch to `<output>_goldsel`. Only sets that are no
+longer held out may be named; test9 was not. Each run therefore gave two
+candidates:
+
+| run | epoch kept | model alone, dev to test8 (367 items, 1,167 keeps) | pipeline, dev to test8 | suites |
+|---|---|---|---|---|
+| candidate 3 (live) | 11 | 335, keep 1,157, 3 strays | 828/832, keep 1,153, 5 strays | pass |
+| seed 42, best generated-dev F1 | 14 | 344, keep 1,153, 3 strays | 828/832, keep 1,148, 6 strays | international suite fails (a city is redacted) |
+| **seed 42, best gold score** | 7 | 346, keep 1,163, 2 strays | 828/832, keep 1,153, 6 strays | pass |
+| seed 7, best generated-dev F1 | 24 | 336, keep 1,157, 1 stray | 827/832, keep 1,149, 5 strays | pass |
+| seed 7, best gold score | 14 | 349, keep 1,155, 2 strays | 828/832, keep 1,147, 7 strays | pass |
+
+The seed-42 gold-selected run was chosen on this table, before anything was
+scored on test9. The table is biased towards the two gold-selected runs,
+which were picked on those same sets; the held-out measurement is test9:
+
+| | candidate 3 | candidate 4 |
+|---|---|---|
+| generated dev (190 docs), exact-span F1 | 89.4% | 98.3% |
+| test9, model alone: redact coverage (89 items) | 72 (80.9%) | 71 (79.8%) |
+| test9, model alone: PERSON / ADDRESS / DOB / SENSITIVE_ORG | 56/69, 5/8, 7/8, 4/4 | 53/69, 7/8, 7/8, 4/4 |
+| test9, model alone: keep intact (301) / stray spans | 282 / 3 | 286 / 1 |
+| test9, pipeline: redact coverage (168 items) | 136 (81.0%) | 135 (80.4%) |
+| test9, pipeline: keep intact (301) / stray spans | 273 / 5 | 276 / 2 |
+
+On test9 the pipeline gains four items with candidate 4 (the house name and
+the town of the address block in the personal letter, the town in the
+Spanish address line, the Welsh hospital) and loses five (a postcode ahead of
+a German town, "Ji-woo Park", "Liesel & Gernot" in the phone list, and one
+of the three "Jide"). Five keep failures and three strays go ("Bin", "ta",
+"Warfarin", "Padrón Municipal", a "they" beside a dropped span; "van",
+"Einzug", "la siguiente") and two come ("N.º de pasaporte", "El
+Secretario").
+
+On the older sets the pipeline score does not move, because the rules
+already cover them. The detections that change there are boundaries and
+labels (a French address as one span, a house name inside its address, a
+title outside the name), and one new stray: the one-word reply "Fine" after
+"Caller:" on test8, which the round-4 transcript genre taught ("Caller:
+It's <name>").
+
+On the 20 private-suite documents, candidate 4 turns the address of ten
+documents from fragments under mixed labels into one `ADDRESS` span that
+includes the postcode and the house number, and no longer calls a bank a
+person. It loses the value under a "Patronymic:" label in one document, the
+house number of an institution's address in a second, and part of a
+hyphenated city name with its house number in a third. The suite's reviewed
+identifiers and keep checks all pass.
+These differences were read on screen and not hand-reviewed line by line.
+
+Why it was not promoted: the held-out set shows no gain in recall (135
+against 136), four person items and a postcode are lost for four address
+and facility items gained, and one name part is lost on a private document. Less
+over-redaction (three keeps, three strays) does not outweigh that for a
+privacy tool. Round 4 taught the layouts of test8, where the rules had
+already reached 100%, and test9 probes other layouts; the model's 80% on
+test9 is the same with and without round 4.
+
+What the runs showed about training:
+
+- The spread between seeds and epochs is as large as the gain from a corpus
+  round: 336 to 349 of 367 on the older sets across the four candidates,
+  and the gold score moves by up to ten points between neighbouring epochs.
+- Generated-dev F1 is not a safe selector: its best epoch of seed 42 touches
+  ten more keep phrases than the gold-selected epoch and fails the
+  international suite.
+- The gold-selected epochs are early ones (7 and 14 of 24), which fits a
+  model that over-fits the templates later on.
+
 ### Next steps
 
-1. Corpus round 4 and candidate 4. The test8 fix round (2026-11-13) has
-   freed its findings: French documents, table cells, products under a bare
-   "Name:", column gaps, address blocks with the town on its own line,
-   company-word surnames, company sign-offs, a street with a function word.
-   Also a second training seed, a selection set from real layouts, more
-   facility mentions in prose (SENSITIVE_ORG 21/28), and an adjudication
-   sample for round 3.
-2. A blind test9. Every gold set is semi-dev now, so the next measurement
-   of the rules and of a candidate 4 needs a batch written without running
-   the detector.
-3. Plural pronouns need reference, not proximity: sixteen of the eighteen
-   failures left across all sets. No fix round and no model has reduced
-   this class.
+1. A test9 fix round for the rules. The thirty-two misses and twenty-eight
+   keep failures are listed under "test9 blind run": travel verbs, serial
+   columns and "S/N", German and Spanish labels, JSON keys, names used as
+   labels in a phone list, venue-word surnames, tables without separators,
+   and facility keywords on "Hospital no.", "Clinic 3" and "School office".
+2. Corpus round 5 and candidate 5 after that fix round: the test9 layouts
+   (a chat export with lowercase names, a JSON record, German and Spanish
+   forms, fixed-width tables, venue-word surnames), one-word replies after
+   a speaker label ("Caller: Fine."), a "Patronymic:" field, and hyphenated
+   city names. Then a blind test10 to measure it. Averaging or voting over
+   seeds is worth a try, given the spread above.
+3. Plural pronouns need reference, not proximity: nineteen failures across
+   all sets and the stray "them" on test9. No fix round and no model has
+   reduced this class.
 4. Policy questions: certificate numbers (title, birth, registration) have
    no rule; the street address of an institution is masked like a home
    address; visitor badge numbers are masked under the "badge" label but
-   left unlabelled in the gold (the stray on test8).
+   left unlabelled in the gold. New from test9: the gate does not admit the
+   model's `SENSITIVE_ORGANIZATION` spans, and the model found both
+   facilities that the keyword rules missed ("... Adolescent Unit", "Ysbyty
+   ..."); whether an employer redacts on its own letterhead (a payslip);
+   whether a work address, a place of birth, a booking reference and a
+   password redact.
 5. The remaining over-redactions outside the pronoun class: "Pallet" and
-   "Meter" on dev. The two prose first names ("Thandiwe will send ...",
-   "Ring Hannelore on ...") are a model task.
+   "Meter" on dev. The prose first names ("Thandiwe will send ...", "Ring
+   Hannelore on ...", "Nerys ran the cake stall") are a model task.
+6. Rounds 2 to 4 of the generated corpus have not been through an
+   adjudication round.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
 
@@ -1307,6 +1425,13 @@ python training/train.py \
 
 # Candidate 3 was trained on the generated corpus like this (about 12 minutes on CPU):
 python training/train.py --keep-best --batch-size 8 --epochs 24 \
+  --train training/data/generated/train.jsonl \
+  --dev training/data/generated/dev.jsonl
+
+# Candidate 4 added a second selection: the epoch that scores best on gold
+# sets that are no longer held out is saved to <output>_goldsel.
+python training/train.py --keep-best --batch-size 8 --epochs 24 --seed 42 \
+  --select-gold dev,test,test2,test3,test4,test5,test6,test7,test8 \
   --train training/data/generated/train.jsonl \
   --dev training/data/generated/dev.jsonl
 

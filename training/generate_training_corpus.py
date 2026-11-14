@@ -27,12 +27,17 @@ sample drawn from them) are byte-for-byte unchanged.
 Round 3 (2026-11-13) appends 900 train / 90 dev documents from
 corpus_round3.py, again from its own RNG. Its spans carry character offsets,
 because a name may now return inside one document; see that module.
+
+Round 4 (2026-11-13) appends 480 train / 48 dev documents from
+corpus_round4.py in the same way: French documents, tables, address blocks,
+column gaps and the other layouts of the test8 blind run.
 """
 import json
 import random
 from pathlib import Path
 
 from corpus_round3 import SEED_ROUND3, build_round3, pools_for
+from corpus_round4 import SEED_ROUND4, build_round4, pools4_for
 
 OUT_DIR = Path(__file__).resolve().parent / "data" / "generated"
 SEED = 20260831
@@ -639,6 +644,11 @@ def main():
     rng3 = random.Random(SEED_ROUND3)
     train += build_round3(rng3, pools_for("TRAIN"), 900, "gen3_train")
     dev += build_round3(rng3, pools_for("DEV"), 90, "gen3_dev")
+
+    # Round 4: the same arrangement; rounds 1 to 3 stay unchanged.
+    rng4 = random.Random(SEED_ROUND4)
+    train += build_round4(rng4, pools4_for("TRAIN"), 480, "gen4_train")
+    dev += build_round4(rng4, pools4_for("DEV"), 48, "gen4_dev")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for name, docs in (("train", train), ("dev", dev)):

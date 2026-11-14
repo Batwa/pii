@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Train a local custom spaCy NER model from reviewed JSONL annotations."""
 import argparse
+import contextlib
+import io
 import json
 import random
 from pathlib import Path
@@ -60,6 +62,26 @@ def dev_f1(nlp, dev_data, labels):
     return 2 * precision * recall / (precision + recall)
 
 
+def gold_score(nlp, set_names):
+    """Model-alone score on human-gold sets: covered items minus over-redactions.
+
+    The generated dev set shares its templates with the training set, so its
+    F1 says little about real layouts. This number comes from documents the
+    generator never produced. Pass only sets that are no longer held out.
+    """
+    from evaluate_gold import GOLD_DIR
+    from evaluate_model_gold import evaluate
+    covered = lost = 0
+    for name in set_names:
+        with contextlib.redirect_stdout(io.StringIO()):
+            cov, _, keep_pass, keep_total, strays = evaluate(
+                nlp, GOLD_DIR / f"{name}_docs.jsonl", GOLD_DIR / f"{name}_cases.jsonl",
+                verbose=False)
+        covered += cov
+        lost += (keep_total - keep_pass) + strays
+    return covered - lost, covered, lost
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", default="training/data/seed_train.jsonl")
@@ -75,7 +97,14 @@ def main():
     parser.add_argument("--keep-best", action="store_true",
                         help="score the dev set after every epoch and save the best "
                              "epoch instead of the last one")
+    parser.add_argument("--select-gold", default="",
+                        help="comma-separated gold sets (e.g. dev,test,test2); with "
+                             "--keep-best, also save the epoch that scores best on them "
+                             "to <output>_goldsel. Never pass a held-out set.")
     args = parser.parse_args()
+    gold_sets = [name for name in args.select_gold.split(",") if name]
+    if gold_sets and not args.keep_best:
+        parser.error("--select-gold needs --keep-best")
 
     random.seed(args.seed)
     # Also seed numpy/thinc: without this two runs with the same --seed give
@@ -90,6 +119,7 @@ def main():
         ner.add_label(label)
 
     best_score, best_epoch, best_weights = -1.0, 0, None
+    best_gold, best_gold_epoch, best_gold_weights = None, 0, None
     other_pipes = [pipe for pipe in nlp.pipe_names if pipe != "ner"]
     with nlp.disable_pipes(*other_pipes):
         optimizer = nlp.resume_training()
@@ -107,7 +137,21 @@ def main():
                 line += f" dev_f1={score:.4f}"
                 if score > best_score:
                     best_score, best_epoch, best_weights = score, epoch + 1, ner.to_bytes()
-            print(line)
+                if gold_sets:
+                    net, covered, lost = gold_score(nlp, gold_sets)
+                    line += f" gold={net} ({covered} covered, {lost} over)"
+                    # ties go to the better generated-dev score
+                    if best_gold is None or (net, score) > best_gold:
+                        best_gold, best_gold_epoch = (net, score), epoch + 1
+                        best_gold_weights = ner.to_bytes()
+            print(line, flush=True)
+        if gold_sets:
+            ner.from_bytes(best_gold_weights)
+            gold_output = Path(str(args.output).rstrip("/") + "_goldsel")
+            gold_output.parent.mkdir(parents=True, exist_ok=True)
+            nlp.to_disk(gold_output)
+            print(f"kept epoch {best_gold_epoch:02d} by gold score {best_gold[0]} "
+                  f"-> {gold_output}")
         if args.keep_best:
             ner.from_bytes(best_weights)
             print(f"kept epoch {best_epoch:02d} (dev_f1={best_score:.4f})")
