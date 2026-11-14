@@ -92,8 +92,8 @@ through an adjudication round either.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 128 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 each for test3 to test8) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 141 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 each for test3 to test9) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -116,16 +116,19 @@ names), **test3** (13 docs, authored 2026-11-04 after candidate 2 and the gate
 change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 **test5** (13 docs, authored 2026-11-05 after the test4 fixes), **test6** (13
 docs, authored 2026-11-07 after the test5 fixes), **test7** (13 docs,
-authored 2026-11-08 after the test6 fixes) and **test8** (13 docs, authored
-2026-11-09 after the test7 fixes). `--set all` runs all nine.
+authored 2026-11-08 after the test6 fixes), **test8** (13 docs, authored
+2026-11-09 after the test7 fixes) and **test9** (13 docs, authored
+2026-11-13 after the test8 fixes, with candidate 3 live). `--set all` runs
+all ten.
 Current state, with candidate 3 live since 2026-11-13: dev, test and test2
 at 100% coverage / 100% keep; test3 at 100% / 99.0%, test4 at 96.8% / 97.6%,
 test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
 Test7's blind score was 80.1% / 87.9%. Test8 scored 74.8% / 93.7% blind with
 candidate 2 and 80.6% / 93.3% with candidate 3 before any rule was fixed
 against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
-at 100% / 100%. Every set is now semi-dev: no set measures the rules blind
-until a test9 is authored.
+at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13) and nothing
+has been fixed against it: it is the only set that still measures blind, and
+it is held out for candidate 4. Every other set is semi-dev.
 
 ### test3 blind run (2026-11-04)
 
@@ -959,6 +962,117 @@ for test6, 80.1% for test7 and 74.8% for test8 with candidate 2.
 Several of the new rules rest on word lists (trade nouns, person nouns,
 venue words, role words) that cover what the gold sets showed, not the
 language.
+
+### test9 blind run (2026-11-13)
+
+Thirteen documents, 168 must-redact items and 301 must-keep phrases, written
+without running the detector, after the test8 fixes (commit 8dbffff) and with
+candidate 3 live. The batch aims at what that fix round assumed: titles
+outside the list ("Dña.", "D.", "Deacon", "Frau Dr."), closings and greeting
+roles outside the lists ("With every good wish,", "Safe travels,",
+"Bendithion,", "Dear Bursar,"), the apposition rule with other nouns ("The
+vet next door, Ines,"), employer wording other than "Employer:" and "as a
+... for" ("joined X as", "seconded to X", "apprenticeship with X", "Current
+employer:"), travel verbs other than fly and travel ("relocates to", "drives
+up to", "lands in", "travels on to", "is in Berlin until"), signing places
+in German and Spanish, phone formats and labels ("030 / 5550 0142", "+44
+(0)7700 900318", "Tfno.:"), a serial column in a table, a results table with
+no pipes, a "Name" column that holds products, surnames that are venue words
+("Hall", "Park", "Church", "Post", "Kirk"), a personal letterhead with a
+first-name sign-off, a first name used as a label in a phone list ("Maud:
+07700 900 123"), and address blocks that do not end in a postcode line. New
+ground: a chat export with lowercase names, a JSON record, a German and a
+Spanish form, the airline name format ("NAKASHIMA/RENJIRO MR"), and a parish
+newsletter in prose. Every name word was checked against the generated
+corpus, the older gold sets, the rules and the unit tests, and replaced when
+one of them already had it.
+
+Full pipeline (candidate 3 live, test8 fixes in): redact coverage 136/168
+(81.0%), keep intact 273/301 (90.7%), 5 stray spans. Model alone: 72/89
+model-entity items (80.9%; PERSON 56/69, ADDRESS 5/8, DOB 7/8, SENSITIVE_ORG
+4/4), keep 282/301, 3 strays. Nothing has been fixed against it.
+
+Blind recall has now been 75.0%, 75.7%, 80.1%, 74.8% (80.6% once candidate 3
+was live) and 81.0% on test5 to test9. Keep is the weaker side this time:
+twelve of the twenty-eight keep failures are spans of the custom model, and
+seven of those are in three layouts it has never seen (the German form, the
+JSON record and the chat export).
+
+By label: PERSON 62/69, PRONOUN 14/14, PHONE 20/23, EMAIL 4/4, EMPLOYER_ORG
+4/4, ADDRESS 6/8, DOB 6/8, ZIP 4/6, CITY_RESIDENCE 3/7, CITY_TRAVEL 1/4,
+GENERIC_ID 3/5, PASSPORT 2/3, SENSITIVE_ORG 2/4, SERIAL_NUMBER 0/4,
+LICENSE_PLATE 2/2, BANK_ACCOUNT 2/2, UK_NINO 1/1.
+
+Probe by probe:
+
+- Titles, closings and the personal letterhead held: every titled name is
+  covered, the first-name sign-off under the writer's own name is not taken
+  for a company, and the names after the three unlisted closings are found.
+  Two closings are themselves redacted ("Bendithion" as a person by the
+  custom model, and "ta" in lowercase).
+- Employer wording held: all four employers are covered and the supplier
+  ("We bought our own windows from Dovecote Joinery") stays.
+- Lowercase chat names, the nickname in quotes, the airline name format and
+  both apposition names are covered.
+- Travel verbs failed three times out of four: "relocates to Bodø", "drives
+  up to Thurso" and "lands in Molde" are missed; "travels on to Ålesund" is
+  covered. "he is in Berlin until the 20th" is missed too.
+- Signing places: the Spanish one is covered and the German "Göttingen,
+  den 3. November 2026" is not. In the Spanish address the town after the
+  postcode is missed instead.
+- Serial numbers: 0 of 4. No rule reads a "Serial" table column, and "S/N"
+  is not a serial label.
+- The first name used as a phone label is missed ("Maud: 07700 900 123"),
+  which is the price of the test8 rule that drops a one-word name ahead of a
+  number.
+- Venue-word surnames: "Hall, Rosamund" and "Seo-yeon Park" are missed in
+  the results table, and "Park and Church" in prose.
+- The "Name" column of products: "Stanley FatMax" and "Rothenberger" are
+  redacted as persons.
+
+The thirty-two misses:
+
+- The German form (4): the phone "030 / 5550 0142" with a slash, the signing
+  place, the birth date after "geb. am" with a German month, and the
+  passport number after "Reisepass-Nr. / passport no. (Person 1):".
+- The results table (4): "Hall, Rosamund", "Seo-yeon Park", and "Park" and
+  "Church" where they come back alone.
+- The personal letter (4): the house name "Tŷ Gwyn" on its own line, and
+  the town and the Eircode of a block that has a county line between them;
+  "Glenbrook Adolescent Unit", which the custom model found as a facility
+  and the gate does not admit.
+- The JSON record (5): the member number under "member_id", the birth date
+  under "date_of_birth", the street under "line1", the postcode, and the
+  phone "06 5550 0121".
+- Travel and residence cities (5): "Bodø", "Thurso", "Molde", "Berlin", and
+  "Tarazona" in the address line.
+- Serial numbers (4) and the frequent-flyer number "SK 550 291 4470" (1).
+- Phone list (2): "Maud" and "(ask for Priti)".
+- The Spanish phone under "Tfno.:" (1).
+- The parish newsletter (2): "Nerys" at the start of a sentence, and the
+  Welsh "Ysbyty Cwm Derwen", which the custom model also found as a
+  facility.
+
+The twenty-eight keep failures and the five strays:
+
+- Custom-model persons (11): "Bin" of the group name, "ta", four German
+  form labels and words ("Bundesmeldegesetz", "Anschrift der Wohnung",
+  "Reisepass-Nr", "Zählerstand Strom"), the JSON key "date_of_birth",
+  "Warfarin", "Nana" in "Nana Jo", "Rothenberger" and "Bendithion". Strays:
+  "van", "Einzug" and "la siguiente".
+- A custom-model address: "que en el Padrón Municipal" (1).
+- General NER (7): "Bemerkungen", the clubs "Thornwick Harriers" and "Vale
+  Royal", "FRCS" and "Deacon" inside a person span, "Stanley FatMax", and
+  the letterhead "Larkfield Staffing" as an organization. Stray: "Dña".
+- Facility keywords on words that are not a facility (3): "Hospital no.",
+  "Clinic 3" and "School office".
+- Other rules (3): the cellar room "B-EG 12" as a German plate on a line
+  with no vehicle, "Dear Bursar," as a greeting name, and the tax code
+  "1257L" as an identifier.
+- Plural pronouns (3): "they" for the patients, for the scouts and for the
+  windows. Stray: "them" for the meter readings.
+
+Labels taken while authoring are decision 22 of the labeling guide.
 
 ## NER candidates and the custom-model gate (2026-11-04)
 

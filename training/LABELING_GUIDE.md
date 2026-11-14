@@ -298,6 +298,29 @@ One JSON object per line (JSONL):
     venue named as a trip destination stays ("trip to Bramblewood Nature
     Reserve"). Visitor badge numbers stay an open question.
 
+22. Labels taken while authoring test9 (2026-11-13). A floor or door after
+    the street ("3. OG links", "2º izq."), a county or province line ("Co.
+    Wicklow", "(Zaragoza)") and a place of birth are left unlabelled, as
+    "interno 4" was in test8. "Relocates to X" names a residence town;
+    "drives up to X", "lands in X", "travels on to X" and "is in X until
+    the 20th" name a travel destination. The signing place of a German or
+    Spanish form redacts when it is the signer's town ("Göttingen, den 3.
+    November 2026"). A first name used as a label in a phone list is a
+    person ("Maud: 07700 900 123"); a role or a kin word in the same place
+    is not ("Plumber:", "Nana"). A name in lowercase in a chat, the plural
+    of a first name ("the two Gwens") and a surname that is a venue word
+    ("Mrs Kirk", "Park and Church ran") are persons. A value in a table
+    column headed "Serial" redacts and an item or asset number stays; a
+    frequent-flyer number, an NHS number, a hospital number and a DNI
+    redact; a tax code stays. A phone redacts whoever it belongs to (a
+    taxi firm, a hospital desk). "Unit" in a health facility's name
+    ("Glenbrook Adolescent Unit") and the Welsh "Ysbyty" make a facility;
+    a room ("Clinic 3"), an ID label ("Hospital no.") and a desk ("School
+    office") do not. An employer redacts after "joined X as", "seconded to
+    X", "apprenticeship with X" and "Current employer:"; a supplier the
+    writer bought from, the agency on its own letterhead and a club in a
+    results table stay. A bare clock time stays ("half 8", "gone ten").
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the

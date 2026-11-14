@@ -124,14 +124,14 @@ def evaluate(detector, docs_path, cases_path, verbose=True):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--set", choices=["dev", "test", "test2", "test3", "test4", "test5", "test6", "test7", "test8", "both", "all"],
+    parser.add_argument("--set", choices=["dev", "test", "test2", "test3", "test4", "test5", "test6", "test7", "test8", "test9", "both", "all"],
                         default="dev")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 
     detector = TextPIIDetector()
     names = {"both": ["dev", "test"],
-             "all": ["dev", "test", "test2", "test3", "test4", "test5", "test6", "test7", "test8"]}.get(args.set, [args.set])
+             "all": ["dev", "test", "test2", "test3", "test4", "test5", "test6", "test7", "test8", "test9"]}.get(args.set, [args.set])
     for name in names:
         print(f"\n================ GOLD {name.upper()} ================")
         evaluate(detector, GOLD_DIR / f"{name}_docs.jsonl",
