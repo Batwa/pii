@@ -537,3 +537,154 @@ def test_rule_layer_fixes_from_test8():
          ("Ravensworth Freight", cv.index("Ravensworth", cv.index("Referees"))),
          ("Calder Haulage", cv.index("Calder")),
          ("Calder Haulage", cv.index("Calder", cv.index("Referees")))])
+
+
+def test_rule_layer_fixes_from_test9():
+    import policy_rules
+
+    def rules(text, extra=(), echo=False):
+        results = policy_rules.run_pattern_rules(text) + list(extra)
+        kept = policy_rules.apply_policy_filters(results, text)
+        if echo:
+            kept = kept + policy_rules.echo_person_names(kept, text)
+        return {(r["entity_type"], r["text"]) for r in kept
+                if r["entity_type"] != "PRONOUN"}
+
+    def ner(label, needle, where, source="spacy", score=0.9, after=""):
+        start = where.index(needle, where.index(after))
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": score, "text": needle, "source": source}
+
+    # Labelled values: one slash in a phone, a bracket after the passport
+    # label, S/N, a prefixed frequent-flyer number, an NHS number, German and
+    # Spanish birth dates. A UK tax code and a date after "Tel" stay.
+    form = ("Vermieter / landlord: Hr. Detlef Brandt, Tel. 0221 / 5550 0177\n"
+            "Tfno.: 948 555 021\nTel: 12/11/2026\n"
+            "Reisepass-Nr. / passport no. (Person 2): L8RV3T6P1\n"
+            "Modem S/N 9F2A-71C4-08DE\nFrequent flyer: LH 992 310 5584\n"
+            "NHS number: 999 123 4560\nTax code: 1100L\nCodice fiscale / tax code: BRNDTL80A01H501U\n"
+            "geb. am 14. März 2012 — nacido el 9 de julio de 1979 — nato il 3 maggio 1990\n")
+    assert rules(form, [ner("PERSON", "Vermieter", form, "custom_ner", 0.95)]) == {
+        ("PERSON", "Detlef Brandt"), ("PHONE", "0221 / 5550 0177"), ("PHONE", "948 555 021"),
+        ("PASSPORT_NUMBER", "L8RV3T6P1"), ("SERIAL_NUMBER", "9F2A-71C4-08DE"),
+        ("GENERIC_ID", "LH 992 310 5584"), ("UK_NHS", "999 123 4560"),
+        # the bare phone shape inside both; the labelled span wins in dedup
+        ("PHONE", "992 310 5584"), ("PHONE", "999 123 4560"),
+        ("GENERIC_ID", "BRNDTL80A01H501U"), ("DATE_OF_BIRTH", "14. März 2012"),
+        ("DATE_OF_BIRTH", "9 de julio de 1979"), ("DATE_OF_BIRTH", "3 maggio 1990")}
+
+    # A JSON record is read by key; a product name and a join date stay.
+    record = ('{"customerId": "CX-220915", "first_name": "Marit", "plan_name": "Silver Lane Plus",\n'
+              ' "dob": "1988-12-01", "joined": "2020-01-05",\n'
+              ' "address": {"line1": "Dorpsstraat 8", "postcode": "3811 AB", "city": "Amersfoort"},\n'
+              ' "contact": {"name": "Joris", "phone": "06 5550 0133"}}\n')
+    assert rules(record, [ner("PERSON", "first_name", record, "custom_ner", 0.95)]) == {
+        ("GENERIC_ID", "CX-220915"), ("PERSON", "Marit"), ("DATE_OF_BIRTH", "1988-12-01"),
+        ("ADDRESS_LINE", "Dorpsstraat 8"), ("ADDRESS_LINE", "3811 AB"), ("PHONE", "06 5550 0133")}
+
+    # Facilities: a clinical unit and a Welsh hospital are named; a bare
+    # facility word is a label or a room.
+    care = ("She has a bed at Ashdown Maternity Unit and was born at Ysbyty Bryn Aled.\n"
+            "Hospital no.: K2204117\nGo to Clinic 4, Level A.\nSchool office: closed. The unit is busy.\n")
+    assert rules(care) == {
+        ("SENSITIVE_ORGANIZATION", "Ashdown Maternity Unit"),
+        ("SENSITIVE_ORGANIZATION", "Ysbyty Bryn Aled"), ("GENERIC_ID", "K2204117")}
+
+    # Journeys with a person as subject, a stay with an end, signing places.
+    trips = ("Next month he relocates to Tromsø, and he drives down to Wick on the 4th.\n"
+             "Mr Okafor lands in Bergen on Sunday. The pallet lands in Hull on Friday.\n"
+             "Ana drives to Head Office. She is in Theatre until noon. (she is in Lisbon until the 9th)\n"
+             "Kassel, den 5. November 2026\nSe expide en Tudela, a 3 de octubre de 2026.\n")
+    assert rules(trips) == {
+        ("LOCATION", "Tromsø"), ("LOCATION", "Wick"), ("PERSON", "Okafor"),
+        ("LOCATION", "Bergen"), ("LOCATION", "Lisbon"), ("LOCATION", "Kassel"),
+        ("LOCATION", "Tudela")}
+
+    # A contact list: a first name labels a phone, a trade word does not; a
+    # kin word, a courtesy word and a role addressee are not names.
+    fridge = ("Edda: 07700 900 201\nPlumber: 01632 960 122\nGranny Bo (mobile) 07700 900 202\n"
+              "Dentist — 01632 960 123 (ask for Sunita, or ask for Reception)\n"
+              "Dear Bursar,\nDear Bo,\nta. see you at 8\n")
+    assert rules(fridge, [
+        ner("PERSON", "Edda", fridge), ner("PERSON", "Plumber", fridge),
+        ner("PERSON", "Granny Bo", fridge, "custom_ner", 0.95),
+        ner("PERSON", "Bursar", fridge, "custom_ner", 0.95),
+        ner("PERSON", "ta", fridge, "custom_ner", 0.95)]) == {
+            ("PERSON", "Edda"), ("PHONE", "07700 900 201"), ("PHONE", "01632 960 122"),
+            ("PERSON", "Bo"), ("PHONE", "07700 900 202"), ("PHONE", "01632 960 123"),
+            ("PERSON", "Sunita")}
+
+    # A fixed-width table is read by column; a club is not a person, in the
+    # table or in the heading; two known surnames joined by "and" echo.
+    race = ("Fellgate Runners — spring 5K\n\n"
+            "Pos  Bib   Name                  Club                Time\n"
+            "1    12    Wood, Ottilie         Fellgate Runners    17:02\n"
+            "2    48    Dr Anwen Bridge       unattached          17:30\n"
+            "3    7     Min-jun Field         Marsh Lane AC       17:44\n\n"
+            "Bridge and Field ran for the county. The bridge and field are closed.\n")
+    assert rules(race, [ner("PERSON", "Fellgate Runners", race),
+                        ner("PERSON", "Fellgate Runners", race, after="Ottilie"),
+                        ner("PERSON", "Marsh Lane", race)], echo=True) == {
+        ("PERSON", "Wood, Ottilie"), ("PERSON", "Anwen Bridge"), ("PERSON", "Min-jun Field"),
+        ("PERSON", "Bridge"), ("PERSON", "Field")}
+
+    # An item-number column makes "Name" the item's name; the serial column
+    # redacts by shape.
+    loans = ("Item no. | Name | Serial | Signed out by | Due back\n"
+             "K-02 | Makita DHP drill | 5 210 KX3 7Q2 | Ebele Achterberg | 02/12\n"
+             "K-05 | Irwin Marples chisel | n/a | Sorcha | 02/12\n"
+             "K-09 | Titan mixer | 88-1043 | Harlow Paving (yard team) | 03/12\n")
+    assert rules(loans, [ner("PERSON", "Irwin Marples", loans),
+                         ner("PERSON", "Titan", loans, "custom_ner", 0.95)]) == {
+        ("SERIAL_NUMBER", "5 210 KX3 7Q2"), ("PERSON", "Ebele Achterberg"),
+        ("PERSON", "Sorcha"), ("SERIAL_NUMBER", "88-1043")}
+
+    # A letter block: house name under the sender, a county line without a
+    # span, an Eircode. A company line above a street is not a house name.
+    letter = ("Aoife Brennan\nCnoc Rua\n7 Ballard Lane\nKilcoole\nCo. Wicklow\nA63 T2X9\n\n"
+              "2 December 2026\n\nHarlow Paving\n4 Dock Road\nGrimsby\nDN31 3AA\n\n"
+              "Her consultant, Mr P. Adeyemi FRCS, agrees.\n"
+              "Calle del Pino 3, 1º dcha., 31500 Tudela (Navarra)\n")
+    assert rules(letter, [ner("PERSON", "Aoife Brennan", letter),
+                          ner("PERSON", "Rua", letter, "custom_ner", 0.95),
+                          ner("PERSON", "Mr P. Adeyemi FRCS", letter)]) == {
+        # the model's partial "Rua" loses to the whole line in dedup
+        ("PERSON", "Aoife Brennan"), ("ADDRESS_LINE", "Cnoc Rua"), ("PERSON", "Rua"),
+        ("ADDRESS_LINE", "7 Ballard Lane"), ("ADDRESS_LINE", "Kilcoole"),
+        ("ADDRESS_LINE", "A63 T2X9"), ("ADDRESS_LINE", "4 Dock Road"),
+        ("ADDRESS_LINE", "Grimsby"), ("ADDRESS_LINE", "DN31 3AA"),
+        ("PERSON", "Mr P. Adeyemi"),
+        ("ADDRESS_LINE", "Calle del Pino 3, 1º dcha., 31500 Tudela")}
+
+    # NER spans that are labels, phrases, titles or things; a false person
+    # no longer supports a plate on its line; an agency's own name does not
+    # tie it to a person.
+    labels = ("Brightwater Staffing\nMELDEBESCHEINIGUNG\nnach § 22 Meldegesetz\n"
+              "Anmerkungen / remarks: Kellerraum B-EG 14 gehört dazu. Zählerstand Gas bei Auszug: 7 310 m³.\n"
+              "Auszug am / moved out on: 01.12.2026\n"
+              "WhatsApp group \"Bin night crew\": whose is the red van?\n"
+              "Dña. Leire Zubiri figura en la siguiente lista.\n"
+              "Je soussignée / I, the undersigned, Mme Odile Garnier, déclare: oui.\n"
+              "Cofion,\nMeinir (editor)\n")
+    assert rules(labels, [
+        ner("ORGANIZATION", "Brightwater Staffing", labels),
+        ner("PERSON", "Meldegesetz", labels, "custom_ner", 0.95),
+        ner("PERSON", "Anmerkungen", labels),
+        ner("PERSON", "Zählerstand Gas bei Auszug", labels, "custom_ner", 0.95),
+        ner("PERSON", "Auszug", labels, "custom_ner", 0.95, after="m³"),
+        ner("PERSON", "Bin", labels, "custom_ner", 0.95),
+        ner("PERSON", "van", labels, "custom_ner", 0.95),
+        ner("PERSON", "Dña", labels), ner("PERSON", "la siguiente", labels, "custom_ner", 0.95),
+        ner("ADDRESS", "en la siguiente lista", labels, "custom_ner", 0.95),
+        ner("PERSON", "Mme Odile Garnier", labels),
+        ner("PERSON", "Cofion", labels, "custom_ner", 0.95),
+        ner("PERSON", "Meinir", labels)]) == {
+            ("PERSON", "Leire Zubiri"), ("PERSON", "Mme Odile Garnier"),
+            ("PERSON", "Odile Garnier"), ("PERSON", "Meinir")}
+
+    # Lowercase words around a name are trimmed off the span; the name stays.
+    prose = "Elle certifie que l'élève Maëlle Tanguy est inscrite. Demande à Corentin avant lundi.\n"
+    assert rules(prose, [
+        ner("PERSON", "que l'élève Maëlle Tanguy", prose, "custom_ner", 0.95),
+        ner("PERSON", "Corentin avant lundi", prose, "custom_ner", 0.95)]) == {
+            ("PERSON", "Maëlle Tanguy"), ("PERSON", "Corentin")}

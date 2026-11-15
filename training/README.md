@@ -154,10 +154,10 @@ test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
 Test7's blind score was 80.1% / 87.9%. Test8 scored 74.8% / 93.7% blind with
 candidate 2 and 80.6% / 93.3% with candidate 3 before any rule was fixed
 against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
-at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13) and nothing
-has been fixed against it. Candidate 4 was measured on it once (2026-11-14)
-and was not promoted, so candidate 3 stays live. Every other set is
-semi-dev, and test9 becomes one with its fix round.
+at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13). Candidate 4
+was measured on it once (2026-11-14) and was not promoted, so candidate 3
+stays live. After its fix round (2026-11-14) test9 is at 99.4% / 98.7%.
+Every set is semi-dev now; the next blind measurement needs a test10.
 
 ### test3 blind run (2026-11-04)
 
@@ -1103,6 +1103,140 @@ The twenty-eight keep failures and the five strays:
 
 Labels taken while authoring are decision 22 of the labeling guide.
 
+### test9 fixes (2026-11-14)
+
+The round started from the blind run: 136/168, keep 273/301, 5 strays,
+which is 65 findings. Fifty-nine were fixed, all in `policy_rules.py`, with
+candidate 3 live and unchanged; test9 is semi-dev from here.
+
+Labelled values:
+
+- Phones: one slash may follow the area code under a phone label ("Tel. 030
+  / 5550 0142"), never two, so a date after "Tel:" is not a phone; the
+  Spanish labels "Tfno.", "Tlf." and "Teléf." are phone labels.
+- Identifiers: a bracket may sit between the passport label and its value
+  ("passport no. (Person 1): ..."); "S/N" is a serial label; "Frequent
+  flyer" and "NHS number" are person-ID labels, a spaced value may carry a
+  capital prefix ("SK 550 291 4470"), and an NHS number keeps the `UK_NHS`
+  label whether or not its checksum satisfies the country recognizer. A
+  value under "Tax code" shorter than eight characters is a UK tax code and
+  stays ("1257L"); the label is in the list for the Italian fiscal code.
+- Birth dates: "geb. am" is a birth label, and the worded date is read in
+  German ("23. Juli 2015"), Spanish and Portuguese ("4 de marzo de 1984")
+  and Italian.
+- A JSON record is read by key, as a form is read by label
+  (`json_field_spans`): member, customer, patient, account and similar IDs,
+  a date of birth, a postcode, an address line, a phone and the explicit name keys
+  (`first_name`, `last_name`, ...). camelCase keys are split first, and a
+  value must have the shape its key promises. A bare `"name"` is left to
+  the NER layers, because `"plan_name"` and its kind name products.
+
+Places:
+
+- A person as the subject of a journey or a move: "she drives up to
+  Thurso", "Ms Thorbjørnsen lands in Molde", "she relocates to Bodø". The
+  subject is a pronoun or a name, which keeps "the pallet lands in Hull"
+  out. A stay with an end is travel too ("he is in Berlin until the
+  20th"). Roles, parts of a building and venue words are not towns ("drives
+  to Head Office", "is in Theatre until noon").
+- Signing places in German ("Göttingen, den 3. November 2026" opening a
+  line), Spanish ("en Tarazona, a 5 de noviembre de 2026") and Italian.
+- A Spanish street line takes a door word after the floor ("Calle del Olmo
+  14, 2º izq."), so the postcode and town behind it join the address.
+- An address block may hold a county line ("Co. Wicklow"), which gets no
+  span, and may close with an Eircode. The line above the block's street
+  line is a house name when the line above it is a person or it carries a
+  house word ("Tŷ Gwyn"); a company or department line never is.
+- Facilities: a named clinical unit ("Glenbrook Adolescent Unit") and the
+  Welsh and Irish lead words ("Ysbyty", "Ysgol", "Scoil", ...). A facility
+  word with no name in front is a room or a label and no longer a facility
+  ("Hospital no.", "Clinic 3", "School office").
+
+Tables (`table_column_spans`):
+
+- A fixed-width table is read by column like a piped one: cells are split
+  on runs of two or more spaces, and a cell belongs to the header it starts
+  under ("Pos  Bib   Name   Club   Time").
+- A "Serial" column redacts by shape. A name cell may be surname first
+  ("Hall, Rosamund").
+- Thing columns ("Club", "Company", "Item", "Model", ...) are remembered:
+  a NER person inside one is a product, a club or a company, and the same
+  text is the same thing elsewhere in the document ("Thornwick Harriers" in
+  the heading). An item-number column makes a bare "Name" beside it the
+  item's name, unless another column already describes the item.
+
+People:
+
+- A first name may label a phone number in a contact list ("Maud: 07700
+  ..."). Both NER layers found it and the rule against line-initial labels
+  ahead of a number threw it away; that rule now spares a word in front of
+  a phone unless it is a role, kin, trade or service word ("Plumber:").
+- "ask for Priti" and "speak to Morwenna" name a person; roles and
+  departments do not ("ask for Reception").
+- Two known surnames joined by "and" are those two people ("Park and
+  Church ran for the county"). A surname alone is too often an ordinary
+  word to echo.
+- Office holders join the greeting stop list ("Dear Bursar,"), also when
+  the model reads the word as a person.
+
+NER spans that are not names. A kin or office word in front of a name is
+cut off ("Nana Jo", "Deacon Ifor"), as are post-nominal letters behind it
+("... FRCS"). Dropped outright: a span with an underscore (the JSON key
+"date_of_birth"), a title on its own ("Dña"), a lowercase particle or an
+article-led lowercase phrase ("van", "la siguiente"), a lowercase courtesy
+word ("ta"), the first word of a quoted group or folder title ('group "Bin
+day gang"'), a statute after its section ("§ 19 Bundesmeldegesetz"), the
+label half of a short bilingual form line ("Bemerkungen / remarks: ..."),
+and a closing word alone on the line above the signature ("Bendithion,").
+A mixed-case span loses the lowercase words around the name, and is dropped
+when a lowercase word that is no particle sits inside it ("Zählerstand
+Strom bei Einzug"). A custom-model address never opens with a lowercase
+word. Employment wording must come from the context and not from the
+organization's own name: "Larkfield Staffing" on its own letterhead matched
+"staff".
+
+The filter stage now runs twice. The first pass decides which person
+candidates survive; the second uses the survivors where a rule asks whether
+a person stands on the line. The cellar room "B-EG 12" was kept as a German
+plate because two false persons stood on its line.
+
+Three comparisons bound the side effects. Every detection on all 187 gold,
+private and international documents was compared before and after: outside
+test9 one changes, an NHS number on test7 that was labelled a phone and is
+now `UK_NHS`. Nothing changes on the private or the international
+documents. The old and the new rules were also run over the 190 generated
+dev documents, which no rule was written against: seven change. Four
+French names lose the words the model had glued to them ("que l'élève
+...", "... avant vendredi"), five false persons and one false address go
+("Je soussignée", "de nationalité", a closing word, a sentence about a
+hallway), and one house name above an address block is newly masked. That
+comparison earned its keep: the first version of the lowercase-word rule
+dropped those four spans whole, names included, and no gold set showed it.
+The rule was changed to trim. Last, the new patterns were run alone over
+the 2,090 generated documents and the older gold sets: the journey, stay,
+signing-place, "ask for" and JSON rules match nothing there, and the table
+reader returns 124 names, all labelled persons, none in a thing column.
+
+Result: test9 136/168 → 167/168 (99.4%), keep 273/301 → 297/301 (98.7%), 5
+→ 1 strays. Every other set is unchanged: dev 123/123 and 135/135 (strays
+still 4), test, test2 and test3 100% / 100%, test4 61/63 and 81/83, test5
+71/72 and 87/89, test6 110/111 and 160/164, test7 141/141 and 220/223,
+test8 139/139 and 235/238 (1 stray); both regression suites and the 23 unit
+tests pass. Left on test9 are the prose first name "Nerys", the medicine
+"Warfarin" read as a person by the model, three plural pronouns ("they" for
+the patients, the scouts and the windows) and the stray "them" for the
+meter readings.
+
+Read the 99.4% as a fitted score; the measurement was the blind 81.0%. Two
+limits are worth knowing. Many of these rules rest on word lists (clinical
+units, door words, office holders, kin words, post-nominals, phone-label
+words, thing-column headers) that cover what test9 showed, not the
+language. And the journey, stay, "ask for", JSON and fixed-width-table
+rules have no occurrence outside test9 and their unit test, so nothing but
+a new blind set can say how often they fire wrongly: "Delivery lands in
+Hull" would be read as a person's journey because a capitalised word stands
+before the verb.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -1355,33 +1489,31 @@ What the runs showed about training:
 
 ### Next steps
 
-1. A test9 fix round for the rules. The thirty-two misses and twenty-eight
-   keep failures are listed under "test9 blind run": travel verbs, serial
-   columns and "S/N", German and Spanish labels, JSON keys, names used as
-   labels in a phone list, venue-word surnames, tables without separators,
-   and facility keywords on "Hospital no.", "Clinic 3" and "School office".
-2. Corpus round 5 and candidate 5 after that fix round: the test9 layouts
-   (a chat export with lowercase names, a JSON record, German and Spanish
-   forms, fixed-width tables, venue-word surnames), one-word replies after
-   a speaker label ("Caller: Fine."), a "Patronymic:" field, and hyphenated
-   city names. Then a blind test10 to measure it. Averaging or voting over
-   seeds is worth a try, given the spread above.
-3. Plural pronouns need reference, not proximity: nineteen failures across
+1. Corpus round 5 and candidate 5, with a blind test10 written first to
+   measure both it and the test9 rules. Material for the round: the test9
+   layouts (a chat export with lowercase names, a JSON record, German and
+   Spanish forms, fixed-width tables, venue-word surnames, a phone list
+   with first names), prose first names, medicines and form labels as
+   negatives ("Warfarin", "Bemerkungen"), one-word replies after a speaker
+   label ("Caller: Fine."), a "Patronymic:" field, and hyphenated city
+   names. Averaging or voting over seeds is worth a try, given the spread
+   recorded under candidate 4.
+2. Plural pronouns need reference, not proximity: nineteen failures across
    all sets and the stray "them" on test9. No fix round and no model has
    reduced this class.
-4. Policy questions: certificate numbers (title, birth, registration) have
+3. Policy questions: certificate numbers (title, birth, registration) have
    no rule; the street address of an institution is masked like a home
    address; visitor badge numbers are masked under the "badge" label but
-   left unlabelled in the gold. New from test9: the gate does not admit the
-   model's `SENSITIVE_ORGANIZATION` spans, and the model found both
-   facilities that the keyword rules missed ("... Adolescent Unit", "Ysbyty
-   ..."); whether an employer redacts on its own letterhead (a payslip);
-   whether a work address, a place of birth, a booking reference and a
-   password redact.
-5. The remaining over-redactions outside the pronoun class: "Pallet" and
-   "Meter" on dev. The prose first names ("Thandiwe will send ...", "Ring
-   Hannelore on ...", "Nerys ran the cake stall") are a model task.
-6. Rounds 2 to 4 of the generated corpus have not been through an
+   left unlabelled in the gold. From test9: the gate does not admit the
+   model's `SENSITIVE_ORGANIZATION` spans, and the model had found both
+   facilities that the keyword rules missed before this round; whether an
+   employer redacts on its own letterhead (a payslip); whether a work
+   address, a place of birth, a booking reference and a password redact.
+4. The remaining over-redactions outside the pronoun class: "Pallet" and
+   "Meter" on dev, "Warfarin" on test9. The prose first names ("Thandiwe
+   will send ...", "Ring Hannelore on ...", "Nerys ran the cake stall")
+   are a model task.
+5. Rounds 2 to 4 of the generated corpus have not been through an
    adjudication round.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.

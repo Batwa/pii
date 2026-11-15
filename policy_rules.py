@@ -51,6 +51,12 @@ _FACILITY_WORDS = (
     r"|Rehabilitation|Language|Speech|Therapy|Treatment|Dialysis|Cancer"
     r"|Diagnostic|Crisis|Day)[ \t]+Cent(?:er|re)"
     r"|Counsell?ing[ \t]+Service"
+    # A named clinical unit ("Glenbrook Adolescent Unit", test9); the bare
+    # word "Unit" is a flat or a team and never enough.
+    r"|(?:Adolescent|Psychiatric|Mental[ \t]+Health|Inpatient|Maternity|Neonatal|Stroke|Renal"
+    r"|Oncology|Cardiac|Coronary[ \t]+Care|Intensive[ \t]+Care|Burns|Detox|Secure"
+    r"|Eating[ \t]+Disorders?|Assessment|Rehabilitation|Dialysis|Day[ \t]+Surgery"
+    r"|Pupil[ \t]+Referral)[ \t]+Unit"
 )
 # Facility words that lead the name in the Romance and German order ("Colégio
 # São Bento", "Instituto Politécnico do Mondego", test7): schools,
@@ -59,12 +65,18 @@ _FACILITY_LEAD_WORDS = (
     r"Colegio|Colégio|Collège|Collegio|Instituto|Istituto|Institut|Escuela|Escola"
     r"|École|Scuola|Universidad|Universidade|Università|Université|Universität"
     r"|Liceo|Liceu|Lycée|Clínica|Clinica|Clinique|Hôpital|Ospedale|Krankenhaus"
-    r"|Klinik|Klinikum|Hochschule|Grundschule|Realschule")
+    r"|Klinik|Klinikum|Hochschule|Grundschule|Realschule"
+    # Welsh and Irish: hospital, school, surgery ("Ysbyty Cwm Derwen", test9).
+    r"|Ysbyty|Ysgol|Meddygfa|Scoil|Gaelscoil|Coláiste")
 # The same facility words in capitals, for forms completed in block capitals
 # ("PRIORY LANE SURGERY", test7). Only letters outside regex escapes change.
 _FACILITY_WORDS_CAPS = re.sub(r"(?<!\\)[a-z]+", lambda m: m.group().upper(), _FACILITY_WORDS)
 SENSITIVE_ORG_KEYWORDS = re.compile(
     r"\b(?:" + _FACILITY_WORDS + r"|" + _FACILITY_LEAD_WORDS + r")\b")
+# A facility word with no name in front is a place in the building or a field
+# label, not a named facility ("Clinic 3", "Hospital no.", "School office";
+# test9).
+_BARE_FACILITY = re.compile(r"(?:" + _FACILITY_WORDS + r")")
 # A detected organization is redacted only when the document ties a person to it.
 EMPLOYMENT_CONTEXT = re.compile(
     r"(?i)\b(?:employ\w*|works?(?!\s+(?:best|well|fine|properly|again|only|perfectly"
@@ -141,17 +153,27 @@ PLACE_LABEL_PREFIX = re.compile(
     r'|size|format|category|code)\s*[:#]?\s*$')
 # Birth labels in French, German, Spanish, Italian and Portuguese ("née le
 # 27/08/1975", test8), and the French month names for the worded date.
-_BIRTH_LABELS_INTL = (r"n[ée]e?\s+le|date\s+de\s+naissance|geboren\s+am|geb\.|geburtsdatum"
+_BIRTH_LABELS_INTL = (r"n[ée]e?\s+le|date\s+de\s+naissance|geboren\s+am|geb\.(?:\s+am)?|geburtsdatum"
                       r"|fecha\s+de\s+nacimiento|nacid[oa]\s+el|data\s+di\s+nascita"
                       r"|nat[oa]\s+il|data\s+de\s+nascimento|nascid[oa]\s+(?:em|a)")
 _MONTHS_FR = (r"(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre"
               r"|octobre|novembre|d[ée]cembre)")
+# German ("23. Juli 2015"), Spanish and Portuguese ("4 de marzo de 1984") and
+# Italian ("4 marzo 1984") month names for the same worded date (test9).
+_MONTHS_DE = (r"(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober"
+              r"|November|Dezember)")
+_MONTHS_IBERIAN = (r"(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|sept?iembre"
+                   r"|octubre|noviembre|diciembre|janeiro|fevereiro|março|maio|junho|julho"
+                   r"|setembro|outubro|novembro|dezembro)")
+_MONTHS_IT = (r"(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre"
+              r"|ottobre|novembre|dicembre)")
 # A date is a DOB only with an explicit birth label directly before it; a
 # format hint may sit between the two ("Date of birth (DD/MM/YYYY): ...").
 DOB_CONTEXT = re.compile(
-    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date\s+of\s+birth|birth\s+date|birthday|d\.?o\.?b\.?'
+    r'(?i)(?:born(?:\s+on)?(?:\s+the)?|date[\s_]*of[\s_]*birth|birth[\s_]*date|birthday|d\.?o\.?b\.?'
     r'|' + _BIRTH_LABELS_INTL + r')'
-    r'(?:\s*\([^)\n]{0,24}\))?\s*[:,-]?\s*$')
+    # A quote may close a JSON key and open its value ('"date_of_birth": "').
+    r'(?:\s*\([^)\n]{0,24}\))?["\']?\s*[:,-]?\s*["\']?$')
 
 # When an ID label sits directly before a number, the label decides the type —
 # policy page 3. Fixes checksum collisions such as a Luhn-valid Canadian SIN
@@ -180,7 +202,7 @@ _NAME = _NAME_WORD + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){1,2}
 # slots for the name (test6: the title had used one up).
 # Italian and Portuguese titles carry a suffix after the dot ("Dott.ssa",
 # "Sig.ra", "Eng.ª"; test7).
-_TITLES = (r"(?:Mr|Mrs|Ms|Mx|Miss|Dr|Dra|Prof|Rev|Fr|Sr|Sra|Srta|Herr|Frau|Mme|Mlle|M"
+_TITLES = (r"(?:Mr|Mrs|Ms|Mx|Miss|Dr|Dra|Prof|Rev|Fr|Sr|Sra|Srta|Dña|Doña|Herr|Frau|Mme|Mlle|M"
            r"|Dott|Sig|Ing|Eng|Avv|Cllr|Sir|Dame|Capt|Sgt)(?:\.(?:ssa|ra|na))?\.?[ªº]?")
 _TITLE_OPT = r"(?:" + _TITLES + r"[ \t]+)?"
 # Addressees that are collective or role words, never a first name.
@@ -212,7 +234,11 @@ _GREETING_STOP = (
     # Site and service roles ("Hey Caretaker,", test8).
     r"|Caretakers?|Janitors?|Concierge|Wardens?|Receptionists?|Agents?|Operators?"
     r"|Engineers?|Technicians?|Cleaners?|Secretary|Treasurer|Chair|Chairman|Chairwoman"
-    r"|Clerk|Organi[sz]ers?|Moderators?|Reviewers?|Hosts?|Stewards?|Administrators?)")
+    r"|Clerk|Organi[sz]ers?|Moderators?|Reviewers?|Hosts?|Stewards?|Administrators?"
+    # Office holders ("Dear Bursar,", test9).
+    r"|Bursar|Headteacher|Headmaster|Headmistress|Head|Principal|Registrar|Vicar|Rector"
+    r"|Matron|Chaplain|Proprietor|Superintendent|Coordinator|Librarian|Postmaster"
+    r"|Storekeeper|Bookkeeper|Housekeeper)")
 # Lowercase nouns that name a person by role or relation, for the apposition
 # rule ("the mechanic, Pim, says").
 _PERSON_NOUNS = (
@@ -236,6 +262,15 @@ _NOT_A_NAME = (r"(?!(?:none|n/?a|nil|null|not|unknown|same|as|see|tbc|tba|tbd|bl
 _NOT_A_DATE = (r"(?!(?:(?:0?[1-9]|[12]\d|3[01])[/.-](?:0?[1-9]|1[0-2])[/.-](?:19|20)\d{2}"
                r"|(?:0?[1-9]|1[0-2])[/.-](?:0?[1-9]|[12]\d|3[01])[/.-](?:19|20)\d{2}"
                r"|(?:19|20)\d{2}[/.-](?:0?[1-9]|1[0-2])[/.-](?:0?[1-9]|[12]\d|3[01]))(?![\w/-]))")
+# What follows a journey verb without being a town: a role or department, a
+# part of a building, a month.
+_NOT_A_CITY = (r"(?!(?:" + _GREETING_STOP + r"|Head|Site|Gate|Terminal|Platform|Customer|Hall|Room"
+               r"|Building|Block|Level|Floor|Stage|Phase|Version|Windows|Theatre|Surgery|Court"
+               r"|Class|Church|Town|January|February|March|April"
+               r"|May|June|July|August|September|October|November|December)\b)")
+# The town ends the name: no further capital word and no operational noun.
+_CITY_END = (r"(?![\w'’-])(?![ \t]+(?:[A-ZÀ-ÖØ-Þ]|(?i:hub|branch|depot|warehouse|exchange"
+             r"|terminal|plant|factory|showroom|office|site|yard|store|outlet|facility)\b))")
 _CLOCK_WORDS = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
 # Block-capital values under a role label that are roles, bodies or notes,
 # not names ("DRIVER: COMPANY POOL VEHICLE", "WITNESS: POLICE OFFICER").
@@ -280,9 +315,13 @@ TEXT_PATTERNS = {
     'phone_labelled': re.compile(
         r"\b(?:call(?:[ \t]+us)?(?:[ \t]+(?:on|at))?|phone|telephone|tel\.?|telefono|teléfono"
         r"|téléphone|tél\.?|portable|telefon|handy|telemóvel|móvil|cellulare|mobile|mob\.?|fax"
-        r"|helpline|hotline|freephone)"
+        r"|tfno\.?|tlfno\.?|tlf\.?|tel[eé]f\.?|helpline|hotline|freephone)"
         r"[ \t]*(?:no\.?|number)?[ \t]*[:.]?[ \t]*"
-        r"(?P<pii>(?=(?:[ .-]?\d){7,13}(?![ .-]?\d))\d{2,5}(?:[ .-]\d{2,5}){1,4})(?!\w)",
+        # One slash may follow the area code ("Tel. 030 / 5550 0142", test9);
+        # a date ("12/11/2026") has two and is not taken.
+        r"(?P<pii>(?=(?:(?:[ .-]|[ \t]?/[ \t]?)?\d){7,13}(?![ .-]?\d))"
+        r"\d{2,5}(?:[ \t]?/[ \t]?\d{2,5}|[ .-]\d{2,5})(?:[ .-]\d{2,5}){0,3})"
+        r"(?![ \t]?/[ \t]?\d)(?!\w)",
         re.IGNORECASE),
     'phone_ru': re.compile(r'(?<!\w)(?:(?:\+7|8)[\s-]?(?:\(\d{3,4}\)|\d{3,4})[\s-]?\d{2,3}[\s-]\d{2}[\s-]\d{2})(?!\w)'),
 
@@ -303,7 +342,9 @@ TEXT_PATTERNS = {
     # recognizers' level so a specific match wins the dedup tiebreak.
     'passport_labelled': re.compile(
         r'\b(?:passport|passeport|pasaporte|passaporte|passaporto|reisepass)\s*'
-        r'(?:no\.?|n[°ºo]\.?|nr\.?|number|numéro|número|numero|nummer|#)?\s*[:#]?\s*'
+        r'(?:no\.?|n[°ºo]\.?|nr\.?|number|numéro|número|numero|nummer|#)?\s*'
+        # "passport no. (Person 1): C4FT7K2H9" (test9).
+        r'(?:\([^)\n]{0,24}\)\s*)?[:#]?\s*'
         r'(?P<pii>(?=[A-Z0-9]*\d)[A-Z0-9]{6,10})\b', re.IGNORECASE),
     # The same fallback for a labelled driving licence: Presidio's UK
     # recognizer scores a valid number 0.5 with or without its label (test6),
@@ -349,14 +390,17 @@ TEXT_PATTERNS = {
     # the test6 blind run.
     'generic_id': re.compile(
         r'\b(?:(?:customer|client|member(?:ship)?|loyalty|patient|employee|student|account'
-        r'|badge|case|claim|record|mrn|dni|nie|nif|curp|cpf|bsn|pesel'
+        r'|badge|case|claim|record|mrn|dni|nie|nif|curp|cpf|bsn|pesel|nhs|frequent\s+fl[yi]er'
         r'|codice\s+fiscale|fiscal\s+code|tax\s+code|national\s+id|id(?:entity)?\s+card)\s*'
         r'(?:id|number|no\.?|record|reference|ref\.?|#)?'
         r'|(?:hospital|staff|payroll)\s+(?:id|number|no\.?)'
         r'|(?:application|visa|permit)\s+(?:reference|ref\.?|number|no\.?|id))\s*[:#.]?\s*'
         # The value may be printed in spaced digit groups, eight digits or
         # more in all ("gas account 8841 2207 16", test8).
-        r'(?P<pii>' + _NOT_A_DATE + r'(?:(?=(?:\d[ \t]?){8,20}(?!\d))\d{2,6}(?:[ \t]\d{2,6}){1,4}(?![ \t]?\d)'
+        # and may carry a capital prefix ("Frequent flyer: SK 550 291 4470",
+        # test9).
+        r'(?P<pii>' + _NOT_A_DATE + r'(?:(?:(?-i:[A-Z]{2,3})[ \t])?'
+        r'(?=(?:\d[ \t]?){8,20}(?!\d))\d{2,6}(?:[ \t]\d{2,6}){1,4}(?![ \t]?\d)'
         r'|(?=[A-Z0-9/-]{0,20}\d)[A-Z0-9][A-Z0-9/-]{3,19}))', re.IGNORECASE),
     # A loyalty or membership card number is a customer identifier, usually
     # printed in spaced digit groups the generic value shape does not take
@@ -380,7 +424,7 @@ TEXT_PATTERNS = {
         # A frame, chassis or IMEI number is a serial number under its own
         # label, and the value may be printed in spaced capital groups
         # ("Frame number: WTU 284 K 0931 M", test8).
-        r'\b(?:(?:serial|hull|imei)\s*(?:no\.?|number|id|#)?|(?:frame|chassis)\s*(?:no\.?|number|#))'
+        r'\b(?:(?:serial|hull|imei)\s*(?:no\.?|number|id|#)?|s/n|(?:frame|chassis)\s*(?:no\.?|number|#))'
         r'\s*[:#]?\s*'
         r'(?P<pii>(?-i:(?=[A-Z0-9 \t]*\d)[A-Z0-9]{1,8}(?:[ \t][A-Z0-9]{1,8}){1,5})(?![A-Za-z0-9-])'
         r'|(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,19}\b)', re.IGNORECASE),
@@ -419,6 +463,9 @@ TEXT_PATTERNS = {
         r'|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?' + _MONTHS + r',?\s+(?:19|20)\d{2}'
         r'|' + _MONTHS + r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+(?:19|20)\d{2}'
         r'|\d{1,2}(?:er)?\s+' + _MONTHS_FR + r'\s+(?:19|20)\d{2}'
+        r'|\d{1,2}\.?\s+' + _MONTHS_DE + r'\s+(?:19|20)\d{2}'
+        r'|\d{1,2}\s+de\s+' + _MONTHS_IBERIAN + r'\s+de\s+(?:19|20)\d{2}'
+        r'|\d{1,2}º?\s+' + _MONTHS_IT + r'\s+(?:19|20)\d{2}'
         r')\b', re.IGNORECASE),
 
     # --- organizations and addresses ---
@@ -476,7 +523,10 @@ TEXT_PATTERNS = {
         r"(?:(?:de|del|dels|des|du|di|da|degli|delle|la|las|los|le|les|l')[ \t]+){0,3}"
         r"[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t]+(?:(?:de|del|du|di|da|la|le|les|y|e)[ \t]+)?[A-ZÀ-ÖØ-Þ][\w'’-]+){0,3}"
         r",?[ \t]+(?:n[ºo°]\.?[ \t]*)?\d{1,4}(?:[ \t]?(?:bis|ter)\b)?"
-        r"(?:,[ \t]*\d{1,2}[ºo°]?[ \t]?[A-Za-z]?\b|[ \t]+\d{1,2}[ºo°][ \t]?[A-Za-z]?\b)?)"),
+        r"(?:(?:,[ \t]*\d{1,2}[ºo°]?|[ \t]+\d{1,2}[ºo°])"
+        # the door as a letter or a word ("14, 2º izq.", test9)
+        r"(?:[ \t]+(?:izq(?:da|uierda)?|dcha|derecha|ctro|centro|ext(?:erior)?|int(?:erior)?)\b\.?"
+        r"|[ \t]?[A-Za-z]?\b))?)"),
     # Apartment/unit designators, before or after the street line; the span
     # includes the designator word so "Flat 6" ahead of its street is masked
     # whole. The \b after the keyword keeps "unit" from matching inside
@@ -570,7 +620,7 @@ TEXT_PATTERNS = {
     # span.
     'titled_person': re.compile(
         r"(?<![\w.])(?:Mr|Mrs|Ms|Mx|Miss|Dr|Prof|Herr|Frau|Hr\.|Fr\.|Mme|Mlle|Monsieur|Madame"
-        r"|Signora|Signor|Sig\.(?:ra|na)?|Dott\.(?:ssa)?|Señora?|Sra\.)\.?[ \t]+"
+        r"|Signora|Signor|Sig\.(?:ra|na)?|Dott\.(?:ssa)?|Señora?|Sra\.|Dña|Doña)\.?[ \t]+"
         r"(?!" + _GREETING_STOP + r"\b)(?P<pii>(?:(?:van|der|den|de|von|da|di|du|la|le|del|della"
         r"|dos|das|ten|ter|al|el|bin)[ \t]+){0,2}" + _NAME_WORD
         + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,2})"),
@@ -594,18 +644,45 @@ TEXT_PATTERNS = {
     # departments and venues are not destinations: a longer capitalised name
     # ("trip to Bramblewood Nature Reserve", test6) or a venue word ends it.
     'travel_city': re.compile(
-        r"\b(?i:fl(?:y|ies|ying|ew)|travel(?:s|led|ed|ling|ing)?|trip)[ \t]+(?:back[ \t]+)?to[ \t]+"
-        r"(?!(?:" + _GREETING_STOP + r"|Head|Site|Gate|Terminal|Platform|Customer|Hall|Room"
-        r"|Building|Block|Level|Floor|Stage|Phase|Version|Windows|January|February|March|April"
-        r"|May|June|July|August|September|October|November|December)\b)"
-        r"(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)(?![\w'’-])"
-        r"(?![ \t]+(?:[A-ZÀ-ÖØ-Þ]|(?i:hub|branch|depot|warehouse|exchange|terminal|plant|factory"
-        r"|showroom|office|site|yard|store|outlet|facility)\b))"),
+        r"\b(?i:fl(?:y|ies|ying|ew)|travel(?:s|led|ed|ling|ing)?|trip)[ \t]+(?:(?:back|on)[ \t]+)?to[ \t]+"
+        + _NOT_A_CITY + r"(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)" + _CITY_END),
+    # A person as the subject of a journey or a move: "she drives up to
+    # Thurso", "Ms Thorbjørnsen lands in Molde", "she relocates to Bodø"
+    # (test9). The subject keeps cargo wording out ("the pallet lands in ...").
+    'journey_city': re.compile(
+        r"(?<![\w'’-])(?:(?i:I|we|he|she|they|you)|" + _NAME_WORD + r")[ \t]+"
+        r"(?:(?i:also|then|now|still|will|is|are|was)[ \t]+)?"
+        r"(?i:driv(?:es?|ing)|drove|lands?|landed|landing|relocat(?:es?|ed|ing))[ \t]+"
+        r"(?:(?i:back|up|down|over|out|on|across)[ \t]+)?(?i:to|in|into)[ \t]+"
+        + _NOT_A_CITY + r"(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)" + _CITY_END),
+    # A stay with an end: "he is in Berlin until the 20th" (test9).
+    'stay_city': re.compile(
+        r"\b(?i:I|we|he|she|they)[ \t]+(?i:is|am|are|was|were|will[ \t]+be)[ \t]+"
+        r"(?:(?i:away|back|over|out)[ \t]+)?in[ \t]+"
+        + _NOT_A_CITY + r"(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)"
+        r"(?=[ \t]+(?i:until|till|through|all[ \t]+week|this[ \t]+week|next[ \t]+week"
+        r"|for[ \t]+(?:the|a|two|three|four|\d)))"),
     # The French signing formula names the signer's town ("Fait à Dijon, le
     # 2 novembre 2026", test8).
     'signing_place': re.compile(
         r"\bFait[ \t]+à[ \t]+(?P<pii>[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t-][A-ZÀ-ÖØ-Þ][\w'’-]+){0,2})"
         r"(?=,|[ \t]+le\b)"),
+    # The same in German ("Göttingen, den 3. November 2026" opening a line),
+    # Spanish ("en Tarazona, a 5 de noviembre de 2026") and Italian ("Bologna,
+    # lì 4 novembre 2026"); test9.
+    'signing_place_de': re.compile(
+        r"(?m)^[ \t]*(?P<pii>[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t-][A-ZÀ-ÖØ-Þ][\w'’-]+){0,2})"
+        r"(?=,[ \t]+(?:den|l[iì])[ \t]+\d{1,2}\b)"),
+    'signing_place_es': re.compile(
+        r"\b[Ee]n[ \t]+(?P<pii>[A-ZÀ-ÖØ-Þ][\w'’-]+(?:[ \t-][A-ZÀ-ÖØ-Þ][\w'’-]+){0,2})"
+        r"(?=,[ \t]+a[ \t]+\d{1,2}[ \t]+de[ \t]+[a-z])"),
+    # "ask for Priti", "speak to Morwenna": the request names a person
+    # (test9). Roles and departments are not names.
+    'ask_for_person': re.compile(
+        r"(?m)\b(?i:ask(?:s|ed|ing)?[ \t]+for|speak[ \t]+(?:to|with))[ \t]+"
+        r"(?!" + _GREETING_STOP + r"\b)(?P<pii>" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)"
+        r"(?![\w'’-])(?=[,:.!?;)]|[ \t]+(?:and|&|or|on|at|in|if|who|when|about|before|after)\b"
+        r"|[ \t]*$)"),
     # The bare label "Name:" names products and companies as often as
     # people, so its value is only a candidate: apply_policy_filters keeps it
     # when a NER layer saw a person inside it ("Name: Thiago Monteiro dos
@@ -660,7 +737,12 @@ PATTERN_ENTITY_TYPES = {"inn_labelled": "INN", "apt_unit": "ADDRESS_LINE",
                         "apposition_person": "PERSON",
                         "employer_field": "ORGANIZATION",
                         "travel_city": "LOCATION",
+                        "journey_city": "LOCATION",
+                        "stay_city": "LOCATION",
                         "signing_place": "LOCATION",
+                        "signing_place_de": "LOCATION",
+                        "signing_place_es": "LOCATION",
+                        "ask_for_person": "PERSON",
                         "phone_uk_bracket": "PHONE",
                         "name_line": "NAME_LINE",
                         "employment_line": "ORGANIZATION",
@@ -744,30 +826,80 @@ _VENUE_WORD = re.compile(
     r"\b(?:Park|Reserve|Museum|Zoo|Centre|Center|Beach|Castle|Hall|Gardens?|Airport|Station"
     r"|Stadium|Farm|Forest|Hotel|Arena|Theatre|Theater|Gallery|Abbey|Cathedral|Campus|Court"
     r"|Tower|Bridge|Pier|Market|Mall|Wharf|Quay|School|College|University|Hospital|Clinic"
-    r"|Office|House|Camp|Lodge)$")
+    r"|Office|House|Camp|Lodge|Surgery|Church|Chapel|Ward|Library|Lab|Laboratory)$")
 # Lines of an address block under the street line.
 _BLOCK_TOWN_LINE = re.compile(
     r"[ \t]*(?P<pii>[A-Z][\w'’-]+(?:[ \t-]+[A-Za-z][\w'’-]+){0,2}),?[ \t]*")
 _BLOCK_POSTCODE_LINE = re.compile(
     r"[ \t]*(?P<pii>(?:[A-Z][\w'’-]+(?:[ \t]+[A-Z][\w'’-]+){0,2},?[ \t]+)?" + _UK_POSTCODE
     + r"|\d{5}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?"
-    r"|\d{4}[ \t]?[A-Z]{2}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?),?[ \t]*")
-# Table columns that hold people and plates, and the cell shapes they take.
+    r"|\d{4}[ \t]?[A-Z]{2}[ \t]+[A-Z][\w-]+(?:[ \t][A-Z][\w-]+)?"
+    # an Irish Eircode on its own line ("A98 K7W2", test9)
+    r"|[AC-FHKNPRTV-Y]\d{2}[ \t]?(?=[0-9A-Z]{0,3}[A-Z])[AC-FHKNPRTV-Y0-9]{4}),?[ \t]*")
+# A county line inside the block ("Co. Wicklow") belongs to it but is not
+# itself redacted (labeling-guide decision 22).
+_BLOCK_COUNTY_LINE = re.compile(r"[ \t]*(?:Co\.|County)[ \t]+[A-Z][\w'’-]+,?[ \t]*")
+# A house name on its own line above the street line ("Tŷ Gwyn", test9).
+_BLOCK_HOUSE_LINE = re.compile(
+    r"[ \t]*(?P<pii>[A-ZÀ-ÖØ-Þ][^\W\d_][\w'’-]*(?:[ \t]+[^\W\d_][\w'’-]*){0,3}),?[ \t]*")
+# Table columns that hold people, plates and serial numbers, and the cell
+# shapes they take.
 _TABLE_NAME_HEADER = re.compile(
     r"(?i)(?:(?:full|visitor|guest|driver|employee|staff|contact|host|tenant|member|customer"
-    r"|client|patient|student|pupil)[ \t]+)?names?|visitors?|guests?|hosts?|drivers?"
-    r"|employees?|attendees?|passengers?|tenants?|residents?|keepers?|participants?"
-    r"|signed[ \t]+(?:in|out)[ \t]+by|escort(?:ed[ \t]+by)?|visiting|person[ \t]+visited")
+    r"|client|patient|student|pupil|runner|player|borrower)[ \t]+)?names?|visitors?|guests?"
+    r"|hosts?|drivers?|employees?|attendees?|passengers?|tenants?|residents?|keepers?"
+    r"|participants?|runners?|borrowers?|athletes?|signed[ \t]+(?:in|out)[ \t]+by"
+    r"|(?:issued|loaned|lent)[ \t]+to|escort(?:ed[ \t]+by)?|visiting|person[ \t]+visited")
 _TABLE_PLATE_HEADER = re.compile(
     r"(?i)(?:vehicle[ \t]+)?(?:reg(?:istration)?\.?(?:[ \t]+(?:no\.?|number|mark))?|plate"
     r"|number[ \t]+plate|licen[cs]e[ \t]+plate|kennzeichen|vrm)")
+_TABLE_SERIAL_HEADER = re.compile(r"(?i)serial(?:[ \t]*(?:no\.?|number|#))?|s/n|imei")
+# Columns that hold things or bodies: a NER "person" in one of them is a
+# product, a club or a company ("Stanley FatMax", "Vale Royal Striders",
+# test9).
+_TABLE_THING_HEADER = re.compile(
+    r"(?i)(?:item|product|tool|equipment|asset|article|model|make|description|club|team"
+    r"|company|organi[sz]ation|firm|supplier|brand|category|department|dept\.?)"
+    r"(?:[ \t]+(?:name|type|description))?")
+# An item-number column makes a bare "Name" beside it the item's name, unless
+# another column already describes the item.
+_TABLE_ITEM_ID_HEADER = re.compile(
+    r"(?i)(?:(?:item|asset|part|product|stock|tool|catalogue|cat\.?)[ \t]*"
+    r"(?:no\.?|number|id|code|ref\.?|#)|sku)")
 _TABLE_NAME_CELL = re.compile(
     r"(?:" + _TITLES + r"[ \t]+)?(?!(?:None|N/?A|Nil|Unknown|Self|Staff|Contractor|Visitor"
     r"|Delivery|Courier|Reception|Security|Tbc|Tba|Various)\b)"
     r"(?P<pii>(?:[A-ZÀ-ÖØ-Þ]\.[ \t]?){0,2}" + _NAME_WORD
-    + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,3})")
+    + r"(?:" + _NAME_PARTICLES + r"[ \t]" + _NAME_WORD + r"){0,3}"
+    # "Hall, Rosamund": surname first (test9)
+    r"|" + _NAME_WORD + r",[ \t]+" + _NAME_WORD + r"(?:[ \t]" + _NAME_WORD + r")?)")
 _TABLE_PLATE_CELL = re.compile(
     r"(?P<pii>(?=[A-Z0-9 -]{4,12}$)(?=[^\d]*\d)(?=[^A-Z]*[A-Z])[A-Z0-9]{1,4}(?:[ -][A-Z0-9]{1,4}){0,3})")
+_TABLE_SERIAL_CELL = re.compile(r"(?P<pii>(?=.*\d)[A-Z0-9][A-Z0-9 ./-]{3,23})")
+_TABLE_THING_CELL = re.compile(r"(?P<pii>.+)")
+_TABLE_CELL_SHAPES = {'PERSON': _TABLE_NAME_CELL, 'LICENSE_PLATE': _TABLE_PLATE_CELL,
+                      'SERIAL_NUMBER': _TABLE_SERIAL_CELL, 'TABLE_THING_CELL': _TABLE_THING_CELL}
+# One "key": "value" pair of a JSON record, and the keys that label a value
+# as a field label does on a form (test9). camelCase keys are split first.
+_JSON_PAIR = re.compile(r'"(?P<key>[A-Za-z][\w -]{0,40})"[ \t]*:[ \t]*"(?P<value>[^"\n]{1,120})"')
+_JSON_KEY_TYPES = (
+    (re.compile(r"(?:member(?:ship)?|customer|client|patient|employee|student|account|staff"
+                r"|payroll|policy|loyalty|passport|national|nhs)[_ -]?(?:id|number|no|num|ref"
+                r"|reference)"),
+     'GENERIC_ID', re.compile(r"(?=.*\d)[A-Za-z0-9][A-Za-z0-9 /-]{3,23}")),
+    (re.compile(r"date[_ -]?of[_ -]?birth|birth[_ -]?date|dob|birthday"),
+     'DATE_OF_BIRTH', re.compile(r"\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}")),
+    (re.compile(r"post[_ -]?code|postal[_ -]?code|zip(?:[_ -]?code)?|eircode"),
+     'ADDRESS_LINE', re.compile(r"(?=.*\d)[A-Za-z0-9][A-Za-z0-9 -]{2,9}")),
+    (re.compile(r"(?:address[_ -]?)?line[_ -]?[1-3]|street(?:[_ -]?address)?"
+                r"|address(?:[_ -]?[1-3])?|house[_ -]?(?:number|name)"),
+     'ADDRESS_LINE', re.compile(r"(?=.*[^\W\d_]).{3,}")),
+    (re.compile(r"(?:(?:home|work|mobile|cell|contact|emergency)[_ -]?)?(?:phone|mobile|tel"
+                r"|telephone|cell|fax)(?:[_ -]?(?:number|no))?"),
+     'PHONE', re.compile(r"[+(]?\d[\d ()./-]{5,18}\d")),
+    (re.compile(r"(?:first|last|sur|given|family|middle|maiden|full)[_ -]?names?|forenames?"),
+     'PERSON', re.compile(r"[^\W\d_][^\d_]{1,60}")),
+)
 # A house name ahead of the street number, between the label and the street
 # ("Address on file: The Old Forge, 6 Chapel Row", test7).
 _HOUSE_NAME = re.compile(
@@ -821,13 +953,14 @@ def address_block_lines(text, end):
 
     "14 Mill Street / Ludlow / SY8 1BB" (test8): up to two town lines count
     only when a postcode line closes the block. Each line is its own span, so
-    no span crosses a line break.
+    no span crosses a line break. A county line may sit between the town and
+    the postcode; it gets no span.
     """
     if not re.match(r',?[ \t]*\n', text[end:end + 4]):
         return []
     pos = text.find('\n', end) + 1
     spans = []
-    for _ in range(3):
+    for _ in range(4):
         line_end = text.find('\n', pos)
         line_end = len(text) if line_end == -1 else line_end
         line = text[pos:line_end]
@@ -835,53 +968,118 @@ def address_block_lines(text, end):
         if closing:
             spans.append((pos + closing.start('pii'), pos + closing.end('pii')))
             return spans
-        town = _BLOCK_TOWN_LINE.fullmatch(line)
-        if not town:
-            return []
-        spans.append((pos + town.start('pii'), pos + town.end('pii')))
+        if not _BLOCK_COUNTY_LINE.fullmatch(line):
+            town = _BLOCK_TOWN_LINE.fullmatch(line)
+            if not town or len(spans) == 2:
+                return []
+            spans.append((pos + town.start('pii'), pos + town.end('pii')))
         pos = line_end + 1
     return []
 
 
+def block_house_line(text, start):
+    """The line above a block's street line, when it has the shape of a house
+    name. Only a candidate: apply_policy_filters decides (HOUSE_LINE)."""
+    line_start = text.rfind('\n', 0, start) + 1
+    if line_start == 0 or text[line_start:start].strip():
+        return None
+    above_start = text.rfind('\n', 0, line_start - 1) + 1
+    match = _BLOCK_HOUSE_LINE.fullmatch(text[above_start:line_start - 1])
+    if not match:
+        return None
+    return above_start + match.start('pii'), above_start + match.end('pii')
+
+
+def _header_kinds(cells):
+    """Column kinds of a header row, or None when it labels no column."""
+    names = [c for _, c in cells]
+    kinds = ['PERSON' if _TABLE_NAME_HEADER.fullmatch(c) else
+             'LICENSE_PLATE' if _TABLE_PLATE_HEADER.fullmatch(c) else
+             'SERIAL_NUMBER' if _TABLE_SERIAL_HEADER.fullmatch(c) else
+             'TABLE_THING_CELL' if _TABLE_THING_HEADER.fullmatch(c) else None
+             for c in names]
+    if not any(k in ('PERSON', 'LICENSE_PLATE', 'SERIAL_NUMBER') for k in kinds):
+        return None
+    if any(_TABLE_ITEM_ID_HEADER.fullmatch(c) for c in names) and 'TABLE_THING_CELL' not in kinds:
+        kinds = ['TABLE_THING_CELL' if k == 'PERSON' and re.fullmatch(r'(?i)names?', c) else k
+                 for k, c in zip(kinds, names)]
+    return kinds
+
+
 def table_column_spans(text):
-    """Names and plates in a pipe- or tab-separated table, read by column.
+    """Names, plates and serial numbers in a table, read by column.
 
     "Time in | Name | Host | Vehicle reg | Badge" (test8): the header cell
     labels every cell below it, as a field label does on a form. A cell must
-    still have the shape of a name or of a plate ("on foot" has neither).
+    still have the shape of a name, a plate or a serial ("on foot" has none).
+    Columns are separated by pipes or tabs, or by runs of two or more spaces
+    in a fixed-width table ("Pos  Bib   Name   Club   Time", test9), where a
+    cell belongs to the header it starts under. Cells of a thing column come
+    back as TABLE_THING_CELL candidates for apply_policy_filters.
     """
     results = []
-    kinds, width = None, 0
+    kinds, width, offsets = None, 0, None
     for line in re.finditer(r'[^\n]*(?:\n|$)', text):
-        if not line.group().strip():
+        raw = line.group()
+        if not raw.strip():
             kinds = None
             if line.end() >= len(text):
                 break
             continue
-        cells = [(m.start(1) + line.start(), m.group(1))
-                 for m in re.finditer(r'[ \t]*([^|\t\n]*?)[ \t]*(?:[|\t]|\n|$)', line.group())
-                 if m.end() > m.start()]
-        if len(cells) < 3:
-            kinds = None
-            continue
-        header = ['PERSON' if _TABLE_NAME_HEADER.fullmatch(c) else
-                  'LICENSE_PLATE' if _TABLE_PLATE_HEADER.fullmatch(c) else None
-                  for _, c in cells]
-        if any(header):
+        piped = '|' in raw or '\t' in raw
+        if piped:
+            cells = [(m.start(1), m.group(1))
+                     for m in re.finditer(r'[ \t]*([^|\t\n]*?)[ \t]*(?:[|\t]|\n|$)', raw)
+                     if m.end() > m.start()]
+        else:
+            cells = [(m.start(), m.group()) for m in re.finditer(r'\S+(?:[ ]\S+)*', raw)]
+        header = _header_kinds(cells) if len(cells) >= 3 else None
+        if header:
             kinds, width = header, len(cells)
+            offsets = None if piped else {col: kind for (col, _), kind in zip(cells, header)}
             continue
-        if kinds is None or len(cells) != width:
-            kinds = None
+        if kinds is None:
             continue
-        for (start, cell), kind in zip(cells, kinds):
-            shape = {'PERSON': _TABLE_NAME_CELL, 'LICENSE_PLATE': _TABLE_PLATE_CELL}.get(kind)
+        if offsets is None:
+            if not piped or len(cells) != width:
+                kinds = None
+                continue
+            row = zip(cells, kinds)
+        else:
+            aligned = [(cell, offsets[cell[0]]) for cell in cells if cell[0] in offsets]
+            if piped or len(aligned) < 2:
+                kinds = None
+                continue
+            row = aligned
+        for (col, cell), kind in row:
+            shape = _TABLE_CELL_SHAPES.get(kind)
             match = shape.fullmatch(cell) if shape else None
             if match:
+                start = line.start() + col
                 results.append({'entity_type': kind, 'start': start + match.start('pii'),
                                 'end': start + match.end('pii'), 'score': 1.0,
                                 'text': match.group('pii'), 'source': 'regex'})
         if line.end() >= len(text):
             break
+    return results
+
+
+def json_field_spans(text):
+    """Values of a JSON record whose key names personal data.
+
+    '"member_id": "LTC-004417"', '"postcode": "7201 PX"' (test9): the key is
+    the label. A value must still have the shape its key promises.
+    """
+    results = []
+    for pair in _JSON_PAIR.finditer(text):
+        key = re.sub(r'(?<=[a-z])(?=[A-Z])', '_', pair.group('key')).lower()
+        for keys, entity, shape in _JSON_KEY_TYPES:
+            if keys.fullmatch(key):
+                if shape.fullmatch(pair.group('value').strip()):
+                    results.append({'entity_type': entity, 'start': pair.start('value'),
+                                    'end': pair.end('value'), 'score': 1.0,
+                                    'text': pair.group('value'), 'source': 'regex'})
+                break
     return results
 
 
@@ -926,7 +1124,7 @@ def chat_reply_ids(text):
 
 def run_pattern_rules(text):
     """Stage 1: every pattern rule over the text → candidate list."""
-    results = chat_reply_ids(text) + table_column_spans(text)
+    results = chat_reply_ids(text) + table_column_spans(text) + json_field_spans(text)
     for pii_type, pattern in TEXT_PATTERNS.items():
         for match in pattern.finditer(text):
             # Context patterns retain their surrounding text for matching,
@@ -946,9 +1144,17 @@ def run_pattern_rules(text):
                     r'\b(?:FROM|AT|TO|BY|THE|IN|WITH|VIA)[ \t]+', text[start:end])]
                 if cuts:
                     start += cuts[-1]
+            if pii_type == 'sensitive_organization' and _BARE_FACILITY.fullmatch(text, start, end):
+                continue
+            # A UK tax code ("Tax code: 1257L") is a rate, not an identifier;
+            # the label is in the list for the Italian fiscal code (test9).
+            if pii_type == 'generic_id' and end - start < 8 \
+                    and re.match(r'(?i)tax\s+code', match.group()):
+                continue
             if pii_type == 'labelled_person_caps' and _CAPS_NOT_A_NAME.search(text[start:end]):
                 continue
-            if pii_type == 'travel_city' and _VENUE_WORD.search(text[start:end]):
+            if pii_type in ('travel_city', 'journey_city', 'stay_city') \
+                    and _VENUE_WORD.search(text[start:end]):
                 continue
             if pii_type in ('address_line', 'address_line_de', 'address_line_es',
                             'address_line_pl'):
@@ -969,14 +1175,24 @@ def run_pattern_rules(text):
                         and not _FLOOR_OR_DOOR.search(text[start:line_end]) \
                         and not _LOWERCASE_WORD_BEFORE.search(text[max(0, start - 3):start]):
                     continue
-                for block_start, block_end in address_block_lines(text, end):
+                block = address_block_lines(text, end)
+                for block_start, block_end in block:
                     results.append({'entity_type': 'ADDRESS_LINE', 'start': block_start,
                                     'end': block_end, 'score': 1.0,
                                     'text': text[block_start:block_end], 'source': 'regex'})
+                house = block_house_line(text, start) if block else None
+                if house:
+                    results.append({'entity_type': 'HOUSE_LINE', 'start': house[0],
+                                    'end': house[1], 'score': 1.0,
+                                    'text': text[house[0]:house[1]], 'source': 'regex'})
             entity_override = None
             if pii_type == 'generic_id' and re.fullmatch(r'[1-9]\d{19}', text[start:end]):
                 # A labelled 20-digit value is a bank account, not a generic ID.
                 entity_override = 'BANK_ACCOUNT'
+            elif pii_type == 'generic_id' and re.match(r'(?i)nhs\b', match.group()):
+                # The NHS label names the type, whether or not the checksum
+                # satisfies the country recognizer.
+                entity_override = 'UK_NHS'
             results.append({
                 'entity_type': entity_override or PATTERN_ENTITY_TYPES.get(pii_type, pii_type.upper()),
                 'start': start,
@@ -1013,6 +1229,7 @@ _COMPANY_LEAD = re.compile(
 # even when the surname is a company word ("Fr. Annelise Bank", test8).
 _TITLE_BEFORE = re.compile(r"(?:^|[\s(,;:—–-])" + _TITLES + r"[ \t]+$")
 _TITLE_START = re.compile(_TITLES + r"[ \t]+(?=\S)")
+_TITLE_WORD = re.compile(r"^" + _TITLES + r"$")
 # A NER person span never runs across a column gap, a spaced dash or a pipe
 # ("Thabo Nkosana-Fields   Payroll", test8): the name is the first cell.
 _COLUMN_GAP = re.compile(r"[ \t]{2,}|\t|[ \t]+[—–|/](?:[ \t]+|$)")
@@ -1045,6 +1262,44 @@ _COURTESY_WORDS = frozenset(
     # soussignée", test8).
     "Je Nous Vous Ich Wir Yo Io Noi Eu".split())
 _DATE_PLACEHOLDER = re.compile(r"(?:D{1,2}|M{1,4}|Y{2,4})")
+# A kin or office word in front of a name is not part of it ("Nana Jo",
+# "Deacon Ifor", test9): the name is what follows.
+_ROLE_TITLE_LEAD = re.compile(
+    r"^(?:Nana|Nanny|Granny|Grandma|Grandpa|Grandad|Granddad|Auntie|Aunty|Aunt|Uncle|Cousin"
+    r"|Deacon|Canon|Bishop|Pastor|Vicar|Rabbi|Imam|Nurse|Coach|Councillor|Sergeant|Constable"
+    r"|Inspector|Judge|Matron|Chef|Professor|Doctor|Captain|Officer|Father|Sister|Brother)"
+    r"[ \t]+(?=[A-ZÀ-ÖØ-Þ])")
+# Nor are the letters after it ("Mr A. K. Chakraborty FRCS").
+_POST_NOMINAL_TAIL = re.compile(
+    r"(?:,?[ \t]+(?:F?RC[A-Z]{1,4}|MRC[A-Z]{1,4}|MBBS|MBChB|BChir|MD|PhD|DPhil|DDS|BDS|BSc|MSc"
+    r"|BEng|MEng|BA|MA|MBA|LLB|LLM|OBE|MBE|CBE|KBE|DBE|QC|KC|JP|RN|RGN|RMN|CEng|MRICS|FRICS"
+    r"|ACA|FCA|ACCA|MCIPD|FCIPD|Esq\.?))+$")
+# A lowercase name particle or article on its own is not a name ("the silver
+# van", "la siguiente persona"; test9).
+_PARTICLE_WORDS = frozenset(
+    "van der den de von da di du la le del della dos das ten ter op bin al el ap ab ibn "
+    "bint abu af av zu".split())
+_LOWERCASE_ARTICLE_LEAD = re.compile(
+    r"^(?:la|el|los|las|le|les|der|die|das|den|the|an?|il|lo|un|una|uno|une|des|du|de|que|en"
+    r"|con|por|para|pour|mit|von)[ \t]")
+# The title of a chat group, a folder or a list in quotes is not a person
+# ('group "Bin day gang"', test9).
+_LOWERCASE_LEAD = re.compile(r"^(?:[a-zß-öø-ÿ]\S*[ \t]+)+(?=\S)")
+_LOWERCASE_TAIL = re.compile(r"(?:[ \t]+[a-zß-öø-ÿ]\S*)+$")
+_QUOTED_TITLE_PREFIX = re.compile(
+    r"(?i)\b(?:group|chat|channel|thread|folder|album|playlist|list|board|topic)\s*:?\s*[\"“‘']$")
+# Nor is the name of a statute after its section ("§ 19 Bundesmeldegesetz").
+_DEPARTMENT_WORD = re.compile(
+    r"(?:" + _GREETING_STOP + r"|Department|Dept\.?|Division|Section|Team|Unit|Office)")
+_GREETING_WORD_BEFORE = re.compile(r"\b(?:Dear|Hi|Hello|Hey|Hiya|Thanks|Cheers)[ \t]+$")
+_LAW_PREFIX = re.compile(r"(?:§+|\b(?:Art\.?|Artikel|Abs\.?))[ \t]*\d+[a-z]?[ \t]+$")
+# Words that label a phone number without naming a person ("Plumber: ...").
+_PHONE_LABEL_WORD = re.compile(
+    r"(?i)(?:" + _GREETING_STOP + r"|" + _PERSON_NOUNS + r"|tel|tél|fax|mob|ext|telefon"
+    r"|telefono|teléfono|phone|mobile|handy|cell|home|work|office|emergency|taxi|vet|dentist"
+    r"|doctor|surgery|school|nursery|garage|bank|pharmacy|chemist|gas|water|electric(?:ity)?"
+    r"|council|police|hospital|clinic|helpline|hotline|landline|direct|switchboard|main"
+    r"|out|day|night|evenings?|daytime|after|other|alt|alternative)")
 _LABEL_WITH_NUMBER = re.compile(r"[ \t]*:[ \t]*[+(\d]")
 
 
@@ -1109,7 +1364,8 @@ def org_is_tied(text, name):
             return True
         if TITLE_PREFIX.search(prefix):
             continue
-        if EMPLOYMENT_CONTEXT.search(sentence_around(text, match.start(), match.end())) \
+        if EMPLOYMENT_CONTEXT.search(
+                sentence_around(text, match.start(), match.end()).replace(name, ' ')) \
                 or ORG_AT_PREFIX.search(prefix) \
                 or EMPLOYMENT_HEADING.search(section_heading(text, match.start())):
             return True
@@ -1117,7 +1373,18 @@ def org_is_tied(text, name):
 
 
 def apply_policy_filters(results, text):
-    """Stage 2: enforce the context rules of the V1 public-sharing policy."""
+    """Stage 2: enforce the context rules of the V1 public-sharing policy.
+
+    Two passes: the first decides which person candidates survive, the second
+    uses those survivors where a rule asks "is there a person on this line",
+    so a dropped false person no longer supports a plate beside it (test9).
+    """
+    first = _filter_pass(results, text, None)
+    survivors = [(r['start'], r['end']) for r in first if r['entity_type'] == 'PERSON']
+    return _filter_pass(results, text, survivors)
+
+
+def _filter_pass(results, text, surviving_persons):
     person_spans = [(r['start'], r['end']) for r in results
                     if r['entity_type'] in ('PERSON', 'PRONOUN')]
     address_ends = [r['end'] for r in results
@@ -1134,6 +1401,12 @@ def apply_policy_filters(results, text):
                    and r['text'].startswith(('+', '00'))]
 
     name_spans = [(r['start'], r['end']) for r in results if r['entity_type'] == 'PERSON']
+    line_persons = name_spans if surviving_persons is None else surviving_persons
+    thing_cells = [(r['start'], r['end']) for r in results
+                   if r['entity_type'] == 'TABLE_THING_CELL']
+    thing_texts = {r['text'] for r in results if r['entity_type'] == 'TABLE_THING_CELL'}
+    phone_starts = {r['start'] for r in results
+                    if r['entity_type'].startswith('PHONE') and r.get('source') == 'regex'}
     author_word = heading_author_word(
         text, [(s, e) for s, e in name_spans if not is_company_shaped(text, s, e)])
 
@@ -1145,12 +1418,14 @@ def apply_policy_filters(results, text):
         line_start = text.rfind('\n', 0, start) + 1
         line_end = text.find('\n', end)
         line_end = len(text) if line_end == -1 else line_end
-        return any(line_start <= s and e <= line_end for s, e in name_spans)
+        return any(line_start <= s and e <= line_end for s, e in line_persons)
 
     filtered = []
     for result in results:
         entity, source = result['entity_type'], result.get('source')
         demoted = False
+        if entity == 'TABLE_THING_CELL':
+            continue
         # General NER runs an organization on into the next line ("...
         # DAIRIES LTD\nEMERGENCY"); the name is the part on its own line.
         if entity == 'ORGANIZATION' and source in _NER_SOURCES and '\n' in result['text']:
@@ -1174,6 +1449,30 @@ def apply_policy_filters(results, text):
                     continue
                 result = {**result, 'start': result['start'] + lead.end(),
                           'text': result['text'][lead.end():]}
+            # A kin or office word in front and the letters behind are not
+            # part of the name.
+            role = _ROLE_TITLE_LEAD.match(result['text'])
+            if role:
+                result = {**result, 'start': result['start'] + role.end(),
+                          'text': result['text'][role.end():]}
+            tail = _POST_NOMINAL_TAIL.search(result['text'])
+            if tail and tail.start() > 1:
+                result = {**result, 'end': result['start'] + tail.start(),
+                          'text': result['text'][:tail.start()]}
+            # A cell of a thing column is a product, a club or a company,
+            # and the same text is the same thing elsewhere ("Thornwick
+            # Harriers" in the heading and in the Club column).
+            if any(s <= result['start'] and result['end'] <= e for s, e in thing_cells) \
+                    or result['text'] in thing_texts:
+                continue
+            # A name has no underscore (the JSON key "date_of_birth"), is not
+            # a lowercase particle or an article-led lowercase phrase, and is
+            # not a title on its own ("Dña").
+            if '_' in result['text'] or _TITLE_WORD.match(result['text']) \
+                    or (result['text'].islower()
+                        and (result['text'] in _PARTICLE_WORDS
+                             or _LOWERCASE_ARTICLE_LEAD.match(result['text']))):
+                continue
         sentence = sentence_around(text, result['start'], result['end'])
         prefix = text[max(0, result['start'] - 32):result['start']]
 
@@ -1227,8 +1526,10 @@ def apply_policy_filters(results, text):
             role_for = ORG_ROLE_FOR_PREFIX.search(text[max(0, result['start'] - 48):result['start']])
             if TITLE_PREFIX.search(prefix) and not role_for:
                 continue
+            # The employment wording must come from the context, not from the
+            # name itself ("Larkfield Staffing" on its own letterhead, test9).
             if not (role_for or SENSITIVE_ORG_KEYWORDS.search(result['text'])
-                    or EMPLOYMENT_CONTEXT.search(sentence)
+                    or EMPLOYMENT_CONTEXT.search(sentence.replace(result['text'], ' '))
                     or ORG_AT_PREFIX.search(prefix)
                     or (result['start'] != document_start(text)
                         and org_is_tied(text, result['text']))):
@@ -1241,12 +1542,51 @@ def apply_policy_filters(results, text):
         # A product name after a thing label is not a person ("Vehicle: Nissan
         # Qashqai"), however the NER layers read it.
         if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner') \
-                and THING_LABEL_PREFIX.search(prefix):
+                and (THING_LABEL_PREFIX.search(prefix) or _QUOTED_TITLE_PREFIX.search(prefix)
+                     or _LAW_PREFIX.search(prefix)):
             continue
+        # The label half of a bilingual form line is not a person
+        # ("Bemerkungen / remarks: ...", "Einzug am / moved in on: ...",
+        # test9): the span sits before the line's first colon, and the label
+        # is short, has no comma, and carries a spaced slash and a lowercase
+        # word. A sentence that merely holds a colon further on is no label
+        # ("Je soussignée / I, the undersigned, Mme ...").
+        if entity == 'PERSON' and source in ('spacy', 'presidio', 'custom_ner'):
+            line_start = text.rfind('\n', 0, result['start']) + 1
+            line_end = text.find('\n', result['end'])
+            colon = text.find(':', result['end'], len(text) if line_end == -1 else line_end)
+            label = text[line_start:colon] if colon != -1 else ''
+            if ' / ' in label and len(label) <= 70 and ',' not in label \
+                    and ':' not in text[line_start:result['start']] \
+                    and re.search(r"(?:^|[ \t/(])[a-zß-öø-ÿ]", label):
+                continue
+            # A name holds no lowercase word but a particle. A mixed-case
+            # span loses the lowercase words around the name ("que l'élève
+            # Élodie Collin", "Quentin avant vendredi"); one with a lowercase
+            # word inside is a phrase ("Zählerstand Strom bei Einzug").
+            # All-lowercase chat names are left alone.
+            if ' ' in result['text'] and not result['text'].islower():
+                lead = _LOWERCASE_LEAD.match(result['text'])
+                if lead and any(w.lower().strip("'’") not in _PARTICLE_WORDS
+                                for w in lead.group().split()):
+                    result = {**result, 'start': result['start'] + lead.end(),
+                              'text': result['text'][lead.end():]}
+                tail = _LOWERCASE_TAIL.search(result['text'])
+                if tail:
+                    result = {**result, 'end': result['start'] + tail.start(),
+                              'text': result['text'][:tail.start()]}
+                if any(w[:1].islower() and w.lower() not in _PARTICLE_WORDS
+                       and w not in ('and', 'y', 'e', 'i', 'und', 'et', 'of', 'the', "'t", '’t')
+                       for w in result['text'].split()[1:]):
+                    continue
         # Nor is it an address: the custom model reads "Engine: Kubota D902,
         # 16 hp" as a street and a house number (candidate 3, 2026-11-13).
         if entity == 'ADDRESS' and source == 'custom_ner' \
                 and THING_LABEL_PREFIX.search(prefix):
+            continue
+        # An address opens with a number or a capital, never with a lowercase
+        # word ("que en el Padrón Municipal", test9).
+        if entity == 'ADDRESS' and source == 'custom_ner' and result['text'][:1].islower():
             continue
         # "City of Tver", "Republic of Karelia": the word after a place
         # noun and "of" is a place, whatever the NER layers call it.
@@ -1286,10 +1626,29 @@ def apply_policy_filters(results, text):
                 and ' ' not in result['text']:
             line_start = text.rfind('\n', 0, result['start']) + 1
             after = text[result['end']:result['end'] + 8]
-            if result['text'] in _COURTESY_WORDS \
+            numbered = _LABEL_WITH_NUMBER.match(after) \
+                if not text[line_start:result['start']].strip() else None
+            # A first name may label a phone number in a contact list ("Maud:
+            # 07700 900 123", test9); a role or service word never is one.
+            if numbered and result['end'] + numbered.end() - 1 in phone_starts \
+                    and not _PHONE_LABEL_WORD.fullmatch(result['text']):
+                numbered = None
+            # A closing word on its own line above the signature ("Bendithion,"
+            # over "Lowri", test9) is not the signer.
+            line_end = text.find('\n', result['end'])
+            closing = False
+            if line_end != -1 and not text[line_start:result['start']].strip() \
+                    and text[result['end']:line_end].strip() == ',':
+                below = line_end + 1
+                below += len(text[below:]) - len(text[below:].lstrip(' \t'))
+                closing = any(s == below for s, e in name_spans)
+            # "Dear Bursar,": the addressee is a role.
+            if _GREETING_STOP_WORD.fullmatch(result['text']) \
+                    and _GREETING_WORD_BEFORE.search(prefix):
+                continue
+            if result['text'].capitalize() in _COURTESY_WORDS or closing \
                     or _DATE_PLACEHOLDER.fullmatch(result['text']) \
-                    or (not text[line_start:result['start']].strip()
-                        and _LABEL_WITH_NUMBER.match(after)) \
+                    or numbered \
                     or (result['text'] in _CONTACT_LABEL_WORDS
                         and _CONTACT_LABEL_NEXT.match(after)) \
                     or (_ROLE_LABEL_WORD.fullmatch(result['text'])
@@ -1353,6 +1712,20 @@ def apply_policy_filters(results, text):
                     or not any(result['text'] in p and result['text'] != p for p in person_texts):
                 continue
             result = {**result, 'entity_type': 'PERSON'}
+        # The line above a block's street line is a house name when the
+        # line above it is a person ("Tegwen Mostyn / Tŷ Gwyn / 3 Tinnehinch
+        # Lane", test9) or it carries a house word; never a company or a
+        # department line. A second name there is redacted either way.
+        if entity == 'HOUSE_LINE':
+            above_end = text.rfind('\n', 0, result['start'])
+            above_start = text.rfind('\n', 0, max(above_end, 0)) + 1
+            under_person = above_end > 0 and any(
+                above_start <= s and e <= above_end for s, e in name_spans)
+            if is_company_shaped(text, result['start'], result['end']) \
+                    or any(_DEPARTMENT_WORD.fullmatch(w) for w in result['text'].split()) \
+                    or not (under_person or _HOUSE_WORD.search(result['text'])):
+                continue
+            result = {**result, 'entity_type': 'ADDRESS_LINE'}
         # A bare "Name:" value counts only when a NER layer saw a person in it.
         if entity == 'NAME_LINE':
             if not any(s < result['end'] and result['start'] < e for s, e in ner_person_spans):
@@ -1381,9 +1754,6 @@ _ECHO_FIRST_NAME_STOP = frozenset(
     "Jade Pearl Sage June April August Sunny Angel Blue Brook Cash Clay Dale Forest "
     "Glen Jewel King Knight Marshall Miles Moss North Ocean Penny Rain Ridge Rock "
     "Sterling Stone Wells West Winter Trust Care Home".split())
-_TITLE_WORD = re.compile(r"^" + _TITLES + r"$")
-
-
 def echo_person_names(results, text):
     """Stage 3: repeat each detected person name over its other occurrences.
 
@@ -1392,7 +1762,7 @@ def echo_person_names(results, text):
     Case-sensitive, four letters or more, and never a word that opens
     sentences in its own right.
     """
-    extra, seen = [], set()
+    extra, seen, surnames = [], set(), set()
     person_spans = [(r['start'], r['end']) for r in results if r['entity_type'] == 'PERSON']
 
     def echo_first_name(name):
@@ -1428,11 +1798,25 @@ def echo_person_names(results, text):
                               'end': match.end(), 'score': 0.9,
                               'text': name, 'source': 'echo'})
         words = [w for w in name.split() if not _TITLE_WORD.match(w)]
+        if len(words) > 1 and len(words[-1]) >= 4 and words[-1].isalpha() and words[-1][0].isupper():
+            surnames.add(words[-1])
         first = words[0] if len(words) > 1 else None
         if first and len(first) >= 4 and first.isalpha() and first[0].isupper() \
                 and first not in _ECHO_FIRST_NAME_STOP and first not in seen:
             seen.add(first)
             echo_first_name(first)
+    # Two known surnames joined by "and" are those two people ("Park and
+    # Church ran for the county", test9); a surname alone is too often an
+    # ordinary word to echo.
+    if len(surnames) > 1:
+        either = '|'.join(re.escape(s) for s in sorted(surnames))
+        for pair in re.finditer(r'\b(' + either + r')[ \t]+(?:and|&)[ \t]+(' + either + r')\b', text):
+            for group in (1, 2):
+                if not any(s <= pair.start(group) and pair.end(group) <= e
+                           for s, e in person_spans):
+                    extra.append({'entity_type': 'PERSON', 'start': pair.start(group),
+                                  'end': pair.end(group), 'score': 0.9,
+                                  'text': pair.group(group), 'source': 'echo'})
     return extra
 
 
