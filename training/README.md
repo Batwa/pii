@@ -42,8 +42,8 @@ plus `*_decoys.jsonl` (the strings that must stay unlabeled): fully synthetic,
 labeled with the four model entities only, train and dev drawn from disjoint
 name/street/city/facility pools, one document in five without entities. In
 rounds 1 and 2 every span occurs exactly once in its document; round 3 spans
-carry character offsets instead, so a name may return. The corpus is 1,900
-train / 190 dev documents after round 4. Round 1 (seed 20260831) is 400 train /
+carry character offsets instead, so a name may return. The corpus is 2,380
+train / 238 dev documents after round 5. Round 1 (seed 20260831) is 400 train /
 40 dev documents across 19 positive and 4 negative genres and went through the
 first adjudication round (`review_sample.jsonl`, 107 checks). Round 2
 (2026-11-04, seed 20261104, appended so round 1 stays byte-identical) adds 120
@@ -118,6 +118,40 @@ without separators, venue-word surnames, serial columns): test9 is the
 held-out measurement for candidate 4. Round 4 has not been through an
 adjudication round.
 
+Round 5 (2026-11-19, seed 202611195, appended from `corpus_round5.py` so
+rounds 1 to 4 stay byte-identical) adds 480 train / 48 dev documents in 13
+genres with entities and 7 without. Its brief is the list that the test9
+fix round left for the model, fixed in commit 29563b5 before test10 was
+written: a group-chat export with names in lowercase; a JSON record with
+snake_case keys, where the name, the birth date and each part of the
+address is a value; German and Spanish forms, bilingual and not ("Hr.",
+"Frau Dr.", "Dña.", "geb. am", "nacido el", worded dates, a floor or door
+inside the address line); fixed-width tables with no separator (a results
+table, a loan sheet with a product column and a serial column); surnames
+that are venue words, beside the same words used for the venue; a phone
+list with a first name as the label, beside roles and kin words; first
+names in running prose as subject, possessive and plural; medicines; a
+call transcript with one-word replies; "Surname:", "Name:" and
+"Patronymic:" as separate fields; and towns with a hyphen or a function
+word, inside addresses. Its negatives are a ward stock list of medicines,
+German and Spanish notices with empty form labels, a call script with no
+caller data, a JSON config whose "_name" keys hold plans and devices, a
+fixed-width stock table, and a lowercase chat with no names. The new pools
+(German and Spanish names, medicines, hyphenated towns) passed the
+freshness check against every gold set, test10 included, and against the
+private documents; the venue-word surnames are ordinary words, so for them
+the check was only that none is a word of a person item in any gold set.
+
+Round 5 deliberately leaves out what only the test10 blind run showed (a
+comma-separated export, camelCase JSON keys, a Dutch letter, an Italian
+form, meeting minutes, a quoted e-mail thread, a match report, a US address
+block, a spoken birth date, "they" for one person): test10 is the held-out
+measurement for candidate 5. Three round-5 genres meet a test10 document
+by design, because the class was on the list before test10 was written (a
+call transcript, a record with a patronymic, a note with medicines); they
+use other wording, labels and layouts than the test10 documents. Round 5
+has not been through an adjudication round.
+
 ## Human-gold evaluation corpus
 
 `build_gold_corpus.py` authors 154 fully synthetic labeled documents (25 dev /
@@ -159,7 +193,8 @@ at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13). Candidate 4
 was measured on it once (2026-11-14) and was not promoted, so candidate 3
 stays live. After its fix round (2026-11-14) test9 is at 99.4% / 98.7%.
 Test10 scored 82.7% / 93.3% blind (2026-11-19) and nothing has been fixed
-against it: it is the held-out set for candidate 5.
+against it. Candidate 5 was measured on it once the same day (81.6% /
+94.5%) and was not promoted, so candidate 3 stays live.
 
 ### test3 blind run (2026-11-04)
 
@@ -1578,33 +1613,124 @@ What the runs showed about training:
 - The gold-selected epochs are early ones (7 and 14 of 24), which fits a
   model that over-fits the templates later on.
 
+## NER candidate 5 (2026-11-19): trained, not promoted
+
+Candidate 5 was trained on rounds 1 to 5 of the generated corpus (2,380
+documents) with `train.py --keep-best --batch-size 8 --epochs 24
+--select-gold dev,test,...,test9`, once with seed 42 and once with seed 7,
+and the two gold-selected epochs were then averaged weight by weight with
+the new `average_models.py`. The average is kept as
+`~/pii-models/custom_ner_candidate5`; candidate 3 stays the live model.
+
+Five candidates came out of the two runs. They were compared on the sets
+that are no longer held out, before anything was scored on test10:
+
+| run | epoch kept | model alone, dev to test9 (456 items, 1,468 keeps) | pipeline, dev to test9 (1,000 items) | suites |
+|---|---|---|---|---|
+| candidate 3 (live) | 11 | 407, keep 1,439, 6 strays | 995, keep 1,450, 6 strays | pass |
+| seed 42, best generated-dev F1 | 5 | 416, keep 1,450, 4 strays | 984, keep 1,443, 8 strays | pass |
+| seed 42, best gold score | 7 | 420, keep 1,457, 2 strays | 990, keep 1,447, 7 strays | pass |
+| seed 7, best generated-dev F1 | 5 | 407, keep 1,455, 2 strays | 987, keep 1,449, 6 strays | pass |
+| seed 7, best gold score | 15 | 416, keep 1,455, 1 stray | 991, keep 1,448, 7 strays | international suite fails (a city is redacted) |
+| **average of the two gold-selected runs** | 7 + 15 | 423, keep 1,456, 2 strays | 990, keep 1,448, 7 strays | pass |
+
+The average was chosen on this table: it covers the most items alone and
+passes both suites. The table is biased twice. The gold-selected runs were
+picked on these sets, and the pipeline column favours candidate 3, because
+the rules were fitted to these sets while candidate 3 (or 2) was live: a
+rule that trims or completes one model's spans does not always fit
+another's. Every new candidate loses pipeline items here that way (the
+three name parts of `Babajide "Jide" Fashola` on test9, for one). The
+held-out measurement is test10:
+
+| | candidate 3 | candidate 5 |
+|---|---|---|
+| generated dev (238 docs), exact-span F1 | 82.8% | 96.1% |
+| test10, model alone: redact coverage (101 items) | 86 (85.1%) | 86 (85.1%) |
+| test10, model alone: PERSON / ADDRESS / DOB / SENSITIVE_ORG | 66/76, 11/12, 7/11, 2/2 | 65/76, 11/12, 8/11, 2/2 |
+| test10, model alone: keep intact (417) / stray spans | 388 / 1 | 405 / 1 |
+| test10, pipeline: redact coverage (179 items) | 148 (82.7%) | 146 (81.6%) |
+| test10, pipeline: keep intact (417) / stray spans | 389 / 2 | 394 / 2 |
+
+On test10 the pipeline gains four items with candidate 5 (the value after
+"Nome / first name:", the street and the town of the Dutch address block,
+"kv. 61") and loses six (the postcode and the town of the Italian address
+line, a town confirmed in the call transcript, the surname with an
+apostrophe in the comma-separated export, a surname alone as the subject
+of a sentence, the address in an e-mail subject line, a first name after
+"brother —"). Thirteen keep failures go ("AOB", "Nessuna", "Bezwaar", the
+sender's town in the Dutch dateline, the six team and size cells of the
+export, "Apixaban", "Deposit") and eight come ("Betreft", "Amlodipine",
+"A&E", "Finch" in a firm's name, a van model echoed as a person, and team
+cells now taken by spaCy where the custom span used to win).
+
+Why it was not promoted: the same reason as candidate 4. The held-out set
+shows no gain in recall (146 against 148 in the pipeline, 86 against 86
+alone), and on the older sets the pipeline loses five items net. Fewer
+over-redactions (five keeps on test10, seventeen for the model alone) do
+not outweigh that for a privacy tool. The differences on the private
+documents were not read this time, because the decision did not depend on
+them.
+
+What the round showed:
+
+- Two corpus rounds in a row have now left held-out recall where it was:
+  80.9% to 79.8% on test9 with round 4, 85.1% to 85.1% on test10 with
+  round 5. Both rounds cut the model's false spans on the held-out set
+  (282 to 286 keeps on test9, 388 to 405 on test10). The template corpus
+  teaches the model what is not a name; it no longer teaches it to find
+  more names.
+- What a round teaches is the layout, not the class. Round 5 taught
+  forty-six medicines as negatives; on test10 candidate 5 still reads two
+  of seven unseen medicines as persons ("Senna" as before, "Amlodipine"
+  where candidate 3 had "Apixaban").
+  It taught German and Spanish forms; the Dutch and Italian documents of
+  test10 improve only in part. On the sets it was written from, the
+  taught items do land: "Nerys ran the cake stall", "Ring Hannelore on"
+  and "Warfarin" are right with candidate 5.
+- Averaging two seeds is worth keeping: on the older sets the average
+  covers more items alone (423) than either parent (420, 416) with the
+  same keeps, and it passes the suite that one parent fails. It costs
+  nothing at run time, since the result is one model.
+- Generated-dev F1 again picked an early epoch (5 in both runs) that is
+  worse on gold than the gold-selected one.
+
 ### Next steps
 
-1. Corpus round 5 and candidate 5, with a blind test10 written first to
-   measure both it and the test9 rules. Material for the round: the test9
-   layouts (a chat export with lowercase names, a JSON record, German and
-   Spanish forms, fixed-width tables, venue-word surnames, a phone list
-   with first names), prose first names, medicines and form labels as
-   negatives ("Warfarin", "Bemerkungen"), one-word replies after a speaker
-   label ("Caller: Fine."), a "Patronymic:" field, and hyphenated city
-   names. Averaging or voting over seeds is worth a try, given the spread
-   recorded under candidate 4.
-2. Plural pronouns need reference, not proximity: nineteen failures across
-   all sets and the stray "them" on test9. No fix round and no model has
-   reduced this class.
-3. Policy questions: certificate numbers (title, birth, registration) have
+1. A test10 fix round for the rules, with candidate 3 live. The blind run
+   lists the work: a reader for comma-separated exports (twelve of the
+   thirty-one misses), Dutch labels and address blocks, a US "City, ST
+   ZIP" line, a postcode that stands as its own sentence, "Ser. No." and
+   "incident" labels, "on nights at" and "on the books of", "is moving
+   to" and "is away in", the Italian signing place without "lì", plural
+   surnames, a letterhead that shares its line with the title, and the
+   three test9 rules that reach too far ("Delivery lands in Hull", "Humber
+   Haulage relocates to Goole", "Speak to Goods In"). A spoken birth date
+   needs a decision first: it is a rule of its own.
+2. The model track needs a different kind of data, not a round 6 of
+   templates. Candidates: train on documents written by hand like the gold
+   sets (the older gold sets themselves are semi-dev for the rules and
+   could become training data, which would end their use as a model
+   measurement), or have the corpus written free-form and adjudicated
+   instead of generated from templates. Either way a new blind set comes
+   first, and averaging over seeds stays.
+3. Whether to accept a model that only over-redacts less. Candidates 4
+   and 5 were both turned down on recall. If fewer false spans are worth
+   two held-out items, candidate 5 can be promoted after a rule pass
+   against the older sets (it needs one: 990 against 995 there).
+4. Plural pronouns need reference, not proximity: twenty failures across
+   all sets with test10. No fix round and no model has reduced this class.
+5. Policy questions: certificate numbers (title, birth, registration) have
    no rule; the street address of an institution is masked like a home
    address; visitor badge numbers are masked under the "badge" label but
-   left unlabelled in the gold. From test9: the gate does not admit the
-   model's `SENSITIVE_ORGANIZATION` spans, and the model had found both
-   facilities that the keyword rules missed before this round; whether an
-   employer redacts on its own letterhead (a payslip); whether a work
-   address, a place of birth, a booking reference and a password redact.
-4. The remaining over-redactions outside the pronoun class: "Pallet" and
-   "Meter" on dev, "Warfarin" on test9. The prose first names ("Thandiwe
-   will send ...", "Ring Hannelore on ...", "Nerys ran the cake stall")
-   are a model task.
-5. Rounds 2 to 4 of the generated corpus have not been through an
+   left unlabelled in the gold; the gate does not admit the model's
+   `SENSITIVE_ORGANIZATION` spans; whether an employer redacts on its own
+   letterhead (a payslip); whether a work address, a place of birth, a
+   booking reference and a password redact. From test10: whether a pet's
+   name, a key-safe code and the away ground of a team redact.
+6. The remaining over-redactions outside the pronoun class: "Pallet" and
+   "Meter" on dev, "Warfarin" on test9 (gone with candidate 5).
+7. Rounds 2 to 5 of the generated corpus have not been through an
    adjudication round.
 
 This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
@@ -1657,6 +1783,12 @@ python training/train.py --keep-best --batch-size 8 --epochs 24 --seed 42 \
   --select-gold dev,test,test2,test3,test4,test5,test6,test7,test8 \
   --train training/data/generated/train.jsonl \
   --dev training/data/generated/dev.jsonl
+
+# Candidate 5 ran that command twice (--seed 42 and --seed 7, test9 added to
+# --select-gold, a separate --output each) and averaged the two _goldsel models:
+python training/average_models.py \
+  --models ~/pii-models/run_a_goldsel ~/pii-models/run_b_goldsel \
+  --output ~/pii-models/custom_ner_candidate
 
 python training/evaluate.py \
   --model ~/pii-models/custom_ner_candidate \

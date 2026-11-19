@@ -321,6 +321,31 @@ One JSON object per line (JSONL):
     writer bought from, the agency on its own letterhead and a club in a
     results table stay. A bare clock time stays ("half 8", "gone ten").
 
+23. Labels taken while authoring test10 (2026-11-19). "They" for one
+    person whose gender is not given ("An engineer will attend. They will
+    ring first") and for people named by role ("The district nurses came.
+    They want it kept dry") redacts; "they" for figures or accounts stays.
+    A birth date spoken in words in a transcript ("the fourteenth of May,
+    nineteen forty-one") is a birth date. The town in the dateline of a
+    letter on a letterhead is the sender's and stays ("Arnhem, 9 november
+    2026"); the signing place of a personal declaration is the signer's
+    town and redacts. "Is moving to X", "moved to X" and "previously lived
+    in X" name a residence town; "is away in X until the 28th" names a
+    travel destination. A town stays when what goes there is a delivery, a
+    pallet or a company ("Delivery lands in Hull", "Humber Haulage
+    relocates to Goole"), and so does the away ground of a team. An
+    employer redacts after "on nights at X" and "on the books of X"; a
+    contractor the author sends, an agency a letter goes care of and the
+    shop on a claim form stay. A claim reference and a police incident
+    number of the claimant redact; a receipt number, a job sheet number
+    and a request UUID stay. An IMEI is a serial number; a BSN and a
+    codice fiscale are IDs. A medicine, a pet's name, a ward of the
+    authoring hospital, a team in a table and a department after "Speak
+    to" ("Goods In") are neither persons nor facilities; the GP practice in
+    a patient's record is a facility. A plural surname for a family ("the
+    Hrabals") is a person. The interior number of a flat ("int. 5"), a US
+    state code and a sign-off initial are left unlabelled.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the

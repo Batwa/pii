@@ -31,6 +31,11 @@ because a name may now return inside one document; see that module.
 Round 4 (2026-11-13) appends 480 train / 48 dev documents from
 corpus_round4.py in the same way: French documents, tables, address blocks,
 column gaps and the other layouts of the test8 blind run.
+
+Round 5 (2026-11-19) appends 480 train / 48 dev documents from
+corpus_round5.py: lowercase chat names, JSON records, German and Spanish
+forms, fixed-width tables, venue-word surnames, phone lists, prose first
+names, medicines, one-word replies, patronymic fields and hyphenated towns.
 """
 import json
 import random
@@ -38,6 +43,7 @@ from pathlib import Path
 
 from corpus_round3 import SEED_ROUND3, build_round3, pools_for
 from corpus_round4 import SEED_ROUND4, build_round4, pools4_for
+from corpus_round5 import SEED_ROUND5, build_round5, pools5_for
 
 OUT_DIR = Path(__file__).resolve().parent / "data" / "generated"
 SEED = 20260831
@@ -649,6 +655,11 @@ def main():
     rng4 = random.Random(SEED_ROUND4)
     train += build_round4(rng4, pools4_for("TRAIN"), 480, "gen4_train")
     dev += build_round4(rng4, pools4_for("DEV"), 48, "gen4_dev")
+
+    # Round 5: the same arrangement; rounds 1 to 4 stay unchanged.
+    rng5 = random.Random(SEED_ROUND5)
+    train += build_round5(rng5, pools5_for("TRAIN"), 480, "gen5_train")
+    dev += build_round5(rng5, pools5_for("DEV"), 48, "gen5_dev")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for name, docs in (("train", train), ("dev", dev)):
