@@ -688,3 +688,145 @@ def test_rule_layer_fixes_from_test9():
         ner("PERSON", "que l'élève Maëlle Tanguy", prose, "custom_ner", 0.95),
         ner("PERSON", "Corentin avant lundi", prose, "custom_ner", 0.95)]) == {
             ("PERSON", "Maëlle Tanguy"), ("PERSON", "Corentin")}
+
+
+def test_rule_layer_fixes_from_test10(detector):
+    import policy_rules
+
+    def rules(text, extra=(), echo=False):
+        results = policy_rules.run_pattern_rules(text) + list(extra)
+        kept = policy_rules.apply_policy_filters(results, text)
+        if echo:
+            kept = kept + policy_rules.echo_person_names(kept, text)
+        return {(r["entity_type"], r["text"]) for r in kept
+                if r["entity_type"] != "PRONOUN"}
+
+    def ner(label, needle, where, source="spacy", score=0.9, after=""):
+        start = where.index(needle, where.index(after))
+        return {"entity_type": label, "start": start, "end": start + len(needle),
+                "score": score, "text": needle, "source": source}
+
+    # A delimited export is read by column: names, birth dates, and postcodes
+    # and phones beside a name column. The team is a thing, also for the
+    # model's address reading and for its head word elsewhere. A sentence
+    # with commas is not a header, and a postcode column without a name
+    # column is not personal.
+    export = ("Visitors,guests,and hosts sign in here.\nBadges,lanyards,keys.\n\n"
+              "last_name;first_name;date_of_birth;zip;team\n"
+              "de Wit;Anouk;13-02-1991;3511 AB;Under 9 Herons\n"
+              "Bakker;Tim Olaf;11-12-1988;;Under 11 Otters\n\n"
+              "Name,Address,Postcode,Phone\n"
+              "\"Marsh, Ottoline\",\"7 Tolbooth Wynd, Crail\",KY10 3TX,0333 555 0142\n\n"
+              "depot,postcode,team\nNorth,HU9 1AB,Under 9 Herons\n\n"
+              "Coaches: Herons, tbc.\n")
+    assert rules(export, [ner("ADDRESS", "9 Herons", export, "custom_ner", 0.95),
+                          ner("PERSON", "Herons", export, "custom_ner", 0.95, after="Coaches")]) == {
+        ("PERSON", "de Wit"), ("PERSON", "Anouk"), ("DATE_OF_BIRTH", "13-02-1991"),
+        ("ADDRESS_LINE", "3511 AB"), ("PERSON", "Bakker"), ("PERSON", "Tim Olaf"),
+        ("DATE_OF_BIRTH", "11-12-1988"), ("PERSON", "Marsh, Ottoline"),
+        ("ADDRESS_LINE", "7 Tolbooth Wynd, Crail"), ("ADDRESS_LINE", "KY10 3TX"),
+        ("PHONE", "0333 555 0142")}
+    # The column header is the birth label, so the dates survive dedup.
+    found = {r["text"] for r in detector.comprehensive_pii_detection(export)}
+    assert {"13-02-1991", "11-12-1988"} <= found
+
+    # A birth date answered on the next line, spoken or written; a spoken
+    # date with no birth question stays, and so does the appointment date.
+    call = ("Agent: And his date of birth?\n"
+            "Caller: The ninth of October, nineteen fifty-three.\n"
+            "Agent: First line of the address and the postcode?\n"
+            "Caller: 4 Ropewalk Row. TS12 9ZZ.\n"
+            "Agent: And the date of the visit?\nCaller: The second of March, twenty twenty-seven.\n"
+            "Q: When was she born?\nA: 3 March 1962, I think.\n"
+            "She was born on the first of June, two thousand and four.\n")
+    assert rules(call) == {
+        ("DATE_OF_BIRTH", "ninth of October, nineteen fifty-three"),
+        ("ADDRESS_LINE", "4 Ropewalk Row. TS12 9ZZ"), ("DATE_OF_BIRTH", "3 March 1962"),
+        ("DATE_OF_BIRTH", "first of June, two thousand and four")}
+    spoken = {r["text"] for r in detector.comprehensive_pii_detection(call)}
+    assert "ninth of October, nineteen fifty-three" in spoken
+
+    # Dutch: street words, the postcode line under the street, a birth date
+    # and a mobile. The sender's dateline is not a greeting; "blockade" is
+    # not a quay.
+    dutch = ("Meidoornlaan 4\n7411 XZ  Deventer\n\nZwolle, 2 november 2026\n\n"
+             "geboren op 3 mei 1971, bel 06 5550 0199 of 06-55500198.\n"
+             "Blockade 2 was lifted. Ref 06 2026 1130 77.\n")
+    assert rules(dutch) == {
+        ("ADDRESS_LINE", "Meidoornlaan 4"), ("ADDRESS_LINE", "7411 XZ  Deventer"),
+        ("DATE_OF_BIRTH", "3 mei 1971"), ("PHONE", "06 5550 0199"), ("PHONE", "06-55500198")}
+
+    # Bilingual and other-language name labels, a place-and-date label, a
+    # flat after a Russian street line, a US town line under the street.
+    forms = ("Nome / first name: Ettore\nCognome: Bellandi\nNome / name of product: Vespa\n"
+             "Luogo e data / place and date: Lodi, 4 novembre 2026\n"
+             "Place and date: see above\n"
+             "Place of residence: Tver, ul. Yablonevaya 12, kv. 40\n\n"
+             "Mailing address:\n  220 Juniper Ct, Unit 2B\n  Salem, OR 97301\n")
+    assert rules(forms) == {
+        ("PERSON", "Ettore"), ("PERSON", "Bellandi"), ("LOCATION", "Lodi"),
+        ("ADDRESS_LINE", "ul. Yablonevaya 12, kv. 40"),
+        ("ADDRESS_LINE", "220 Juniper Ct, Unit 2B"), ("ADDRESS_LINE", "Unit 2B"),
+        ("ADDRESS_LINE", "Salem, OR 97301")}
+
+    # Identifiers: "Ser. No.", a police incident number; an IT incident and a
+    # series number stay.
+    ids = ("Ser. No.: 7C118KQTR20455\nReported to the county sheriff, incident 25-0038102.\n"
+           "Crime number: 52/1184/26\nIncident 4471: printer offline. Series no. 4 of the leaflet.\n")
+    assert rules(ids) == {("SERIAL_NUMBER", "7C118KQTR20455"), ("GENERIC_ID", "25-0038102"),
+                          ("GENERIC_ID", "52/1184/26")}
+
+    # Work wording names the employer; roles, bays, sites and holidays are
+    # not employers.
+    work = ("I'm on nights at Swaledale Dairy this week. She is on the books of Kittiwake Couriers.\n"
+            "I work at Brantwood now. He worked at Bay 6 and works at the Hull depot.\n"
+            "We are working at Christmas. I'm on nights at Reception. She works for Mr Tranter.\n")
+    assert rules(work) == {
+        ("ORGANIZATION", "Swaledale Dairy"), ("ORGANIZATION", "Kittiwake Couriers"),
+        ("ORGANIZATION", "Brantwood"), ("PERSON", "Tranter")}
+
+    # A journey or a stay needs a person as its subject: cargo and companies
+    # do not travel. Moving is a journey; a desk is not a person to ask for.
+    moves = ("Delivery lands in Hull on Tuesday. Humber Haulage relocates to Goole in May.\n"
+             "Trailer is in Grimsby until Friday. Mr Voss is away in Madeira until the 9th.\n"
+             "Ines (she is moving to Cardigan next month). Speak to Goods In, or ask for Ines.\n")
+    assert rules(moves, [ner("PERSON", "Ines", moves)]) == {
+        ("PERSON", "Voss"), ("LOCATION", "Madeira"), ("PERSON", "Ines"),
+        ("LOCATION", "Cardigan")}
+
+    # NER "persons" that are an abbreviation, a JSON key, a medicine (by
+    # list or by its dose), a "none" word, a pet, a town after a verb of
+    # being, a fixture opponent, a lowercase phrase of another language, a
+    # Dutch body or a department. A lowercase name on a lowercase line stays.
+    noise = ("Woonstichting De Brink\nAfdeling Beheer\n\n4. AOB. None.\n"
+             "\"bedLabel\": \"J-14\", \"meds\": [\"Edoxaban 30 mg\", \"Zanthium 40 mg\"]\n"
+             "Senna only if needed. Note / notes: Nessuna. L'ospite parla tedesco e francese.\n"
+             "Pickle (the cat) stays in. Feed Pickle at six.\n"
+             "The van is in Selby until Monday. Next fixture: away to Clifford Moor.\n"
+             "ok thanks maria lopez\n")
+    assert rules(noise, [
+        ner("PERSON", "Woonstichting De Brink", noise, "custom_ner", 0.95),
+        ner("PERSON", "Afdeling Beheer", noise, "custom_ner", 0.95),
+        ner("PERSON", "AOB", noise, "custom_ner", 0.95),
+        ner("PERSON", "bedLabel", noise, "custom_ner", 0.95),
+        ner("PERSON", "Edoxaban", noise, "custom_ner", 0.95),
+        ner("PERSON", "Zanthium", noise, "custom_ner", 0.95),
+        ner("PERSON", "Senna", noise, "custom_ner", 0.95),
+        ner("PERSON", "Nessuna", noise, "custom_ner", 0.95),
+        ner("PERSON", "parla tedesco e francese", noise),
+        ner("PERSON", "Pickle", noise), ner("PERSON", "Pickle", noise, after="Feed"),
+        ner("PERSON", "Selby", noise, "custom_ner", 0.95),
+        ner("PERSON", "Clifford Moor", noise),
+        ner("PERSON", "maria lopez", noise)]) == {("PERSON", "maria lopez")}
+
+    # The facility that heads its own document is the author; the model's
+    # address loses the subject word in front of it; a known surname in the
+    # plural is that family.
+    heading = ("Larchfield Day Centre — transport rota\n\n"
+               "Subject: Keys — Flat 5, 31 Saltergate Bank\n"
+               "Player of the match: Tomasz Wrobel. Lifts: the Wrobels have two spare seats.\n")
+    assert rules(heading, [
+        ner("ADDRESS", "Keys — Flat 5, 31 Saltergate Bank", heading, "custom_ner", 0.95),
+        ner("PERSON", "Tomasz Wrobel", heading)], echo=True) == {
+            ("ADDRESS", "Flat 5, 31 Saltergate Bank"), ("ADDRESS_LINE", "Flat 5"),
+            ("PERSON", "Tomasz Wrobel"), ("PERSON", "Wrobels")}

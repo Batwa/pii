@@ -243,7 +243,9 @@ class TextPIIDetector:
             # redacted. Dates must have an explicit date-of-birth context.
             if result.get('entity_type') == 'DATE_TIME' and result.get('source') != 'custom_ner':
                 continue
-            if result.get('entity_type') == 'DATE_OF_BIRTH':
+            # A rule that found the birth label elsewhere (a column header,
+            # the question on the line before) has already checked it.
+            if result.get('entity_type') == 'DATE_OF_BIRTH' and not result.get('label_elsewhere'):
                 context = text[max(0, start - 40):start]
                 if not policy_rules.DOB_CONTEXT.search(context):
                     continue

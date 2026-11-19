@@ -346,6 +346,15 @@ One JSON object per line (JSONL):
     Hrabals") is a person. The interior number of a flat ("int. 5"), a US
     state code and a sign-off initial are left unlabelled.
 
+24. Settled in the test10 fix round (2026-11-19). In a table or an
+    export, a birth-date column is personal on its own; a postcode, address
+    or phone column is a person's only beside a name column. A birth date
+    answered on the line after the question is a birth date, whatever its
+    form. The facility that heads its own document, with a dash and the
+    title after it ("Oakmere Day Centre — minibus rota"), is the author and
+    stays, as on a letterhead. A journey or a stay redacts its town only
+    when the subject is a person or a pronoun.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the

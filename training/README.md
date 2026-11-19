@@ -192,9 +192,11 @@ against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
 at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13). Candidate 4
 was measured on it once (2026-11-14) and was not promoted, so candidate 3
 stays live. After its fix round (2026-11-14) test9 is at 99.4% / 98.7%.
-Test10 scored 82.7% / 93.3% blind (2026-11-19) and nothing has been fixed
-against it. Candidate 5 was measured on it once the same day (81.6% /
-94.5%) and was not promoted, so candidate 3 stays live.
+Test10 scored 82.7% / 93.3% blind (2026-11-19). Candidate 5 was measured on
+it once the same day (81.6% / 94.5%), before any rule was fixed against it,
+and was not promoted, so candidate 3 stays live. After its fix round
+(2026-11-19) test10 is at 100% / 99.5% and test9 at 99.4% / 99.0%; every
+set is semi-dev again, and the next measurement needs a new blind set.
 
 ### test3 blind run (2026-11-04)
 
@@ -1363,6 +1365,156 @@ Of the 28 keep failures, 16 are spans of the custom model (nine of them in
 the comma-separated export and the Dutch letter), 5 come from spaCy and 7
 from rules; 3 of those 7 are test9 rules reaching too far.
 
+### test10 fixes (2026-11-19)
+
+The round started from the blind run: 148/179, keep 389/417, 2 strays,
+which is 61 findings. Fifty-eight were fixed, in `policy_rules.py` and one
+line of `text_pii_detector.py`, with candidate 3 live and unchanged; test10
+is semi-dev from here. Candidate 5 had been measured on test10 before the
+round started, so that comparison is not affected.
+
+Tables and replies:
+
+- A comma- or semicolon-separated export is read by column, like the piped
+  and fixed-width tables (`table_column_spans`): a header line of bare
+  labels with no space after the separator ("surname,forenames,dob,
+  mobile,postcode"), then rows with the same number of cells; quoted cells
+  may hold the separator. A sentence with commas is not a header.
+- All three table kinds gain columns. A birth-date column is personal on
+  its own. Postcode, address and phone columns count only beside a name
+  column, where the row is a person's record. "surname", "forenames",
+  "first name", "last_name" and their kind are name headers, and a surname
+  cell may open with a particle ("de Wit").
+- The team column is a thing column: the model's address reading of a
+  team cell is dropped, and so is the head word of a thing cell read as a
+  person elsewhere ("Merlins" for "Under 14 Merlins").
+- A birth date given in answer to a question on the line before is a birth
+  date (`reply_birth_dates`): "Agent: And her date of birth?" / "Caller:
+  The fourteenth of May, nineteen forty-one." The date may be spoken (an
+  ordinal word, the month, the year in words), worded or numeric. The
+  spoken form also counts straight after a birth label. This is the
+  decision the blind-run notes asked for; it follows labeling-guide
+  decision 23. Dedup used to demand the birth label in the forty
+  characters before a date; a rule that found the label in a column header
+  or in the question now says so on its span (`label_elsewhere`).
+- A postcode said as its own sentence straight after a street line belongs
+  to it ("6 Cooperage Row. DL8 2QK.").
+
+Labelled values and addresses:
+
+- Dutch: "geboren op" and "geboortedatum" are birth labels and the worded
+  date reads Dutch months; "-straat", "-laan", "-plein", "-gracht",
+  "-kade", "-singel", "-dijk" and "-steeg" are street words, which lets
+  the postcode line under the street close the block ("6921 KL  Duiven");
+  a mobile is 06 and eight digits.
+- "Ser. No." is a serial label (with its dot). A police incident or crime
+  number is a person's identifier: any value after a number word, or five
+  digits in a row after the bare word, so "Incident 4471: printer offline"
+  stays.
+- A US town line closes an address block ("Bend, OR 97701"); a flat after
+  a Russian or Polish street line belongs to it ("kv. 61", "m. 4").
+- A name label may follow the other-language half of a bilingual label
+  ("Nome / first name: Ottavio"), and "Cognome", "Vorname", "Nachname",
+  "Prénom", "Apellidos", "Voornaam" and "Achternaam" label a name alone.
+  "Nome", "Nom" and "Nombre" do not: like "Name" they label products too.
+- A town under a "place and date" label is the signer's ("Luogo e data /
+  place and date: Cremona, 3 novembre 2026"), in seven languages.
+
+Wording:
+
+- Work wording names the employer where no layer saw an organization:
+  "works at / for", "employed at", "on nights at", "on the books of", "on
+  the payroll of". Roles, departments, bays, sites and holidays are not
+  employers.
+- The journey rule takes "is moving to" and the stay rule takes a named
+  subject ("Crispin is away in Lanzarote until the 28th"). Both now ask
+  that a named subject is a detected person, which removes the over-reach
+  the test9 section predicted: "Delivery lands in Hull" and "Humber
+  Haulage relocates to Goole" stay.
+- "Goods", "Returns", "Despatch", "Shipping", "Receiving", "Inbound",
+  "Outbound" and "Inventory" are desks, not names ("Speak to Goods In").
+- A town ahead of a date at the start of a line is a dateline, not a
+  greeting ("Arnhem, 9 november 2026").
+- A known surname in the plural with a verb that takes people is that
+  family ("the Hrabals have two spare seats").
+
+Vetoes on NER spans:
+
+- One-word "persons" from closed vocabularies: agenda and office
+  abbreviations ("AOB"), the word for "none" in the form languages
+  ("Nessuna", "Keine", "Geen"), and about 160 common medicines. A medicine
+  no list knows is still one ahead of its dose ("Apixaban 2.5 mg").
+- A JSON key or a camelCase identifier ("bedLabel"); a pet, named by its
+  apposition ("Biscuit (the cat)", "her dog ..."), at every mention; the
+  opponent in a fixture ("away to Thorpe Arch"); a town after a verb of
+  being and "in" ("Trailer 14 is in Immingham").
+- A lowercase phrase from spaCy or Presidio on a line that uses capitals
+  ("parla inglese e spagnolo", "uw wijkbeheerder"). On a line typed
+  without capitals a lowercase name is still a name.
+- Dutch bodies and the word for a department lead a company, not a person
+  ("Woonstichting De Linde", "Afdeling Verhuur").
+- The facility that heads its own document, with a dash and the title
+  after it, is the author, as on a letterhead ("Oakmere Day Centre —
+  minibus rota").
+- A heading word and a dash in front of an address the model found are
+  cut off ("Deposit — Flat 2, 18 Limekiln Bank").
+
+Three comparisons bound the side effects, as in the test9 round. Every
+detection on the 438 gold, international, private and generated-dev
+documents was compared before and after. Outside test10, three employers
+on dev, test and test2 are now found by the work-wording rule instead of
+spaCy (the same span), "Warfarin" is no longer a person on test9, and one
+Spanish title joins its name under a bilingual label. On the private
+documents one span changes its source and none its extent; nothing changes
+on the international set. On the 238 generated dev documents, which no
+rule was written against, nineteen change: eight birth dates in reply
+lines are newly found, all eight labelled `DATE_OF_BIRTH` in the corpus;
+eleven medicine spans and one "Keine" stop being persons; four employers
+change source; one title joins its name. Last, the new patterns were run
+alone over the 2,759 generated and older gold documents: the work-wording
+rule matches 53 times, every match a company after "worked at", "worked
+for" or "employed at"; the reply rule matches 40 times, every match a
+labelled birth date; the Dutch mobile pattern matches five numbers that
+another phone pattern already finds. The export reader, the incident
+number, the place-and-date label and the named-subject stay rule match
+nothing there.
+
+Result: test10 148/179 → 179/179 (100%), keep 389/417 → 415/417 (99.5%), 2
+→ 1 strays. Test9 gains one keep (297 → 298 of 301). Every other set is
+unchanged: dev 123/123 and 135/135 (strays still 4), test, test2 and test3
+100% / 100%, test4 61/63 and 81/83, test5 71/72 and 87/89, test6 110/111
+and 160/164, test7 141/141 and 220/223, test8 139/139 and 235/238 (1
+stray); both regression suites and the 24 unit tests pass. Left on test10
+are "they" for the accounts (the plural-pronoun class) and two Dutch words
+that open a sentence, "Bezwaar" and "Klopt", which the custom model reads
+as persons; no rule short of a word list would tell them from a name.
+
+Read the 100% as a fitted score; the measurement was the blind 82.7%. The
+limits of this round:
+
+- The export reader, the incident number, the place-and-date label, the
+  pet, fixture and JSON-key vetoes and the US town line have no occurrence
+  outside test10 and their unit test. Only a new blind set can say how
+  often they fire wrongly.
+- The medicine list is a list. It covers common UK prescriptions, and
+  "Senna" on it is also a first name: a person called Senna is then found
+  only under a label, a title or a greeting.
+- The subject check cuts both ways. A journey whose subject is a name no
+  layer found ("Dad drives to Thurso") is no longer read.
+- The work-wording rule takes any capitalised name after "works at", so a
+  town there is masked as the employer.
+- A Dutch street of two words keeps its first word visible ("Prins" of
+  "Prins Hendrikkade 12"). The spoken date is English only.
+- The author rule covers the heading only: a later mention of the same
+  facility in the body is still masked.
+
+Candidate 5 was scored once more under the new rules, for the open
+question in "Next steps": 990/1,000 and 1,448/1,468 on the older sets (7
+strays), 173/179 and 412/417 on test10, against 995, 1,451 (6 strays), 179
+and 415 with candidate 3. The rules were fitted with candidate 3 live, so
+this is the size of the rule pass candidate 5 would still need, not a
+verdict on the model.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -1697,27 +1849,27 @@ What the round showed:
 
 ### Next steps
 
-1. A test10 fix round for the rules, with candidate 3 live. The blind run
-   lists the work: a reader for comma-separated exports (twelve of the
-   thirty-one misses), Dutch labels and address blocks, a US "City, ST
-   ZIP" line, a postcode that stands as its own sentence, "Ser. No." and
-   "incident" labels, "on nights at" and "on the books of", "is moving
-   to" and "is away in", the Italian signing place without "lì", plural
-   surnames, a letterhead that shares its line with the title, and the
-   three test9 rules that reach too far ("Delivery lands in Hull", "Humber
-   Haulage relocates to Goole", "Speak to Goods In"). A spoken birth date
-   needs a decision first: it is a rule of its own.
+The test10 fix round is done (see "test10 fixes" above); every gold set is
+semi-dev for the rules again.
+
+1. A new blind set (test11) before anything else is measured. It should
+   probe what the test10 round assumed: exports with other headers and
+   quoting, a table with a phone or postcode column and no name column,
+   work wording in front of towns and roles, journeys whose subject is a
+   kin word, medicines outside the list, lowercase names in mixed-case
+   text, and a facility named in its own heading and again in the body.
 2. The model track needs a different kind of data, not a round 6 of
    templates. Candidates: train on documents written by hand like the gold
    sets (the older gold sets themselves are semi-dev for the rules and
    could become training data, which would end their use as a model
    measurement), or have the corpus written free-form and adjudicated
-   instead of generated from templates. Either way a new blind set comes
+   instead of generated from templates. Either way the new blind set comes
    first, and averaging over seeds stays.
 3. Whether to accept a model that only over-redacts less. Candidates 4
    and 5 were both turned down on recall. If fewer false spans are worth
-   two held-out items, candidate 5 can be promoted after a rule pass
-   against the older sets (it needs one: 990 against 995 there).
+   it, candidate 5 can be promoted after a rule pass of its own: under
+   the current rules it is five redactions behind on the older sets and
+   six on test10.
 4. Plural pronouns need reference, not proximity: twenty failures across
    all sets with test10. No fix round and no model has reduced this class.
 5. Policy questions: certificate numbers (title, birth, registration) have
@@ -1726,10 +1878,12 @@ What the round showed:
    left unlabelled in the gold; the gate does not admit the model's
    `SENSITIVE_ORGANIZATION` spans; whether an employer redacts on its own
    letterhead (a payslip); whether a work address, a place of birth, a
-   booking reference and a password redact. From test10: whether a pet's
-   name, a key-safe code and the away ground of a team redact.
+   booking reference and a password redact. From test10, decided in the
+   labeling guide and open to review: a pet's name and the away ground of
+   a team stay, a spoken birth date redacts; a key-safe code has no rule.
 6. The remaining over-redactions outside the pronoun class: "Pallet" and
-   "Meter" on dev, "Warfarin" on test9 (gone with candidate 5).
+   "Meter" on dev, and foreign words that open a sentence ("Bezwaar",
+   "Klopt" on test10), all spans of the custom model.
 7. Rounds 2 to 5 of the generated corpus have not been through an
    adjudication round.
 
