@@ -120,8 +120,8 @@ adjudication round.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 141 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 each for test3 to test9) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 154 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 each for test3 to test10) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -146,8 +146,9 @@ change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 docs, authored 2026-11-07 after the test5 fixes), **test7** (13 docs,
 authored 2026-11-08 after the test6 fixes), **test8** (13 docs, authored
 2026-11-09 after the test7 fixes) and **test9** (13 docs, authored
-2026-11-13 after the test8 fixes, with candidate 3 live). `--set all` runs
-all ten.
+2026-11-13 after the test8 fixes, with candidate 3 live) and **test10** (13
+docs, authored 2026-11-19 after the test9 fixes, before corpus round 5).
+`--set all` runs all eleven.
 Current state, with candidate 3 live since 2026-11-13: dev, test and test2
 at 100% coverage / 100% keep; test3 at 100% / 99.0%, test4 at 96.8% / 97.6%,
 test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
@@ -157,7 +158,8 @@ against it; after its fix round (2026-11-13) it is at 100% / 98.7% and test3
 at 100% / 100%. Test9 scored 81.0% / 90.7% blind (2026-11-13). Candidate 4
 was measured on it once (2026-11-14) and was not promoted, so candidate 3
 stays live. After its fix round (2026-11-14) test9 is at 99.4% / 98.7%.
-Every set is semi-dev now; the next blind measurement needs a test10.
+Test10 scored 82.7% / 93.3% blind (2026-11-19) and nothing has been fixed
+against it: it is the held-out set for candidate 5.
 
 ### test3 blind run (2026-11-04)
 
@@ -1236,6 +1238,95 @@ rules have no occurrence outside test9 and their unit test, so nothing but
 a new blind set can say how often they fire wrongly: "Delivery lands in
 Hull" would be read as a person's journey because a capitalised word stands
 before the verb.
+
+### test10 blind run (2026-11-19)
+
+Thirteen documents, 179 must-redact items and 417 must-keep phrases, written
+without running the detector, after the test9 fixes (commit 29563b5), with
+candidate 3 live and before corpus round 5 existed. The batch does two jobs.
+
+It probes what the test9 fix round assumed: JSON keys in camelCase with
+nested lists ("familyName", "givenNames", "nextOfKin"), a comma-separated
+export, a fixed-width table with other headers and a plate inside a vehicle
+cell, journey wording with other verbs ("is moving to", "is away in ...
+until") and with subjects that are not people ("Delivery lands in Hull",
+"Humber Haulage relocates to Goole"), "ask for" and "speak to" in front of
+things ("ask for a pallet truck", "Speak to Goods In"), bilingual labels in
+Italian, a dateline with the sender's town, labels outside the lists
+("Born:", "Ser. No.", "IMEI:", "Claim ref:"), employer wording ("on nights
+at", "on the books of") and a US address block.
+
+It also holds new instances of what round 5 was already planned to teach
+(the list under "Next steps" in commit 29563b5): medicines, one-word replies
+after a speaker label, a "Patronymic:" field, hyphenated towns, prose first
+names. And it has ground no round covers: meeting minutes, a spoken birth
+date, a Dutch letter, a quoted e-mail thread, a match report, "they" for one
+person. Every name word was checked against the generated corpus, the older
+gold sets, the rules, the unit tests and the private documents, and replaced
+when one of them already had it (about sixty were).
+
+Full pipeline (candidate 3 live, test9 fixes in): redact coverage 148/179
+(82.7%), keep intact 389/417 (93.3%), 2 stray spans. Model alone: 86/101
+model-entity items (85.1%; PERSON 66/76, ADDRESS 11/12, DOB 7/11,
+SENSITIVE_ORG 2/2), keep 388/417, 1 stray. Nothing has been fixed against
+it.
+
+Blind recall has now been 75.0%, 75.7%, 80.1%, 74.8% (80.6% once candidate 3
+was live), 81.0% and 82.7% on test5 to test10; blind keep 90.7% and 93.3% on
+the last two.
+
+By label: PERSON 70/76, PRONOUN 19/19, PHONE 19/20, EMAIL 4/4, ADDRESS
+10/12, DOB 5/11, ZIP 3/10, CITY_RESIDENCE 6/10, CITY_TRAVEL 0/1,
+EMPLOYER_ORG 0/2, GENERIC_ID 4/5, SERIAL_NUMBER 1/2, PASSPORT 2/2,
+LICENSE_PLATE 3/3, SENSITIVE_ORG 2/2.
+
+Probe by probe:
+
+- The JSON reader held: all fourteen items of the camelCase payload are
+  covered, the request UUID and the ward stay. Two keep failures there are
+  the custom model's (the key "bedLabel" and the medicine "Apixaban").
+- The fixed-width rota held: every driver, escort and plate is covered and
+  "agency", "TBC" and the vehicle names stay. The centre's own name is
+  masked as a facility, because the letterhead shares its line with the
+  document title.
+- The comma-separated export is the largest hole: twelve of the thirty-one
+  misses. Surnames and mobiles are found; the forenames column, all four
+  birth dates and all four postcodes are not, and the model reads the team
+  column as addresses (six keep failures).
+- The journey rules miss both new wordings ("he is moving to Tregaron",
+  "Crispin is away in Lanzarote until the 28th") and fire on both
+  non-persons: "Hull" and "Goole" are masked. "Speak to Goods In" masks
+  "Goods In" as a person. "Ask for a pallet truck", "ask for the shift
+  lead" and "ask for the duty coordinator" stay, and "ask for Astrid" is
+  found. This is the over-reach the test9 section predicted.
+- The Dutch letter: the three lines of the address block, "geboren op 12
+  mei 1968" and a mobile after "op" are missed; both letterhead lines, the
+  sender's town in the dateline and two ordinary words are masked, and both
+  strays are here. The names are all found.
+- The Italian form: the labels hold except "Nome / first name:", whose
+  value is missed, and the signing place without "lì". "Nessuna" and the
+  two language names are masked.
+- Employer wording: 0 of 2 ("on nights at Nidderdale Bakery", "on the books
+  of Tideway Couriers").
+- Labels: "Born:", "IMEI:" and "Claim ref:" work; "Ser. No.:" and
+  "incident 26-0041873" do not. In the US block the street and unit are
+  found, "Bend, OR 97701" is not.
+- The call transcript: no one-word reply is masked. The spoken birth date
+  ("the fourteenth of May, nineteen forty-one") is missed, and so is a
+  postcode that follows a street as a sentence of its own.
+- The translated certificate: surname, name and patronymic, the three
+  hyphenated towns and the passport are covered; "kv. 61" is not.
+- Prose first names: all found in the minutes, the care notes and the match
+  report. "the Hrabals" (a plural surname) is missed.
+- Medicines: five of seven stay; "Apixaban" and "Senna" are persons to the
+  custom model, as "Warfarin" was. A cat called "Biscuit" and the away
+  ground "Thorpe Arch" are persons to spaCy.
+- Pronouns: 19 of 19, including "they" for one engineer and for two
+  nurses. One keep failure of the known class: "they" for the accounts.
+
+Of the 28 keep failures, 16 are spans of the custom model (nine of them in
+the comma-separated export and the Dutch letter), 5 come from spaCy and 7
+from rules; 3 of those 7 are test9 rules reaching too far.
 
 ## NER candidates and the custom-model gate (2026-11-04)
 

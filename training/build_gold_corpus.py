@@ -2,7 +2,7 @@
 """Author and validate the human-gold evaluation corpus.
 
 Every document is synthetic: the people, organizations, identifiers, and
-addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 / 13 test6 / 13 test7 / 13 test8 / 13 test9 documents
+addresses are invented (the 25 dev / 15 test / 10 test2 / 13 test3 / 13 test4 / 13 test5 / 13 test6 / 13 test7 / 13 test8 / 13 test9 / 13 test10 documents
 are listed below in authoring order), so the corpus carries no real personal data and lives in
 the tracked training/data/gold/ directory. Labels follow the V1 public-sharing
 redaction policy (red.pdf). Labeling decisions taken where the policy is open:
@@ -2709,6 +2709,486 @@ TEST9 = [
         "Bendithion"]),
 ]
 
+# -------------------------------------------- blind held-out set test10 (13)
+# Authored 2026-11-19 without running the detector, after the test9 fixes
+# (commit 29563b5) and with candidate 3 live, before corpus round 5 was
+# written. It probes what the test9 fix round assumed: JSON keys in camelCase
+# with nested lists, a comma-separated export, a fixed-width table with other
+# headers and a plate inside a vehicle cell, journey and "ask for" wording
+# with subjects and objects that are not people ("Delivery lands in Hull",
+# "ask for a pallet truck"), bilingual form labels in Italian, a dateline
+# with the sender's town, labels outside the lists ("Born:", "Ser. No.",
+# "IMEI", "Claim ref"), a US address block. New ground: meeting minutes, a
+# call transcript with one-word replies and a spoken birth date, a Dutch
+# letter, medicines in a payload and in care notes, a translated Russian
+# certificate with a patronymic and hyphenated towns, a quoted e-mail thread,
+# a match report in prose, and "they" for a single person.
+TEST10 = [
+ dict(id="gold_v10_01_minutes.txt",
+  text=("Fernhill Allotment Society — committee minutes, 12 November 2026\n\n"
+        "Present: Rangi Tautahi (chair), Funmilayo Adeleke-Schreiber, Hedda, "
+        "P. Szczepańska (treasurer)\n"
+        "Apologies: Mrs Birtwistle-Rao; Ewan (he is moving to Tregaron "
+        "next month and is packing)\n"
+        "In attendance: the council's parks officer (item 3 only)\n\n"
+        "1. Water supply. Rangi reported that the trough by plot 14 is still "
+        "leaking. Hedda has the stopcock key and she will isolate it on "
+        "Saturday.\n"
+        "2. Accounts. The treasurer circulated the figures; they were "
+        "approved without comment. Rent for plots 20 to 26 is overdue.\n"
+        "3. Fence. The parks officer said the council will pay for posts "
+        "only. Funmilayo and Ewan offered to do the work; their quote for "
+        "wire is £180.\n"
+        "4. AOB. A complaint about bonfires came from the tenant of plot 9. "
+        "Szczepańska will write to him.\n\n"
+        "ACTIONS\n"
+        "- Rangi to ring the water board (01632 960 314) before the 20th.\n"
+        "- Hedda: stopcock, Saturday.\n"
+        "- Treasurer to chase plots 20 to 26.\n\n"
+        "Next meeting: 10 December, 19:30, the pavilion.\n"
+        "Minutes taken by Mereana."),
+  redact=[("Rangi Tautahi","PERSON"),("Rangi","PERSON"),
+          ("Funmilayo Adeleke-Schreiber","PERSON"),("Funmilayo","PERSON"),
+          ("Hedda","PERSON"),("P. Szczepańska","PERSON"),
+          ("Szczepańska","PERSON"),("Birtwistle-Rao","PERSON"),
+          ("Ewan","PERSON"),("he","PRONOUN"),
+          ("Tregaron","CITY_RESIDENCE"),("she","PRONOUN"),
+          ("their","PRONOUN"),("him","PRONOUN"),("01632 960 314","PHONE"),
+          ("Mereana","PERSON")],
+  keep=["Fernhill Allotment Society","committee minutes","12 November 2026",
+        "Present","chair","treasurer","Apologies","next month",
+        "In attendance","council","parks officer","item 3","Water supply",
+        "trough","plot 14","stopcock key","Saturday","Accounts","they",
+        "Rent","plots 20 to 26","Fence","posts","quote","wire","AOB",
+        "bonfires","tenant","plot 9","ACTIONS","water board","the 20th",
+        "Next meeting","10 December","19:30","pavilion","Minutes taken by"]),
+
+ dict(id="gold_v10_02_call_transcript.txt",
+  text=("CALL RECORDING — transcript (auto-generated, lightly corrected)\n"
+        "Queue: Home emergency   Duration: 04:12\n\n"
+        "Agent: Good afternoon, home emergency line, you're speaking to "
+        "Lachlan.\n"
+        "Caller: Hi. It's about my mum's boiler.\n"
+        "Agent: Sure. Can I take the policyholder's name?\n"
+        "Caller: Henrietta Okonedo-Sowerby. I'm her son, Reuben.\n"
+        "Agent: Lovely. And her date of birth?\n"
+        "Caller: The fourteenth of May, nineteen forty-one.\n"
+        "Agent: Thanks. First line of the address and the postcode?\n"
+        "Caller: 6 Cooperage Row. DL8 2QK.\n"
+        "Agent: Fine. Is that Bedale?\n"
+        "Caller: Yes.\n"
+        "Agent: And a number we can reach you on?\n"
+        "Caller: 07700 900 471. Hers is the landline, 01632 960 852, but she "
+        "won't pick up.\n"
+        "Agent: Understood. An engineer from Calder Heating will attend "
+        "tomorrow between eight and one. They will ring the mobile first.\n"
+        "Caller: Great. Will it be Marek again? He was good.\n"
+        "Agent: I can't see the allocation, sorry.\n"
+        "Caller: Okay. I'm on nights at Nidderdale Bakery this week, so text "
+        "rather than ring.\n"
+        "Agent: Noted. Anything else?\n"
+        "Caller: No. Cheers."),
+  redact=[("Lachlan","PERSON"),("Henrietta Okonedo-Sowerby","PERSON"),
+          ("her","PRONOUN"),("Reuben","PERSON"),
+          ("fourteenth of May, nineteen forty-one","DOB"),
+          ("6 Cooperage Row","ADDRESS"),("DL8 2QK","ZIP"),
+          ("Bedale","CITY_RESIDENCE"),("07700 900 471","PHONE"),
+          ("hers","PRONOUN"),("01632 960 852","PHONE"),("she","PRONOUN"),
+          ("they","PRONOUN"),("Marek","PERSON"),("he","PRONOUN"),
+          ("Nidderdale Bakery","EMPLOYER_ORG")],
+  keep=["CALL RECORDING","transcript","auto-generated","Queue",
+        "Home emergency","Duration","04:12","Agent","Caller",
+        "Good afternoon","Hi","mum","boiler","Sure","policyholder","son",
+        "Lovely","date of birth","Thanks","First line of the address",
+        "postcode","Fine","Yes","landline","Understood","engineer",
+        "Calder Heating","tomorrow","between eight and one","mobile","Great",
+        "allocation","sorry","Okay","nights","this week","Noted",
+        "Anything else","No","Cheers"]),
+
+ dict(id="gold_v10_03_ospitalita.txt",
+  text=("DICHIARAZIONE DI OSPITALITÀ / DECLARATION OF HOSPITALITY\n"
+        "(art. 7 D.Lgs. 286/1998)\n\n"
+        "Il sottoscritto / the undersigned\n"
+        "Cognome / surname: Bevilacqua\n"
+        "Nome / first name: Ottavio\n"
+        "Nato il / born on: 7 agosto 1979\n"
+        "Codice fiscale / tax code: BVLTTV79M07A794K\n"
+        "Residente in / resident at: Via dei Glicini 22, int. 5, 26100 "
+        "Cremona (CR)\n"
+        "Tel. / phone: 0372 555 014\n\n"
+        "dichiara di ospitare / declares hosting\n"
+        "Sig.ra Milagros Elizondo-Ferraro, nata il 19/02/1992, passaporto n. / "
+        "passport no. M00448217\n"
+        "dal / from: 05/12/2026\n\n"
+        "Mezzo di trasporto / vehicle: Fiat Panda, targa / plate GA 517 KX\n"
+        "Note / notes: Nessuna. L'ospite parla inglese e spagnolo.\n\n"
+        "Luogo e data / place and date: Cremona, 3 novembre 2026\n"
+        "Firma / signature: O. Bevilacqua"),
+  redact=[("Bevilacqua","PERSON"),("Ottavio","PERSON"),
+          ("7 agosto 1979","DOB"),("BVLTTV79M07A794K","GENERIC_ID"),
+          ("Via dei Glicini 22","ADDRESS"),("26100","ZIP"),
+          ("Cremona","CITY_RESIDENCE"),("0372 555 014","PHONE"),
+          ("Milagros Elizondo-Ferraro","PERSON"),("19/02/1992","DOB"),
+          ("M00448217","PASSPORT"),("GA 517 KX","LICENSE_PLATE"),
+          ("O. Bevilacqua","PERSON")],
+  keep=["DICHIARAZIONE DI OSPITALITÀ","DECLARATION OF HOSPITALITY",
+        "D.Lgs. 286/1998","Il sottoscritto","the undersigned","Cognome",
+        "surname","Nome","first name","Nato il","born on","Codice fiscale",
+        "tax code","Residente in","resident at","Tel.","phone",
+        "dichiara di ospitare","declares hosting","Sig.ra","nata il",
+        "passaporto n.","passport no.","dal","05/12/2026",
+        "Mezzo di trasporto","vehicle","Fiat Panda","targa","plate","Note",
+        "Nessuna","inglese","spagnolo","Luogo e data","place and date",
+        "3 novembre 2026","Firma","signature"]),
+
+ dict(id="gold_v10_04_huurverhoging.txt",
+  text=("Woonstichting De Linde\n"
+        "Afdeling Verhuur\n\n"
+        "Dhr. W. van den Akker-Mulder\n"
+        "Lijsterbesstraat 9\n"
+        "6921 KL  Duiven\n\n"
+        "Arnhem, 9 november 2026\n\n"
+        "Betreft: huurverhoging per 1 januari 2027\n\n"
+        "Geachte heer Van den Akker-Mulder,\n\n"
+        "Uw huur wordt per 1 januari 2027 verhoogd naar € 742,18 per maand. "
+        "In onze administratie staat u als volgt geregistreerd: geboren op "
+        "12 mei 1968, burgerservicenummer 123456782, telefoon 026 555 0172.\n\n"
+        "Uw partner, mevrouw Saskia Mulder, staat sinds 2019 als medehuurder "
+        "op het contract. Klopt er iets niet, belt u dan met uw "
+        "wijkbeheerder, Sjoerd, op 06 5550 0133. Sjoerd is op dinsdag en "
+        "donderdag in de wijk.\n\n"
+        "Bezwaar maken kan tot zes weken na de datum van deze brief.\n\n"
+        "Met vriendelijke groet,\n\n"
+        "mw. A. Terpstra-El Idrissi\n"
+        "Teamleider Verhuur"),
+  redact=[("W. van den Akker-Mulder","PERSON"),
+          ("Lijsterbesstraat 9","ADDRESS"),("6921 KL","ZIP"),
+          ("Duiven","CITY_RESIDENCE"),("Van den Akker-Mulder","PERSON"),
+          ("12 mei 1968","DOB"),("123456782","GENERIC_ID"),
+          ("026 555 0172","PHONE"),("Saskia Mulder","PERSON"),
+          ("Sjoerd","PERSON"),("06 5550 0133","PHONE"),
+          ("A. Terpstra-El Idrissi","PERSON")],
+  keep=["Woonstichting De Linde","Afdeling Verhuur","Dhr.","Arnhem",
+        "9 november 2026","Betreft","huurverhoging","1 januari 2027",
+        "Geachte heer","742,18","per maand","administratie","geboren op",
+        "burgerservicenummer","telefoon","partner","mevrouw","sinds 2019",
+        "medehuurder","contract","wijkbeheerder","dinsdag","donderdag",
+        "wijk","Bezwaar","zes weken","Met vriendelijke groet","mw.",
+        "Teamleider Verhuur"]),
+
+ dict(id="gold_v10_05_csv_export.txt",
+  text=("Hi Phoebe, this is the export you asked for. Row 3 has the wrong "
+        "postcode, can you fix it before the kit order goes in? Thanks, "
+        "Baz\n\n"
+        "surname,forenames,dob,mobile,postcode,team,shirt\n"
+        "Ackroyd,Mabel,2014-03-09,07700 900 216,BD23 1JY,Under 12 "
+        "Kestrels,YM\n"
+        "Ncube-Ramsbottom,Sizwe James,2013-11-27,07700 900 217,BD23 6RT,"
+        "Under 14 Merlins,YL\n"
+        "O'Shaughnessy,Clodagh,2014-07-15,,BD23 9XX,Under 12 Kestrels,YM\n"
+        "Fujimoto,Daichi,2012-01-30,07700 900 219,BD24 9AB,Under 14 "
+        "Merlins,AS\n\n"
+        "4 rows. Coaches: Kestrels — Mr Dalgleish; Merlins — tbc."),
+  redact=[("Phoebe","PERSON"),("Baz","PERSON"),("Ackroyd","PERSON"),
+          ("Mabel","PERSON"),("2014-03-09","DOB"),("07700 900 216","PHONE"),
+          ("BD23 1JY","ZIP"),("Ncube-Ramsbottom","PERSON"),
+          ("Sizwe James","PERSON"),("2013-11-27","DOB"),
+          ("07700 900 217","PHONE"),("BD23 6RT","ZIP"),
+          ("O'Shaughnessy","PERSON"),("Clodagh","PERSON"),("2014-07-15","DOB"),
+          ("BD23 9XX","ZIP"),("Fujimoto","PERSON"),("Daichi","PERSON"),
+          ("2012-01-30","DOB"),("07700 900 219","PHONE"),("BD24 9AB","ZIP"),
+          ("Dalgleish","PERSON")],
+  keep=["Hi","export","Row 3","postcode","kit order","Thanks","surname",
+        "forenames","dob","mobile","team","shirt","Under 12 Kestrels",
+        "Under 14 Merlins","YM","YL","AS","4 rows","Coaches","Kestrels",
+        "Merlins","tbc"]),
+
+ dict(id="gold_v10_06_api_payload.txt",
+  text=("POST /api/v2/admissions — request body from the failed job (pasted "
+        "into the incident channel):\n\n"
+        "{\n"
+        "  \"requestId\": \"b7f3c1d2-90aa-4e1b-8c55-1f0e6d2a7b34\",\n"
+        "  \"wardName\": \"Juniper Ward\",\n"
+        "  \"bedLabel\": \"J-14\",\n"
+        "  \"patient\": {\n"
+        "    \"familyName\": \"Colquhoun-Ezeigbo\",\n"
+        "    \"givenNames\": [\"Cordelia\", \"Olive\"],\n"
+        "    \"birthDate\": \"1938-12-02\",\n"
+        "    \"nhsNumber\": \"999 123 4560\",\n"
+        "    \"homeAddress\": \"The Old Bakehouse, 3 Fellside Lane, Kirkby "
+        "Lonsdale, LA6 2BN\",\n"
+        "    \"telephone\": \"01632 960 018\"\n"
+        "  },\n"
+        "  \"registeredPractice\": \"Millrace Medical Practice\",\n"
+        "  \"referringClinician\": \"Dr Darragh Onwuachi-Sandvik\",\n"
+        "  \"medications\": [\"Ramipril 5 mg\", \"Metformin 500 mg\", "
+        "\"Apixaban 2.5 mg\"],\n"
+        "  \"nextOfKin\": [\n"
+        "    {\"fullName\": \"Esther Ezeigbo\", \"relationship\": \"daughter\", "
+        "\"tel\": \"07700 900 583\"}\n"
+        "  ],\n"
+        "  \"createdBy\": \"svc-admissions\",\n"
+        "  \"displayName\": \"Night Bleep Holder\"\n"
+        "}"),
+  redact=[("Colquhoun-Ezeigbo","PERSON"),("Cordelia","PERSON"),
+          ("Olive","PERSON"),("1938-12-02","DOB"),
+          ("999 123 4560","GENERIC_ID"),("The Old Bakehouse","ADDRESS"),
+          ("3 Fellside Lane","ADDRESS"),("Kirkby Lonsdale","CITY_RESIDENCE"),
+          ("LA6 2BN","ZIP"),("01632 960 018","PHONE"),
+          ("Millrace Medical Practice","SENSITIVE_ORG"),
+          ("Darragh Onwuachi-Sandvik","PERSON"),("Esther Ezeigbo","PERSON"),
+          ("07700 900 583","PHONE")],
+  keep=["api/v2/admissions","request body","failed job","incident channel",
+        "requestId","b7f3c1d2-90aa-4e1b-8c55-1f0e6d2a7b34","wardName",
+        "Juniper Ward","bedLabel","J-14","patient","familyName","givenNames",
+        "birthDate","nhsNumber","homeAddress","telephone",
+        "registeredPractice","referringClinician","medications","Ramipril",
+        "5 mg","Metformin","500 mg","Apixaban","nextOfKin","fullName",
+        "relationship","daughter","tel","createdBy","svc-admissions",
+        "displayName","Night Bleep Holder"]),
+
+ dict(id="gold_v10_07_care_handover.txt",
+  text=("Home care — handover notes, week commencing 16 November\n\n"
+        "Mrs Featherstonehaugh (Edith) had a settled week. Bolanle did the "
+        "morning calls and says Edith is eating better since the Sertraline "
+        "was reduced. Amlodipine and Co-codamol are in the blister pack; "
+        "Senna only if needed.\n\n"
+        "The district nurses came on Tuesday to dress the leg. They want it "
+        "kept dry, so no shower until they have been back. Transport is "
+        "booked for the 24th: Edith has a review at Ravensmoor Memory Clinic "
+        "at 14:00.\n\n"
+        "Edith's son Crispin visits on Sundays. He would like a call if she "
+        "refuses her tablets twice running: 07700 900 392. Crispin is away "
+        "in Lanzarote until the 28th, so try Gráinne next door first; "
+        "Gráinne has the spare key.\n\n"
+        "Mateusz covers the evening calls from Thursday while Bolanle is on "
+        "leave. Mateusz, please note: Edith likes the radio left on, and "
+        "Biscuit (the cat) must not go out after dark.\n\n"
+        "Any concerns, ring the office on 01632 960 640 and ask for the duty "
+        "coordinator.\n\n"
+        "Signed: Bolanle A., senior carer"),
+  redact=[("Featherstonehaugh","PERSON"),("Edith","PERSON"),
+          ("Bolanle","PERSON"),("they","PRONOUN"),
+          ("Ravensmoor Memory Clinic","SENSITIVE_ORG"),("Crispin","PERSON"),
+          ("he","PRONOUN"),("she","PRONOUN"),("her","PRONOUN"),
+          ("07700 900 392","PHONE"),("Lanzarote","CITY_TRAVEL"),
+          ("Gráinne","PERSON"),("Mateusz","PERSON"),
+          ("01632 960 640","PHONE")],
+  keep=["Home care","handover notes","16 November","settled week",
+        "morning calls","Sertraline","Amlodipine","Co-codamol",
+        "blister pack","Senna","district nurses","Tuesday","leg","shower",
+        "Transport","the 24th","review","14:00","son","Sundays","tablets",
+        "until the 28th","next door","spare key","evening calls","Thursday",
+        "on leave","radio","Biscuit","the cat","after dark","office",
+        "duty coordinator","Signed","senior carer"]),
+
+ dict(id="gold_v10_08_translation.txt",
+  text=("CERTIFIED TRANSLATION FROM RUSSIAN\n\n"
+        "CERTIFICATE OF REGISTRATION AT PLACE OF RESIDENCE\n"
+        "Form No. 8\n\n"
+        "Surname: Zheleznyak\n"
+        "Name: Marat\n"
+        "Patronymic: Ildarovich\n"
+        "Date of birth: 05.09.1990\n"
+        "Place of residence: Komsomolsk-on-Amur, ul. Tekucheva 139, kv. 61\n"
+        "Registered together with: Zheleznyak Alsu Rinatovna (spouse)\n"
+        "Identity document: passport 60 15 No. 448120, issued 22.10.2015\n"
+        "Issued by: Department of the Federal Migration Service, Zavodskoy "
+        "district\n\n"
+        "The holder previously lived in Orekhovo-Zuyevo and moved to "
+        "Ulan-Ude in 2012.\n\n"
+        "Translator's note: the patronymic is given as in the original; the "
+        "stamp is illegible.\n"
+        "I, Radmila Voskoboynikova, certify that this is a true translation. "
+        "Tel. +7 4217 55 01 47."),
+  redact=[("Zheleznyak","PERSON"),("Marat","PERSON"),
+          ("Ildarovich","PERSON"),("05.09.1990","DOB"),
+          ("Komsomolsk-on-Amur","CITY_RESIDENCE"),("ul. Tekucheva 139","ADDRESS"),
+          ("kv. 61","ADDRESS"),("Zheleznyak Alsu Rinatovna","PERSON"),
+          ("60 15 No. 448120","PASSPORT"),
+          ("Orekhovo-Zuyevo","CITY_RESIDENCE"),
+          ("Ulan-Ude","CITY_RESIDENCE"),
+          ("Radmila Voskoboynikova","PERSON"),("+7 4217 55 01 47","PHONE")],
+  keep=["CERTIFIED TRANSLATION FROM RUSSIAN",
+        "CERTIFICATE OF REGISTRATION AT PLACE OF RESIDENCE","Form No. 8",
+        "Surname","Name","Patronymic","Date of birth","Place of residence",
+        "Registered together with","spouse","Identity document","passport",
+        "22.10.2015","Issued by",
+        "Department of the Federal Migration Service","Zavodskoy district",
+        "The holder","2012","Translator's note","original","stamp",
+        "true translation","Tel."]),
+
+ dict(id="gold_v10_09_minibus_rota.txt",
+  text=("Oakmere Day Centre — minibus rota, w/c 23 November\n\n"
+        "Day   Driver            Escort           Vehicle                  "
+        "First pick-up\n"
+        "Mon   Ebrima Jallow     Mrs Pettigrew    Ford Transit YK19 ZBD    "
+        "08:10 Co-op car park\n"
+        "Tue   Ebrima Jallow     agency           Ford Transit YK19 ZBD    "
+        "08:10 Co-op car park\n"
+        "Wed   S. Vaitkutė       Leontyne         Peugeot Boxer FN68 HHT   "
+        "08:25 Mill Green shops\n"
+        "Thu   TBC               Mrs Pettigrew    Peugeot Boxer FN68 HHT   "
+        "08:25 Mill Green shops\n"
+        "Fri   no service\n\n"
+        "Notes\n"
+        "- The Boxer's tail lift was serviced on the 12th (job sheet 4471).\n"
+        "- New passenger from Tuesday: Mr Gordon Sethi-Maddox, wheelchair "
+        "user, collect from 31 Tansy Way. His daughter will wave the bus "
+        "down.\n"
+        "- Drivers: the fuel card is in the grey folder. Do not leave it in "
+        "the cab.\n"
+        "- Escort cover needed Thursday week — speak to Leontyne or ring "
+        "Fleet on 01632 960 207."),
+  redact=[("Ebrima Jallow","PERSON"),("Pettigrew","PERSON"),
+          ("YK19 ZBD","LICENSE_PLATE"),("S. Vaitkutė","PERSON"),
+          ("Leontyne","PERSON"),("FN68 HHT","LICENSE_PLATE"),
+          ("Gordon Sethi-Maddox","PERSON"),("31 Tansy Way","ADDRESS"),
+          ("his","PRONOUN"),("01632 960 207","PHONE")],
+  keep=["Oakmere Day Centre","minibus rota","23 November","Day","Driver",
+        "Escort","Vehicle","First pick-up","Mon","Tue","Wed","Thu","Fri",
+        "agency","TBC","no service","Ford Transit","Peugeot Boxer","08:10",
+        "Co-op car park","08:25","Mill Green shops","Notes","tail lift",
+        "the 12th","job sheet 4471","New passenger","Tuesday",
+        "wheelchair user","daughter","Drivers","fuel card","grey folder",
+        "cab","Escort cover","Thursday week","Fleet"]),
+
+ dict(id="gold_v10_10_goods_in.txt",
+  text=("GOODS IN — notice for week 48\n\n"
+        "Delivery lands in Hull on Tuesday and clears customs the same day. "
+        "Pallets move on to Daventry by road on Wednesday. Trailer 14 is in "
+        "Immingham until the 27th. Humber Haulage relocates to Goole in "
+        "January, so expect new paperwork.\n\n"
+        "Speak to Goods In before unloading. Ask for a pallet truck at Bay "
+        "6, and ask for Astrid if the paperwork does not match; she signs "
+        "off shortages. Drivers report to the gatehouse.\n\n"
+        "Contacts\n"
+        "Humber Haulage: 01632 960 590\n"
+        "Night desk — 01632 960 591 (ask for the shift lead)\n"
+        "Inventory control: Astrid Ekström-Ngcobo, "
+        "astrid.en@wolds-wholesale.example\n\n"
+        "Hi-vis and boots in the yard, no exceptions.\n"
+        "— Site Manager"),
+  redact=[("Astrid","PERSON"),("she","PRONOUN"),("01632 960 590","PHONE"),
+          ("01632 960 591","PHONE"),("Astrid Ekström-Ngcobo","PERSON"),
+          ("astrid.en@wolds-wholesale.example","EMAIL")],
+  keep=["GOODS IN","week 48","Delivery","Hull","Tuesday","customs","Pallets",
+        "Daventry","Wednesday","Trailer 14","Immingham","until the 27th",
+        "Humber Haulage","Goole","January","paperwork","Speak to",
+        "pallet truck","Bay 6","shortages","Drivers","gatehouse","Contacts",
+        "Night desk","shift lead","Inventory control","Hi-vis","boots",
+        "yard","Site Manager"]),
+
+ dict(id="gold_v10_11_match_report.txt",
+  text=("UNDER 15s — MATCH REPORT\n"
+        "Castleford Road Juniors 3, Elmet Rovers 2\n\n"
+        "A scrappy first half ended level after Akinwande-Urrutia headed in "
+        "from a corner and Rovers replied straight away. Vojtěch was "
+        "outstanding in goal and kept us in it with two saves before the "
+        "break.\n\n"
+        "After half time Ruairí moved into midfield and the game changed. "
+        "He set up Viliami for the second, and Viliami returned the favour "
+        "five minutes from the end. Our captain, Cormac Akinwande-Urrutia, went "
+        "off with a knock to the ankle; his mum has taken him to A&E and we "
+        "will hear tomorrow.\n\n"
+        "Player of the match: Vojtěch Hrabal.\n\n"
+        "Thanks to the parents who ran the line, and to Mrs Achebe for the "
+        "oranges. Subs are due — cash or cheque to Douglas at training on "
+        "Thursday, please, not to the coaches.\n\n"
+        "Next fixture: away to Thorpe Arch, Saturday, 10:30 kick-off. "
+        "Lifts: the Hrabals have two spare seats."),
+  redact=[("Akinwande-Urrutia","PERSON"),("Vojtěch","PERSON"),
+          ("Ruairí","PERSON"),("he","PRONOUN"),("Viliami","PERSON"),
+          ("Cormac Akinwande-Urrutia","PERSON"),("his","PRONOUN"),
+          ("him","PRONOUN"),("Vojtěch Hrabal","PERSON"),("Achebe","PERSON"),
+          ("Douglas","PERSON"),("Hrabals","PERSON")],
+  keep=["UNDER 15s","MATCH REPORT","Castleford Road Juniors","Elmet Rovers",
+        "first half","corner","Rovers","in goal","two saves","half time",
+        "midfield","captain","ankle","mum","A&E","tomorrow",
+        "Player of the match","parents","oranges","Subs","cash or cheque",
+        "training","Thursday","coaches","Next fixture","Thorpe Arch",
+        "Saturday","10:30","kick-off","Lifts","two spare seats"]),
+
+ dict(id="gold_v10_12_deposit_thread.txt",
+  text=("From: Oddvar Sæther <oddvar.saether@fjordline-lettings.example>\n"
+        "To: Mireille Kabongo-Stern\n"
+        "Cc: accounts@fjordline-lettings.example\n"
+        "Subject: Re: Re: Deposit — Flat 2, 18 Limekiln Bank\n\n"
+        "Mireille,\n\n"
+        "Understood. The deposit will be released less the £60 for the "
+        "oven. FAO your new landlord: the reference is attached, c/o "
+        "Halloway & Finch.\n\n"
+        "Oddvar Sæther\n"
+        "Senior Lettings Negotiator | Fjordline Lettings\n"
+        "M: 07700 900 828\n\n"
+        "> On 14 Nov 2026, at 21:07, Mireille Kabongo-Stern wrote:\n"
+        "> Oddvar, I moved out on the 6th and the keys went back to Jamila "
+        "at your front desk. I am now on the books of Tideway Couriers, so "
+        "daytime calls are difficult. Could you send the reference to my "
+        "partner instead? Grzegorz is at home most days — "
+        "grzegorz.w@example.org.\n"
+        "> My forwarding address is 4 Weir Lane, Ashton-under-Lyne OL6 "
+        "7QD.\n"
+        ">\n"
+        ">> On 13 Nov 2026, at 09:15, Oddvar Sæther wrote:\n"
+        ">> Dear Ms Kabongo-Stern, before we return the deposit we need a "
+        "forwarding address and a meter reading.\n\n"
+        "Sent from my phone"),
+  redact=[("Oddvar Sæther","PERSON"),
+          ("oddvar.saether@fjordline-lettings.example","EMAIL"),
+          ("Mireille Kabongo-Stern","PERSON"),("Mireille","PERSON"),
+          ("accounts@fjordline-lettings.example","EMAIL"),
+          ("Flat 2, 18 Limekiln Bank","ADDRESS"),("Oddvar","PERSON"),
+          ("07700 900 828","PHONE"),("Jamila","PERSON"),
+          ("Tideway Couriers","EMPLOYER_ORG"),("Grzegorz","PERSON"),
+          ("grzegorz.w@example.org","EMAIL"),("4 Weir Lane","ADDRESS"),
+          ("Ashton-under-Lyne","CITY_RESIDENCE"),("OL6 7QD","ZIP"),
+          ("Kabongo-Stern","PERSON")],
+  keep=["From","Cc","Subject","Deposit","Understood","oven","FAO",
+        "new landlord","reference","c/o","Halloway & Finch",
+        "Senior Lettings Negotiator","Fjordline Lettings","14 Nov 2026",
+        "21:07","wrote","the 6th","keys","front desk","on the books of",
+        "daytime calls","partner","at home most days","forwarding address",
+        "13 Nov 2026","09:15","meter reading","Sent from my phone"]),
+
+ dict(id="gold_v10_13_device_claim.txt",
+  text=("Cascadia Mutual — DEVICE PROTECTION CLAIM\n\n"
+        "Claim ref: DP-2026-118804        Date of loss: 11/08/2026\n"
+        "Policyholder: Nerea Etxeberria-Huynh\n"
+        "Born: 04/23/1987\n"
+        "Mailing address:\n"
+        "  1180 Larkspur Ct, Unit 3C\n"
+        "  Bend, OR 97701\n"
+        "Daytime phone: (541) 555-0126\n"
+        "Alt. contact: brother — Iñaki, 541.555.0199\n\n"
+        "Device: Pixel 8 Pro, 256 GB, obsidian\n"
+        "IMEI: 35 824005 123456 7\n"
+        "Ser. No.: 2B041JEGR09912\n"
+        "Purchased from: Tamarack Wireless, downtown store, receipt "
+        "004471\n\n"
+        "What happened: Phone was in the policyholder's jacket on a hike; "
+        "she noticed it was gone at the trailhead. Reported to Deschutes "
+        "County Sheriff, incident 26-0041873.\n\n"
+        "Payout method: check by mail\n"
+        "Adjuster: T. Kendrick-Aguinaldo          Decision due: 11/22/2026"),
+  redact=[("DP-2026-118804","GENERIC_ID"),
+          ("Nerea Etxeberria-Huynh","PERSON"),("04/23/1987","DOB"),
+          ("1180 Larkspur Ct","ADDRESS"),("Unit 3C","ADDRESS"),
+          ("Bend","CITY_RESIDENCE"),("97701","ZIP"),
+          ("(541) 555-0126","PHONE"),("Iñaki","PERSON"),
+          ("541.555.0199","PHONE"),("35 824005 123456 7","SERIAL_NUMBER"),
+          ("2B041JEGR09912","SERIAL_NUMBER"),("she","PRONOUN"),
+          ("26-0041873","GENERIC_ID"),("T. Kendrick-Aguinaldo","PERSON")],
+  keep=["Cascadia Mutual","DEVICE PROTECTION CLAIM","Claim ref",
+        "Date of loss","11/08/2026","Policyholder","Born","Mailing address",
+        "Daytime phone","Alt. contact","brother","Device","Pixel 8 Pro",
+        "256 GB","obsidian","IMEI","Ser. No.","Purchased from",
+        "Tamarack Wireless","downtown store","receipt 004471",
+        "What happened","jacket","hike","trailhead",
+        "Deschutes County Sheriff","incident","Payout method",
+        "check by mail","Adjuster","Decision due","11/22/2026"]),
+]
+
 
 def occurrences(needle, haystack):
     pattern = re.escape(needle)
@@ -2755,7 +3235,8 @@ def main():
                 + validate(TEST2, "test2") + validate(TEST3, "test3")
                 + validate(TEST4, "test4") + validate(TEST5, "test5")
                 + validate(TEST6, "test6") + validate(TEST7, "test7")
-                + validate(TEST8, "test8") + validate(TEST9, "test9"))
+                + validate(TEST8, "test8") + validate(TEST9, "test9")
+                + validate(TEST10, "test10"))
     if problems:
         print("\n".join(problems))
         sys.exit(f"{len(problems)} validation errors — corpus not written")
@@ -2770,14 +3251,15 @@ def main():
     emit(TEST7, GOLD_DIR / "test7_docs.jsonl", GOLD_DIR / "test7_cases.jsonl")
     emit(TEST8, GOLD_DIR / "test8_docs.jsonl", GOLD_DIR / "test8_cases.jsonl")
     emit(TEST9, GOLD_DIR / "test9_docs.jsonl", GOLD_DIR / "test9_cases.jsonl")
+    emit(TEST10, GOLD_DIR / "test10_docs.jsonl", GOLD_DIR / "test10_cases.jsonl")
     everything = (DEV + TEST + TEST2 + TEST3 + TEST4 + TEST5 + TEST6 + TEST7
-                  + TEST8 + TEST9)
+                  + TEST8 + TEST9 + TEST10)
     n_redact = sum(len(d["redact"]) for d in everything)
     n_keep = sum(len(d["keep"]) for d in everything)
     print(f"wrote {len(DEV)} dev + {len(TEST)} test + {len(TEST2)} test2 + "
           f"{len(TEST3)} test3 + {len(TEST4)} test4 + {len(TEST5)} test5 + "
           f"{len(TEST6)} test6 + {len(TEST7)} test7 + {len(TEST8)} test8 + "
-          f"{len(TEST9)} test9 docs "
+          f"{len(TEST9)} test9 + {len(TEST10)} test10 docs "
           f"({n_redact} redact spans, {n_keep} keep "
           f"spans) to {GOLD_DIR}")
 
