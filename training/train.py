@@ -86,6 +86,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", default="training/data/seed_train.jsonl")
     parser.add_argument("--dev", default="training/data/seed_dev.jsonl")
+    parser.add_argument("--extra-train", default="",
+                        help="a second training file, added to --train (for example "
+                             "the hand-written documents from gold_to_training.py)")
+    parser.add_argument("--extra-repeat", type=int, default=1,
+                        help="how many copies of --extra-train go into each epoch; a "
+                             "small hand-written file needs weight against a large "
+                             "generated one")
     # Deliberately NOT models/custom_ner: the detector auto-loads that path, so
     # training straight into it would silently change production behavior.
     # Promote a candidate by moving it there after evaluation passes.
@@ -111,6 +118,12 @@ def main():
     # different models, and candidate comparisons measure noise.
     spacy.util.fix_random_seed(args.seed)
     train_data = load_examples(args.train)
+    if args.extra_train:
+        extra = load_examples(args.extra_train)
+        train_data += extra * args.extra_repeat
+        print(f"training on {len(train_data)} examples: {len(train_data) - len(extra) * args.extra_repeat} "
+              f"from {args.train} and {len(extra)} x {args.extra_repeat} from {args.extra_train}",
+              flush=True)
     dev_data = load_examples(args.dev)
     nlp = spacy.load(args.base_model)
     ner = nlp.get_pipe("ner") if "ner" in nlp.pipe_names else nlp.add_pipe("ner")

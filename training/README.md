@@ -197,8 +197,10 @@ Test10 scored 82.7% / 93.3% blind (2026-11-19). Candidate 5 was measured on
 it once the same day (81.6% / 94.5%), before any rule was fixed against it,
 and was not promoted, so candidate 3 stays live. After its fix round
 (2026-11-19) test10 is at 100% / 99.5% and test9 at 99.4% / 99.0%. Test11
-scored 83.3% / 93.5% blind (2026-11-23); nothing has been fixed against it,
-so it is the only set that still measures anything.
+scored 83.3% / 93.5% blind (2026-11-23). Candidate 6 was measured on it
+once the same day (83.3% / 93.3%) and was not promoted, so candidate 3
+stays live. Nothing has been fixed against test11, so it is the only set
+that still measures anything.
 
 ### test3 blind run (2026-11-04)
 
@@ -1969,37 +1971,130 @@ What the round showed:
 - Generated-dev F1 again picked an early epoch (5 in both runs) that is
   worse on gold than the gold-selected one.
 
+## NER candidate 6 (2026-11-23): trained, not promoted
+
+Candidates 4 and 5 added template rounds and left held-out recall where it
+was. Candidate 6 tried a different kind of data: the gold documents
+themselves. `gold_to_training.py` converts the sets that are no longer held
+out, dev to test8, into training records (128 documents written by hand, no
+two with the same layout; 279 PERSON, 45 ADDRESS, 32 DATE_OF_BIRTH and 31
+SENSITIVE_ORGANIZATION spans; six name parts inside e-mail addresses are
+dropped). An address, its town and its postcode on one line become one
+ADDRESS span, as in the generated corpus; a town or a postcode on its own
+stays unlabelled. All of these documents were written before test11, so
+nothing in the training data draws on the test11 findings. The file is
+`training/data/handwritten/train.jsonl`.
+
+`train.py` has two new options for it: `--extra-train FILE` adds a second
+training file and `--extra-repeat N` puts N copies of it into each epoch.
+Candidate 6 was trained on the generated corpus (2,380 documents) plus four
+copies of the hand-written file (2,892 examples per epoch), with
+`--keep-best --batch-size 8 --epochs 24 --select-gold test9,test10`, once
+with seed 42 and once with seed 7. Test9 and test10 were kept out of the
+training data so that the epoch could be selected on documents the model
+had not been trained on. The two gold-selected epochs were averaged with
+`average_models.py`; the average is kept as
+`~/pii-models/custom_ner_candidate6`. Candidate 3 stays the live model.
+
+The candidate was chosen on test9 and test10 before anything was scored on
+test11 (model alone, 190 items and 718 keeps on the two sets):
+
+| run | epoch kept | covered | keep intact | stray spans |
+|---|---|---|---|---|
+| candidate 3 (live) | 11 | 158 | 670 | 4 |
+| candidate 5 (templates only; test9 was in its selection sets) | 7 + 15 | 165 | 702 | 2 |
+| seed 42, best gold score | 22 | 156 | 704 | 0 |
+| seed 7, best gold score | 15 | 156 | 703 | 0 |
+| **average of the two** | 22 + 15 | 160 | 700 | 0 |
+
+The held-out measurement is test11, run once per model:
+
+| | candidate 3 | candidate 5 | candidate 6 |
+|---|---|---|---|
+| generated dev (238 docs), exact-span F1 | 82.8% | 96.1% | 96.2% |
+| test11, model alone: redact coverage (109 items) | 69 (63.3%) | 69 (63.3%) | 68 (62.4%) |
+| test11, model alone: PERSON / ADDRESS / DOB / SENSITIVE_ORG | 58/79, 5/13, 4/14, 2/3 | 59/79, 4/13, 3/14, 3/3 | 58/79, 4/13, 3/14, 3/3 |
+| test11, model alone: keep intact (461) / stray spans | 428 / 12 | 439 / 12 | 445 / 14 |
+| test11, pipeline: redact coverage (204 items) | 170 (83.3%) | 173 (84.8%) | 170 (83.3%) |
+| test11, pipeline: keep intact (461) / stray spans | 431 / 4 | 428 / 6 | 430 / 6 |
+
+In the pipeline on test11, candidate 6 gains one occurrence of a first name
+in the family chat ("Jowan") and loses a first name in the hospice leaflet
+("Ketevan"). Four keep failures go ("Nan", "Melatonin", and "jeugd" and
+"ledenlijst" in the Dutch export) and five come (the three depot postcodes
+of the yard table as addresses, "Opens" and "Terbinafine" as persons), and
+"Gorse Hill" in the tab-separated paste is masked as a person. None of the
+large holes of the blind run closes: the Dutch-header export, the home
+postcodes of the pipe table, the names and `dob=` inside key="value" pairs
+and the kin-subject journeys are missed as before.
+
+On the older sets the pipeline with candidate 6 covers 1,169 of 1,179
+items (candidate 3: 1,174) and keeps 1,862 of 1,885 phrases (1,866). It
+gains two names on sets it was trained on ("Thandiwe" on test4,
+"Hannelore" on test5) and loses seven items on test9 and test10, which it
+was not trained on and whose rules were fitted with candidate 3 live.
+Alone it covers 361 of 367 items on dev to test8 with every keep phrase
+intact, which says only that it has learned the documents it was trained
+on. Both regression suites pass.
+
+Why it was not promoted: no gain in recall on the held-out set (170
+against 170 in the pipeline, 68 against 69 alone), and five items fewer on
+the older sets.
+
+What the round showed:
+
+- A third kind of data has left held-out recall where it was. The
+  hand-written documents are fitted almost completely (361 of 367), and
+  on test11 the model finds no more than before. What the model learns
+  from a document is that document's layout; test11 fails on layouts that
+  no training document has, and 128 more layouts do not cover the next
+  thirteen.
+- The model alone keeps getting cleaner (428, 439, 445 keeps on test11 for
+  candidates 3, 5 and 6), and the pipeline does not (431, 428, 430): each
+  candidate removes some false spans and brings others, and the gate and
+  the rules already drop most of what candidate 3 gets wrong. The case for
+  promoting a model because it over-redacts less is weaker on test11 than
+  it looked on test10.
+- Candidate 5 is three items ahead of candidate 3 on test11 ("Piran",
+  one occurrence of "Jowan", and the journey to "Ullapool" in the family
+  chat) and was two behind on test10 when that set was blind. Differences
+  of this size have gone both ways and are within what one document can
+  move.
+- Dev to test8 still measure candidate 3, the live model, which has not
+  seen them. A candidate trained with `handwritten/train.jsonl` has; for
+  such a candidate only test9 onward say anything, and test9 and test10
+  only as selection sets.
+- Averaging again helped: the average covers 160 items on test9 and
+  test10, each parent 156.
+
 ### Next steps
 
-Test11 has been run blind once (see "test11 blind run" above) and nothing
-is fixed against it. It is the only set that still measures anything, so
-the order of the next two steps matters.
+Test11 has been run blind once (see "test11 blind run" above), two
+candidates have been measured on it, and nothing is fixed against it.
 
-1. The model track, before any rule is fixed against test11, so that the
-   next candidate is measured on a set that is blind for it and for the
-   rules. It needs a different kind of data, not a round 6 of templates:
-   documents written by hand like the gold sets (the older gold sets are
-   semi-dev for the rules and could become training data, which would end
-   their use as a model measurement), or a corpus written free-form and
-   adjudicated instead of generated from templates. The new data must not
-   draw on the test11 findings, as round 5 did not draw on test10.
-   Averaging over seeds stays.
-2. The test11 fix round for the rules, after the candidate has been
-   measured. In order of size: header words in other languages in an
-   export ("Achternaam", "Voornaam", "Woonplaats"); a home-postcode column
-   in a table with pipes; names and "dob=" inside key="value" pairs;
-   journeys with a kin word as subject and in other wording ("Dad drives
-   to", "Nan still staying in", "comes back from", "away in X from the 5th
-   to the 19th"); the chat layout "date, time - Name:"; a facility that
-   heads its own document without a dash and is named again in the body;
-   the work-wording rule in front of the firm's own depot; medicines
-   outside the list; "I live at number 31, ..."; a name cell that ends in
-   an initial; the first word of a two-word Dutch street.
-3. Whether to accept a model that only over-redacts less. Candidates 4
-   and 5 were both turned down on recall. If fewer false spans are worth
-   it, candidate 5 can be promoted after a rule pass of its own: under
-   the test10 rules it is five redactions behind on the older sets and
-   six on test10.
+1. The test11 fix round for the rules. In order of size: header words in
+   other languages in an export ("Achternaam", "Voornaam", "Woonplaats");
+   a home-postcode column in a table with pipes; names and "dob=" inside
+   key="value" pairs; journeys with a kin word as subject and in other
+   wording ("Dad drives to", "Nan still staying in", "comes back from",
+   "away in X from the 5th to the 19th"); the chat layout "date, time -
+   Name:"; a facility that heads its own document without a dash and is
+   named again in the body; the work-wording rule in front of the firm's
+   own depot; medicines outside the list; "I live at number 31, ..."; a
+   name cell that ends in an initial; the first word of a two-word Dutch
+   street.
+2. The model. Three rounds of new data (template rounds 4 and 5, the
+   hand-written documents) have not moved held-out recall, so another
+   round of data for this model is not the next step. What is left is a
+   decision: keep candidate 3 and let the rules carry new layouts, as
+   they have in every fix round, or try a different model (a pretrained
+   multilingual transformer in place of the `en_core_web_lg` network
+   that every candidate so far was fine-tuned from), which is a larger
+   change than a data round and would need its own gate and rule pass.
+3. Whether to accept a model that only over-redacts less. Candidates 4, 5
+   and 6 were turned down on recall. On test11 neither candidate 5 nor
+   candidate 6 has fewer keep failures in the pipeline than candidate 3,
+   so there is less to gain here than test10 suggested.
 4. Plural pronouns need reference, not proximity: twenty-two failures
    across all sets with test11 ("they" for pallets and for boots). No fix
    round and no model has reduced this class.
@@ -2070,6 +2165,16 @@ python training/train.py --keep-best --batch-size 8 --epochs 24 --seed 42 \
 python training/average_models.py \
   --models ~/pii-models/run_a_goldsel ~/pii-models/run_b_goldsel \
   --output ~/pii-models/custom_ner_candidate
+
+# Candidate 6 added the hand-written gold documents that are no longer held
+# out (gold_to_training.py writes them) and selected on test9 and test10,
+# which are not in that file. Two seeds, then average_models.py as above.
+python training/gold_to_training.py
+python training/train.py --keep-best --batch-size 8 --epochs 24 --seed 42 \
+  --select-gold test9,test10 \
+  --train training/data/generated/train.jsonl \
+  --dev training/data/generated/dev.jsonl \
+  --extra-train training/data/handwritten/train.jsonl --extra-repeat 4
 
 python training/evaluate.py \
   --model ~/pii-models/custom_ner_candidate \
