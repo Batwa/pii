@@ -154,8 +154,8 @@ has not been through an adjudication round.
 
 ## Human-gold evaluation corpus
 
-`build_gold_corpus.py` authors 154 fully synthetic labeled documents (25 dev /
-15 test / 10 test2 / 13 each for test3 to test10) under `training/data/gold/`, covering the V1 public-sharing
+`build_gold_corpus.py` authors 167 fully synthetic labeled documents (25 dev /
+15 test / 10 test2 / 13 each for test3 to test11) under `training/data/gold/`, covering the V1 public-sharing
 policy: pronouns, labelled IDs, addresses with apartment/city/zip tails, worded
 birth dates, sensitive facilities, employer-linked organizations, and negative
 documents that must survive untouched. The header of that script records every
@@ -180,9 +180,10 @@ change), **test4** (13 docs, authored 2026-11-04 after the test3 fixes),
 docs, authored 2026-11-07 after the test5 fixes), **test7** (13 docs,
 authored 2026-11-08 after the test6 fixes), **test8** (13 docs, authored
 2026-11-09 after the test7 fixes) and **test9** (13 docs, authored
-2026-11-13 after the test8 fixes, with candidate 3 live) and **test10** (13
-docs, authored 2026-11-19 after the test9 fixes, before corpus round 5).
-`--set all` runs all eleven.
+2026-11-13 after the test8 fixes, with candidate 3 live), **test10** (13
+docs, authored 2026-11-19 after the test9 fixes, before corpus round 5) and
+**test11** (13 docs, authored 2026-11-23 after the test10 fixes).
+`--set all` runs all twelve.
 Current state, with candidate 3 live since 2026-11-13: dev, test and test2
 at 100% coverage / 100% keep; test3 at 100% / 99.0%, test4 at 96.8% / 97.6%,
 test5 at 98.6% / 97.8%, test6 at 99.1% / 97.6% and test7 at 100% / 98.7%.
@@ -195,8 +196,9 @@ stays live. After its fix round (2026-11-14) test9 is at 99.4% / 98.7%.
 Test10 scored 82.7% / 93.3% blind (2026-11-19). Candidate 5 was measured on
 it once the same day (81.6% / 94.5%), before any rule was fixed against it,
 and was not promoted, so candidate 3 stays live. After its fix round
-(2026-11-19) test10 is at 100% / 99.5% and test9 at 99.4% / 99.0%; every
-set is semi-dev again, and the next measurement needs a new blind set.
+(2026-11-19) test10 is at 100% / 99.5% and test9 at 99.4% / 99.0%. Test11
+scored 83.3% / 93.5% blind (2026-11-23); nothing has been fixed against it,
+so it is the only set that still measures anything.
 
 ### test3 blind run (2026-11-04)
 
@@ -1515,6 +1517,126 @@ and 415 with candidate 3. The rules were fitted with candidate 3 live, so
 this is the size of the rule pass candidate 5 would still need, not a
 verdict on the model.
 
+### test11 blind run (2026-11-23)
+
+Thirteen documents, 204 must-redact items and 461 must-keep phrases, written
+without running the detector, after the test10 fixes (commit 7224101) and
+with candidate 3 live. The batch does two jobs.
+
+It probes what the test10 fix round assumed, as listed under "Next steps" in
+that commit: exports with other headers, quoting and delimiters (a quoted
+comma export with "Surname, Forename" in one cell, a semicolon export with
+Dutch headers, a tab-separated paste, a wiki table with pipes), a table with
+a postcode and a phone column and no name column, work wording in front of
+the firm's own depot, a desk, a department and a role ("on lates at
+Brampton", "temping at Reception", "works for the council", "working at
+height") and in forms the rule was not written for ("drove for", "I work
+for", "used to work at"), journeys and stays whose subject is a kin word
+("Dad drives to Ullapool"), medicines outside the list, a carer whose first
+name is on the list ("Senna"), lowercase names in mixed-case chat lines, a
+birth date and a town given as replies to other questions, and a facility
+named in its own heading and again in the body.
+
+It also has ground no round covers: a French rent receipt, an application
+log with key=value fields, an interview record in "Q." / "A." form, a
+first-person complaint letter, a hospice leaflet that names no patient, a
+chat export in another layout, and "they" as the pronoun of one named
+person. Every name word was checked against the generated corpus, the older
+gold sets, the rules, the unit tests and the private documents before the
+documents were written (235 of 585 candidates were already in use and were
+dropped); the one deliberate exception is "Senna".
+
+Full pipeline (candidate 3 live, test10 fixes in): redact coverage 170/204
+(83.3%), keep intact 431/461 (93.5%), 4 stray spans. Model alone: 69/109
+model-entity items (63.3%; PERSON 58/79, ADDRESS 5/13, DOB 4/14,
+SENSITIVE_ORG 2/3), keep 428/461, 12 strays (eight of them the label "Q.").
+The model score is low because 62 of the 109 items sit in the four exports
+and tables, the log and the interview record, which are rule territory.
+Nothing has been fixed against the set.
+
+Blind recall has now been 75.0%, 75.7%, 80.1%, 74.8% (80.6% once candidate 3
+was live), 81.0%, 82.7% and 83.3% on test5 to test11; blind keep 90.7%,
+93.3% and 93.5% on the last three.
+
+By label: PERSON 63/79, PRONOUN 20/20, PHONE 27/27, EMAIL 4/4, ADDRESS
+10/13, DOB 13/14, ZIP 8/14, CITY_RESIDENCE 12/16, CITY_TRAVEL 1/5,
+EMPLOYER_ORG 3/3, GENERIC_ID 3/3, LICENSE_PLATE 3/3, SENSITIVE_ORG 3/3.
+
+Probe by probe:
+
+- The quoted comma export held: 23 of 24 items, every keep intact. The miss
+  is a name cell that ends in a middle initial ("Illingworth, Hyacinth
+  M.").
+- The tab-separated paste held too: the names, birth dates, phones and
+  current addresses of all three applicants are covered except the first
+  name "Blessing", which is also missed in the prose under the table.
+  "Relocating from Riga" in that prose is missed as well.
+- The semicolon export with Dutch headers is the largest hole: 15 of the 34
+  misses. "Geboortedatum" is read and the mobiles are found; "Achternaam",
+  "Voornaam", "Postcode" and "Woonplaats" are not, so every surname, first
+  name, postcode and town of the table stays visible. The two two-word
+  streets lose only their second word ("Hendrikkade 12" without "Prins"),
+  the limit recorded in the test10 section. Five ordinary Dutch words are
+  masked as persons, four by the custom model.
+- The wiki table with pipes: names, mobiles and plates are covered; the
+  three home postcodes are not. "Rota Admin" after "Page owner:" is masked
+  as a person, and so are the van models "Vivaro" and "Berlingo".
+- The depot table without a name column behaves as decided: the postcodes
+  stay and the gate phones are masked. The depot towns do not stay:
+  "Brampton" is a person to spaCy in the table, and "on lates at Brampton"
+  is masked as an employer by the work-wording rule, the over-reach the
+  test10 section predicted. "Reception", "Accounts", "the council" and
+  "working at height" stay. All three employers in new wording are covered.
+- Journeys with a kin word as subject: 2 of 5. "Mum is flying to Funchal"
+  is found and "my sister-in-law moved to Leuven" is covered by a model
+  span; "Dad drives to Ullapool", "Nan still staying in Porthmadog" and
+  "Grandad comes back from Aberaeron" are missed, and "is away in Antalya
+  from the 5th to the 19th" is missed in the wiki page. "Nan" and "Grandad"
+  themselves are masked as persons.
+- The chat export in the new layout ("22/11/2026, 08:12 - Name:"): one
+  speaker is missed on all three lines and another on one of three; the
+  family name in the chat title is missed. Of the two lowercase names in
+  mixed-case lines one is found ("talan") and one is not ("elowen").
+- Medicines outside the list: five of eight are masked as persons
+  (four by the custom model, one by the possessive rule in "Erskine's
+  Ivabradine"); the three that stay include the one followed by a dose. The
+  carer called Senna is covered in all three places. A second carer's first
+  name ("Kristaps") is missed twice.
+- The facility in its own heading: "Stonegarth Care Home — medication round
+  notes" and the later "Stonegarth" stay. The hospice leaflet fails: the
+  heading has no dash ("Welcome to Birchgarth Hospice"), and the name is
+  masked there and twice in the body. "Rowanlea Garden Centre" stays; a
+  street nobody lives on ("Bobbin Street") is masked by Presidio, and the
+  titles "Sr" and "Revd" are masked with their names.
+- Replies to other questions: all found in the interview record: the
+  spoken birth date after "when were you born?", the one-word maiden name,
+  the town and the postcode. One keep failure there is the model's ("Q.
+  Occupation").
+- The application log: three of the four names inside key="value" pairs
+  are missed ("name=", "actor=") and so is "dob=1984-02-11"; the name in
+  "Surname, Forename" order, the phones, the e-mail address, the postcode
+  and the address are covered. The event name "RateLimit" is a person to
+  the model. Both strays of the document are the IP address, which the
+  gold leaves unlabelled.
+- The French receipt: 12 of 12, one keep failure ("Pour", spaCy). On the
+  model alone seven keep phrases fail there; the gate and the filters
+  remove those spans.
+- The complaint letter: 12 of 13 and every keep intact, including "the 2nd
+  of November" and "born in this street". The miss is the address in the
+  wording "I live at number 31, Comfrey Avenue".
+- "They" for one named person: 13 of 13 in the probation review, including
+  the sentence that states the pronouns. The known class fails twice
+  elsewhere: "they" for pallets and for boots.
+
+Of the 30 keep failures, 16 are spans of the custom model, 6 come from
+spaCy, 6 from rules, one from the name echo and one from Presidio.
+
+Left unlabelled on purpose and worth a decision (see "Next steps"): a
+username that carries the surname ("h.tregenza" stays visible beside the
+masked name), an IP address (masked today), a property offered for viewing
+(masked today as an address) and the town a person works in when no depot
+is meant.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -1849,29 +1971,38 @@ What the round showed:
 
 ### Next steps
 
-The test10 fix round is done (see "test10 fixes" above); every gold set is
-semi-dev for the rules again.
+Test11 has been run blind once (see "test11 blind run" above) and nothing
+is fixed against it. It is the only set that still measures anything, so
+the order of the next two steps matters.
 
-1. A new blind set (test11) before anything else is measured. It should
-   probe what the test10 round assumed: exports with other headers and
-   quoting, a table with a phone or postcode column and no name column,
-   work wording in front of towns and roles, journeys whose subject is a
-   kin word, medicines outside the list, lowercase names in mixed-case
-   text, and a facility named in its own heading and again in the body.
-2. The model track needs a different kind of data, not a round 6 of
-   templates. Candidates: train on documents written by hand like the gold
-   sets (the older gold sets themselves are semi-dev for the rules and
-   could become training data, which would end their use as a model
-   measurement), or have the corpus written free-form and adjudicated
-   instead of generated from templates. Either way the new blind set comes
-   first, and averaging over seeds stays.
+1. The model track, before any rule is fixed against test11, so that the
+   next candidate is measured on a set that is blind for it and for the
+   rules. It needs a different kind of data, not a round 6 of templates:
+   documents written by hand like the gold sets (the older gold sets are
+   semi-dev for the rules and could become training data, which would end
+   their use as a model measurement), or a corpus written free-form and
+   adjudicated instead of generated from templates. The new data must not
+   draw on the test11 findings, as round 5 did not draw on test10.
+   Averaging over seeds stays.
+2. The test11 fix round for the rules, after the candidate has been
+   measured. In order of size: header words in other languages in an
+   export ("Achternaam", "Voornaam", "Woonplaats"); a home-postcode column
+   in a table with pipes; names and "dob=" inside key="value" pairs;
+   journeys with a kin word as subject and in other wording ("Dad drives
+   to", "Nan still staying in", "comes back from", "away in X from the 5th
+   to the 19th"); the chat layout "date, time - Name:"; a facility that
+   heads its own document without a dash and is named again in the body;
+   the work-wording rule in front of the firm's own depot; medicines
+   outside the list; "I live at number 31, ..."; a name cell that ends in
+   an initial; the first word of a two-word Dutch street.
 3. Whether to accept a model that only over-redacts less. Candidates 4
    and 5 were both turned down on recall. If fewer false spans are worth
    it, candidate 5 can be promoted after a rule pass of its own: under
-   the current rules it is five redactions behind on the older sets and
+   the test10 rules it is five redactions behind on the older sets and
    six on test10.
-4. Plural pronouns need reference, not proximity: twenty failures across
-   all sets with test10. No fix round and no model has reduced this class.
+4. Plural pronouns need reference, not proximity: twenty-two failures
+   across all sets with test11 ("they" for pallets and for boots). No fix
+   round and no model has reduced this class.
 5. Policy questions: certificate numbers (title, birth, registration) have
    no rule; the street address of an institution is masked like a home
    address; visitor badge numbers are masked under the "badge" label but
@@ -1881,20 +2012,16 @@ semi-dev for the rules again.
    booking reference and a password redact. From test10, decided in the
    labeling guide and open to review: a pet's name and the away ground of
    a team stay, a spoken birth date redacts; a key-safe code has no rule.
+   From test11, left unlabelled until decided: a username that carries the
+   surname stays visible beside the masked name ("h.tregenza"); an IP
+   address is masked today; a property offered for viewing is masked today
+   like a home address; the town a person works in when no depot or branch
+   is meant; a complaint reference from a call centre; an age.
 6. The remaining over-redactions outside the pronoun class: "Pallet" and
    "Meter" on dev, and foreign words that open a sentence ("Bezwaar",
    "Klopt" on test10), all spans of the custom model.
 7. Rounds 2 to 5 of the generated corpus have not been through an
    adjudication round.
-
-This folder trains an optional spaCy NER model and maintains exact-identifier regression cases. The model is useful for contextual labels; regex rules are more reliable for fixed formats such as phone numbers and bank accounts.
-
-- `PERSON`
-- `DATE_OF_BIRTH`
-- `SENSITIVE_ORGANIZATION`
-- `ADDRESS`
-
-The included seed data is synthetic. It demonstrates the annotation format and includes negative examples such as `night`, ordinary document issue dates, and generic clinic references. It is only a baseline—not enough data to claim reliable production performance.
 
 ## Add reviewed annotations locally
 

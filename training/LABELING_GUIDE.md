@@ -355,6 +355,32 @@ One JSON object per line (JSONL):
     stays, as on a letterhead. A journey or a stay redacts its town only
     when the subject is a person or a pronoun.
 
+25. Labels taken while authoring test11 (2026-11-23). A town after work
+    wording that names the firm's own depot is operational and stays ("on
+    lates at Brampton" beside a depot table), and so do a desk, a
+    department and a role ("temping at Reception", "works for us in
+    Accounts", "works for the council"). A former employer redacts
+    ("drove for X", "used to work at X"), and so does the employer a
+    witness names ("I work for X"), also when it is a dental practice. A
+    depot table with a postcode and a phone column and no name column
+    keeps its towns and postcodes; its phones redact like any phone. A kin
+    word is not a person ("Dad", "Nan", "Grandad", "Auntie"), but the town
+    such a person travels to, stays in or comes back from redacts, and so
+    does the town a relative lives in or moved to. A family name in a chat
+    title ("Tremayne lot") is a person. "Her" for a pet redacts like every
+    "her"; the pet's name stays. A carer called Senna is a person although
+    a medicine has the name. A pharmacy stays, chain or local; a
+    third-party hospital redacts even in a leaflet that names no patient;
+    a garden centre and a street nobody in the text lives on ("do not park
+    on Bobbin Street") stay. The hospice that wrote a leaflet stays in its
+    heading and in the body. "They", "them" and "their" for one named
+    person redact, also in the sentence that states the pronouns. A crime
+    reference, a customer number and a payroll number redact. Left
+    unlabelled: a complaint reference from a call centre, a collar number,
+    a partial registration, a username, an IP address, an age, a property
+    offered for viewing, a place of birth, a floor and a middle initial in
+    a table cell.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the
