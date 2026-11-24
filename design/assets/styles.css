@@ -372,6 +372,34 @@ td.raw { color: #ffb3ba; font-family: var(--mono); font-size: .82rem; }
 .preview mark { background: rgba(94,175,115,.22); color: #bff0cd; border-radius: 4px; padding: 0 .25rem; }
 .preview mark.is-raw { background: rgba(255,122,133,.18); color: #ffc0c6; }
 
+/* ---------- Review step ---------- */
+.review { max-height: 420px; cursor: text; }
+.review mark.rv {
+  background: rgba(255,122,133,.22); color: #ffd0d4; cursor: pointer;
+  box-shadow: inset 0 -2px 0 rgba(255,122,133,.75);
+}
+.review mark.rv:hover { background: rgba(255,122,133,.36); }
+.review mark.rv.is-manual { background: rgba(255,196,94,.22); color: #ffe2b0; box-shadow: inset 0 -2px 0 rgba(255,196,94,.8); }
+.review mark.rv.is-off {
+  background: transparent; color: inherit; box-shadow: none;
+  outline: 1px dashed var(--line-strong); outline-offset: 1px;
+}
+.review mark.rv.is-off:hover { background: rgba(148,176,255,.14); }
+.review__bar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-top: .6rem; }
+.review__status { margin: 0; color: var(--text-muted); }
+.review__status.is-error { color: #ffb3ba; }
+.review__reset { padding: .4rem .9rem; font-size: .82rem; }
+.review__prompt {
+  display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: .6rem;
+  padding: .6rem .8rem; font-size: .88rem; border-radius: var(--radius-s);
+  background: rgba(18,52,153,.4); border: 1px solid var(--line-strong);
+}
+.review__prompt[hidden] { display: none; }
+.review__prompt .btn { padding: .35rem .8rem; font-size: .82rem; }
+.review__link { background: none; border: none; padding: 0; font: inherit; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+.review__link:hover { color: var(--text); }
+.download[disabled] { opacity: .45; cursor: not-allowed; }
+
 .kv { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .45rem; }
 .kv li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; font-size: .86rem; padding: .5rem .75rem; border-radius: var(--radius-s); background: rgba(5,22,80,.5); border: 1px solid var(--line); }
 .kv .kv__type { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--green); font-weight: 700; }

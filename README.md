@@ -6,6 +6,11 @@ Detect and redact personally identifiable information (PII) from CSV files, text
 
 - **CSV files**: finds names, emails, phones, and SSNs in spreadsheet columns
 - **Text files** (`.txt`, `.json`, `.md`): uses NLP + regex to find and redact PII
+  - **Review before download**: the results page shows the original text with every
+    detection highlighted. Click a highlight to keep that text visible; select any other
+    text to redact it. A change applies to that one place, and the page offers the other
+    places where the same word occurs. Previews and downloads are rebuilt from the
+    corrected list.
 - **Images**: uses OCR to find text PII and OpenCV to blur faces
 
 Run the local website (dark-theme UI at `design/index.html`) with real Python

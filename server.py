@@ -46,6 +46,8 @@ to this local process, which runs the detectors locally.
 """
 import os
 import io
+import re
+import html
 import json
 import base64
 import tempfile
@@ -332,9 +334,13 @@ def _build_csv_report(filename, df_original, df_red, pii_results, method, rows, 
 
 
 def mark_redacted_html(content, redactions):
-    """Wrap each replaced segment of the redacted text in <mark> tags."""
+    """Wrap each replaced segment of the redacted text in <mark> tags.
+
+    The page inserts the result as HTML, so every piece of document text is
+    escaped: a document that contains markup must show it, not run it.
+    """
     if not redactions:
-        return content
+        return html.escape(content, quote=False)
     placed = []
     offset = 0
     for r in sorted(redactions, key=lambda x: x["position"][0]):
@@ -347,12 +353,12 @@ def mark_redacted_html(content, redactions):
     out = []
     last = 0
     for s, e in placed:
-        out.append(content[last:s])
+        out.append(html.escape(content[last:s], quote=False))
         out.append("<mark>")
-        out.append(content[s:e])
+        out.append(html.escape(content[s:e], quote=False))
         out.append("</mark>")
         last = e
-    out.append(content[last:])
+    out.append(html.escape(content[last:], quote=False))
     return "".join(out)
 
 
@@ -489,6 +495,10 @@ async def _process_text(receive):
         tmp.write(data)
         tmp.close()
         analysis = detector.process_text_file(tmp.name, redaction_strategies=strategies)
+        # The text exactly as the detector read it: the offsets of the
+        # detections count in this string, and the review step in the
+        # browser sends it back with the corrected list.
+        original, _ = detector.read_text_file(tmp.name) if analysis else ("", None)
     except Exception as e:
         return False, {"error": str(e)}, 500
     finally:
@@ -503,20 +513,8 @@ async def _process_text(receive):
     # process_text_file names the report after the temp file path; override it.
     analysis["filename"] = filename
 
-    versions = {}
-    for strat, v in analysis["redacted_versions"].items():
-        redactions = (v.get("redaction_info") or {}).get("redactions") or []
-        versions[strat] = {
-            "content": v["content"],
-            "marked": mark_redacted_html(v["content"], redactions),
-            "redactions": [{
-                "original": r["original"],
-                "replacement": r["replacement"],
-                "entity_type": r["entity_type"],
-                "confidence": r.get("confidence", 0.0),
-                "source": r.get("source", "unknown"),
-            } for r in redactions],
-        }
+    versions = {strat: _version_payload(v["content"], v.get("redaction_info"))
+                for strat, v in analysis["redacted_versions"].items()}
 
     return True, {
         "ok": True,
@@ -526,8 +524,110 @@ async def _process_text(receive):
         "pii_by_type": analysis["pii_by_type"],
         "pii_by_source": analysis["pii_by_source"],
         "detection_details": analysis["detection_details"],
+        "original": original,
         "versions": versions,
     }, 200
+
+
+def _version_payload(content, redaction_info):
+    """One redacted version as the page shows it: text, preview and list."""
+    redactions = (redaction_info or {}).get("redactions") or []
+    return {
+        "content": content,
+        "marked": mark_redacted_html(content, redactions),
+        "redactions": [{
+            "original": r["original"],
+            "replacement": r["replacement"],
+            "entity_type": r["entity_type"],
+            "confidence": r.get("confidence", 0.0),
+            "source": r.get("source", "unknown"),
+        } for r in sorted(redactions, key=lambda r: r["position"][0])],
+    }
+
+
+MAX_REVIEW_REDACTIONS = 20000
+_ENTITY_TYPE = re.compile(r"[A-Z][A-Z0-9_]{0,39}")
+
+
+def clean_review_redactions(text, items):
+    """Validate the list a reviewer sends back; return it sorted and merged.
+
+    Each item needs integer offsets inside the text. Overlapping items are
+    merged into one, so no character is replaced twice. The entity type only
+    labels the replacement; anything unexpected becomes "REDACTED".
+    """
+    if not isinstance(items, list):
+        raise ValueError('"redactions" must be a list.')
+    if len(items) > MAX_REVIEW_REDACTIONS:
+        raise ValueError("Too many redactions in one document.")
+    cleaned = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("Each redaction must be an object.")
+        start, end = item.get("start"), item.get("end")
+        if isinstance(start, bool) or isinstance(end, bool) \
+                or not isinstance(start, int) or not isinstance(end, int) \
+                or not 0 <= start < end <= len(text):
+            raise ValueError("A redaction lies outside the document.")
+        entity = item.get("entity_type")
+        if not isinstance(entity, str) or not _ENTITY_TYPE.fullmatch(entity):
+            entity = "REDACTED"
+        score = item.get("score")
+        score = float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) else 1.0
+        source = item.get("source") if item.get("source") in (
+            "regex", "spacy", "presidio", "custom_ner", "echo", "manual") else "manual"
+        cleaned.append({"start": start, "end": end, "entity_type": entity,
+                        "score": score, "source": source})
+    cleaned.sort(key=lambda r: (r["start"], -r["end"]))
+    merged = []
+    for item in cleaned:
+        if merged and item["start"] < merged[-1]["end"]:
+            merged[-1]["end"] = max(merged[-1]["end"], item["end"])
+        else:
+            merged.append(item)
+    for item in merged:
+        item["text"] = text[item["start"]:item["end"]]
+    return merged
+
+
+async def _apply_redactions(receive):
+    """Redact a text with the list of spans the user reviewed in the browser.
+
+    No detection runs here: the page sends the original text it received
+    from /api/process-text and the spans that are left after the user removed
+    wrong ones and added missed ones.
+    """
+    try:
+        raw = await _read_body(receive)
+    except ValueError as e:
+        return False, {"error": str(e)}, 413
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except Exception:
+        return False, {"error": "Request body must be JSON."}, 400
+    if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
+        return False, {"error": 'Missing "text" field.'}, 400
+    text = payload["text"]
+    if len(text.encode("utf-8")) > MAX_UPLOAD_BYTES:
+        return False, {"error": "Document is too large."}, 413
+
+    strategies = payload.get("strategies") or ["mask"]
+    if not isinstance(strategies, list) or not all(
+        strategy in {"mask", "pseudonymize", "partial_mask", "label"}
+        for strategy in strategies
+    ):
+        return False, {"error": "Unsupported text redaction strategy."}, 400
+    try:
+        redactions = clean_review_redactions(text, payload.get("redactions"))
+    except ValueError as e:
+        return False, {"error": str(e)}, 400
+
+    detector = get_text_detector()
+    versions = {}
+    for strategy in strategies:
+        content, info = detector.apply_redaction_strategy(text, redactions, strategy)
+        versions[strategy] = _version_payload(content, info)
+    return True, {"ok": True, "total_redactions": len(redactions), "versions": versions}, 200
 
 
 async def _create_zip(receive):
@@ -623,6 +723,11 @@ async def app(scope, receive, send):
         await _send_json(send, status, payload)
         return
 
+    if path == "/api/apply-redactions" and method == "POST":
+        _, payload, status = await _apply_redactions(receive)
+        await _send_json(send, status, payload)
+        return
+
     if path == "/api/create-zip" and method == "POST":
         _, payload, status = await _create_zip(receive)
         await _send_json(send, status, payload)
@@ -634,5 +739,5 @@ async def app(scope, receive, send):
 if __name__ == "__main__":
     print("Privacy Sandbox local server  ->  http://localhost:8000")
     print("Serves the design site + real Python processing for all tracks:")
-    print("  /api/redact-image  /api/process-csv  /api/process-text  /api/create-zip")
+    print("  /api/redact-image  /api/process-csv  /api/process-text  /api/apply-redactions  /api/create-zip")
     uvicorn.run("server:app", host="127.0.0.1", port=8000, log_level="info")

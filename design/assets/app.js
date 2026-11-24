@@ -412,6 +412,9 @@
     }).join('') || '<li class="chip">no engine matched</li>');
 
     setInner('text-versions', docs.map(function (d, i) { return textBlock(d, analyses[i], i); }).join(''));
+    REVIEWS = {};
+    docs.forEach(function (d, i) { initReview(i, analyses[i], strategies); });
+    updateZipState();
   }
 
   async function downloadAllTextVersions(button) {
@@ -466,32 +469,6 @@
     var versions = Object.keys(a.versions || {});
     var id = 'tf' + idx;
 
-    var tabs = versions.map(function (s, i) {
-      return '<button class="tab" role="tab" aria-selected="' + (i === 0 ? 'true' : 'false') +
-        '" data-tab="' + id + '-' + s + '" aria-controls="' + id + '-panel-' + s + '" id="' + id + '-tab-' + s + '">' + esc(s) + '</button>';
-    }).join('');
-
-    var panels = versions.map(function (s, i) {
-      var v = a.versions[s] || {};
-      var reds = v.redactions || [];
-      var kv = reds.slice(0, 30).map(function (r) {
-        return '<li><span class="kv__type">' + esc(String(r.entity_type).toLowerCase()) +
-          '</span><span class="kv__from">' + esc(r.original) +
-          '</span><span class="kv__arrow">→</span><span class="kv__to">' + esc(r.replacement) +
-          '</span><span class="small muted">confidence ' + Number(r.confidence).toFixed(2) + ' · ' + esc(r.source) + '</span></li>';
-      }).join('') || '<li class="small muted">No redactions for this strategy</li>';
-      var fname = baseName(doc.file.name) + '_' + s + '.txt';
-      DOWNLOADS[id + '-dl-' + s] = { url: textDataUrl(v.content, 'text/plain'), name: fname };
-      return '<div role="tabpanel" id="' + id + '-panel-' + s + '" aria-labelledby="' + id + '-tab-' + s +
-        '" data-tabpanel="' + id + '-' + s + '"' + (i === 0 ? '' : ' hidden') + '>' +
-        '<pre class="preview">' + (v.marked || esc(v.content || '')) + '</pre>' +
-        '<p class="small muted mt-1">Redactions applied: ' + reds.length + '</p>' +
-        '<ul class="kv">' + kv + '</ul>' +
-        '<div class="downloads mt-2"><button class="download" data-dl="' + id + '-dl-' + s + '">' +
-        '<span class="download__icon" aria-hidden="true">📥</span><span><strong>Download ' + esc(s) + ' version</strong><span>' + fname + '</span></span></button></div>' +
-        '</div>';
-    }).join('');
-
     var byType = types.map(function (x) { return '<li class="chip">' + esc(x.t) + ' · ' + x.c + '</li>'; }).join('') || '<li class="chip">No PII found</li>';
     var bySource = sources.map(function (x) { return '<li class="chip chip--green">' + esc(x.t) + ' · ' + x.c + '</li>'; }).join('') || '<li class="chip">no engine matched</li>';
 
@@ -507,11 +484,375 @@
       '<div class="card card--flat"><h3>By type</h3><ul class="chips">' + byType + '</ul></div>' +
       '<div class="card card--flat"><h3>By detection source</h3><ul class="chips">' + bySource + '</ul></div>' +
       '</div>' +
+      (typeof a.original === 'string' ?
+        '<h3 class="mt-3">Review before you download</h3>' +
+        '<p class="small muted">Highlighted text will be redacted. Click a highlight to keep that text visible. ' +
+        'Select any other text to redact it. Each place is changed on its own.</p>' +
+        '<pre class="preview review" data-review="' + id + '" aria-label="Original text of ' + esc(doc.file.name) + ' with the redactions marked"></pre>' +
+        '<div class="review__bar">' +
+        '<p class="small review__status" data-review-status="' + id + '" role="status"></p>' +
+        '<button class="btn btn--ghost review__reset" type="button" data-review-action="reset" data-review-id="' + id + '">Reset to detected</button>' +
+        '</div>' +
+        '<div class="review__prompt" data-review-prompt="' + id + '" role="status" hidden></div>' : '') +
       '<h3 class="mt-3">Redacted versions</h3>' +
-      '<div class="tabs" role="tablist" aria-label="Redaction strategies for ' + esc(doc.file.name) + '">' + tabs + '</div>' +
-      panels +
+      '<div data-versions="' + id + '">' + versionPanels(doc, a, idx, versions[0]) + '</div>' +
       '</div>';
   }
+
+  // The strategy tabs and their panels for one document. Called again each
+  // time the review changes, with the tab that was open.
+  function versionPanels(doc, a, idx, selected) {
+    var versions = Object.keys(a.versions || {});
+    var id = 'tf' + idx;
+    if (versions.indexOf(selected) === -1) { selected = versions[0]; }
+
+    var tabs = versions.map(function (s) {
+      return '<button class="tab" role="tab" aria-selected="' + (s === selected ? 'true' : 'false') +
+        '" data-tab="' + id + '-' + s + '" aria-controls="' + id + '-panel-' + s + '" id="' + id + '-tab-' + s + '">' + esc(s) + '</button>';
+    }).join('');
+
+    var panels = versions.map(function (s) {
+      var v = a.versions[s] || {};
+      var reds = v.redactions || [];
+      var kv = reds.slice(0, 30).map(function (r) {
+        return '<li><span class="kv__type">' + esc(String(r.entity_type).toLowerCase()) +
+          '</span><span class="kv__from">' + esc(r.original) +
+          '</span><span class="kv__arrow">→</span><span class="kv__to">' + esc(r.replacement) +
+          '</span><span class="small muted">' + (r.source === 'manual' ? 'added by you' :
+            'confidence ' + Number(r.confidence).toFixed(2) + ' · ' + esc(r.source)) + '</span></li>';
+      }).join('') || '<li class="small muted">No redactions for this strategy</li>';
+      if (reds.length > 30) { kv += '<li class="small muted">… and ' + (reds.length - 30) + ' more</li>'; }
+      var fname = baseName(doc.file.name) + '_' + s + '.txt';
+      DOWNLOADS[id + '-dl-' + s] = { url: textDataUrl(v.content, 'text/plain'), name: fname };
+      return '<div role="tabpanel" id="' + id + '-panel-' + s + '" aria-labelledby="' + id + '-tab-' + s +
+        '" data-tabpanel="' + id + '-' + s + '"' + (s === selected ? '' : ' hidden') + '>' +
+        '<pre class="preview">' + (v.marked || esc(v.content || '')) + '</pre>' +
+        '<p class="small muted mt-1">Redactions applied: ' + reds.length + '</p>' +
+        '<ul class="kv">' + kv + '</ul>' +
+        '<div class="downloads mt-2"><button class="download" type="button" data-dl="' + id + '-dl-' + s + '">' +
+        '<span class="download__icon" aria-hidden="true">📥</span><span><strong>Download ' + esc(s) + ' version</strong><span>' + fname + '</span></span></button></div>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="tabs" role="tablist" aria-label="Redaction strategies for ' + esc(doc.file.name) + '">' + tabs + '</div>' + panels;
+  }
+
+  /* ---------------- Review step (text results) ----------------
+     The scan returns the original text and every detection. The user removes
+     wrong redactions and adds missed ones here; each change is sent to
+     /api/apply-redactions, and the previews and downloads are rebuilt from
+     the corrected list. Positions are UTF-16 offsets in the page and code
+     points on the server, so they are converted at the boundary. */
+  var REVIEWS = {};
+  var reviewJustSelected = false;
+  var WORD_CHAR = /[\p{L}\p{N}_]/u;
+
+  function offsetMaps(text) {
+    var cp2u = [], u2cp = new Array(text.length + 1), cp = 0;
+    for (var i = 0; i < text.length; cp++) {
+      var code = text.charCodeAt(i);
+      var pair = code >= 0xD800 && code <= 0xDBFF && i + 1 < text.length;
+      cp2u.push(i);
+      u2cp[i] = cp;
+      if (pair) { u2cp[i + 1] = cp; }
+      i += pair ? 2 : 1;
+    }
+    cp2u.push(text.length);
+    u2cp[text.length] = cp;
+    return { cp2u: cp2u, u2cp: u2cp };
+  }
+
+  function detectedItems(state) {
+    var items = [];
+    (state.detections || []).forEach(function (d) {
+      var start = state.maps.cp2u[d.start], end = state.maps.cp2u[d.end];
+      if (start === undefined || end === undefined || end <= start) { return; }
+      items.push({ start: start, end: end, entity_type: d.entity_type, score: d.score,
+                   source: d.source || 'unknown', on: true, manual: false });
+    });
+    items.sort(function (a, b) { return a.start - b.start || b.end - a.end; });
+    // Detections never overlap after the server's dedup; merge if they do.
+    var merged = [];
+    items.forEach(function (it) {
+      var last = merged[merged.length - 1];
+      if (last && it.start < last.end) { last.end = Math.max(last.end, it.end); } else { merged.push(it); }
+    });
+    return merged;
+  }
+
+  function initReview(idx, analysis, strategies) {
+    var id = 'tf' + idx;
+    if (!analysis || typeof analysis.original !== 'string') { return; }
+    var state = { id: id, idx: idx, text: analysis.original, strategies: strategies.slice(),
+                  detections: analysis.detection_details || [], seq: 0, timer: null,
+                  pending: false, failed: false, prompt: null };
+    state.maps = offsetMaps(state.text);
+    state.items = detectedItems(state);
+    REVIEWS[id] = state;
+    renderReview(state);
+  }
+
+  function reviewEl(state, name) { return document.querySelector('[data-review' + name + '="' + state.id + '"]'); }
+
+  function renderReview(state) {
+    var pre = reviewEl(state, '');
+    if (!pre) { return; }
+    while (pre.firstChild) { pre.removeChild(pre.firstChild); }
+    var last = 0;
+    // Text nodes, not innerHTML: the document's own characters must stay
+    // exactly as they are, so that selection offsets match the text.
+    state.items.forEach(function (it, i) {
+      if (it.start > last) { pre.appendChild(document.createTextNode(state.text.slice(last, it.start))); }
+      var mark = document.createElement('mark');
+      mark.className = 'rv' + (it.on ? '' : ' is-off') + (it.manual ? ' is-manual' : '');
+      mark.setAttribute('role', 'button');
+      mark.setAttribute('tabindex', '0');
+      mark.setAttribute('aria-pressed', String(it.on));
+      mark.setAttribute('data-i', String(i));
+      mark.title = it.on
+        ? (it.manual ? 'Added by you' : String(it.entity_type).toLowerCase().replace(/_/g, ' ')) + ' — click to keep this visible'
+        : 'Kept visible — click to redact it again';
+      mark.appendChild(document.createTextNode(state.text.slice(it.start, it.end)));
+      pre.appendChild(mark);
+      last = it.end;
+    });
+    if (last < state.text.length) { pre.appendChild(document.createTextNode(state.text.slice(last))); }
+    renderReviewStatus(state);
+    renderReviewPrompt(state);
+  }
+
+  function renderReviewStatus(state) {
+    var el = reviewEl(state, '-status');
+    if (!el) { return; }
+    var on = 0, off = 0, added = 0;
+    state.items.forEach(function (it) { if (!it.on) { off++; } else { on++; if (it.manual) { added++; } } });
+    var parts = [on + ' will be redacted'];
+    if (off) { parts.push(off + ' kept visible by you'); }
+    if (added) { parts.push(added + ' added by you'); }
+    var tail = state.failed ? 'Could not update the downloads: ' + state.failed
+      : state.pending ? 'Updating the downloads…' : 'The downloads match this review.';
+    el.textContent = parts.join(' · ') + '. ' + tail;
+    el.classList.toggle('is-error', Boolean(state.failed));
+    if (state.failed) {
+      var retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'review__link';
+      retry.setAttribute('data-review-action', 'retry'); retry.setAttribute('data-review-id', state.id);
+      retry.textContent = 'Try again';
+      el.appendChild(document.createTextNode(' ')); el.appendChild(retry);
+    }
+  }
+
+  function renderReviewPrompt(state) {
+    var el = reviewEl(state, '-prompt');
+    if (!el) { return; }
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    var p = state.prompt;
+    el.hidden = !p;
+    if (!p) { return; }
+    var n = p.targets.length, places = n === 1 ? '1 other place' : n + ' other places';
+    var shown = p.word.length > 40 ? p.word.slice(0, 40) + '…' : p.word;
+    var message = p.kind === 'add'
+      ? '“' + shown + '” also appears in ' + places + ' that will stay visible.'
+      : '“' + shown + '” is still redacted in ' + places + '.';
+    el.appendChild(document.createTextNode(message + ' '));
+    [[p.kind === 'add' ? 'Redact ' + (n === 1 ? 'that one' : 'all ' + n) + ' too'
+                       : 'Keep ' + (n === 1 ? 'that one' : 'all ' + n) + ' visible too', 'all', 'btn btn--ghost'],
+     ['No, only this one', 'dismiss', 'review__link']].forEach(function (def) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = def[2]; b.textContent = def[0];
+      b.setAttribute('data-review-action', def[1]); b.setAttribute('data-review-id', state.id);
+      el.appendChild(b);
+    });
+  }
+
+  // Whole-word occurrences of a string, ignoring case: "Ann" never matches
+  // inside "Annual" or "Joanna".
+  function wordOccurrences(text, word) {
+    var found = [], hay = text.toLowerCase(), needle = word.toLowerCase();
+    if (!needle || hay.length !== text.length) { hay = text; needle = word; }
+    for (var at = hay.indexOf(needle); at !== -1; at = hay.indexOf(needle, at + 1)) {
+      var end = at + needle.length;
+      var before = at > 0 && WORD_CHAR.test(text.charAt(at - 1)) && WORD_CHAR.test(text.charAt(at));
+      var after = end < text.length && WORD_CHAR.test(text.charAt(end)) && WORD_CHAR.test(text.charAt(end - 1));
+      if (!before && !after) { found.push([at, end]); }
+    }
+    return found;
+  }
+
+  function insertManual(state, start, end) {
+    // An overlapped redaction is replaced by one that covers both.
+    state.items = state.items.filter(function (it) {
+      if (it.end <= start || it.start >= end) { return true; }
+      if (it.on) { start = Math.min(start, it.start); end = Math.max(end, it.end); }
+      return false;
+    }).filter(function (it) { return it.end <= start || it.start >= end; });
+    state.items.push({ start: start, end: end, entity_type: 'REDACTED', score: 1, source: 'manual', on: true, manual: true });
+    state.items.sort(function (a, b) { return a.start - b.start; });
+  }
+
+  function reviewAddSelection(state, start, end) {
+    var text = state.text;
+    while (start < end && /\s/.test(text.charAt(start))) { start++; }
+    while (end > start && /\s/.test(text.charAt(end - 1))) { end--; }
+    if (end <= start) { return; }
+    // Whole words only: a selection that starts or ends inside a word grows
+    // to the word's edge.
+    while (start > 0 && WORD_CHAR.test(text.charAt(start - 1)) && WORD_CHAR.test(text.charAt(start))) { start--; }
+    while (end < text.length && WORD_CHAR.test(text.charAt(end)) && WORD_CHAR.test(text.charAt(end - 1))) { end++; }
+    var covered = state.items.some(function (it) { return it.on && it.start <= start && end <= it.end; });
+    state.prompt = null;
+    if (!covered) {
+      insertManual(state, start, end);
+      var word = text.slice(start, end);
+      var others = word.indexOf('\n') !== -1 ? [] : wordOccurrences(text, word).filter(function (r) {
+        return !state.items.some(function (it) { return it.on && it.start < r[1] && r[0] < it.end; });
+      });
+      if (others.length) { state.prompt = { kind: 'add', word: word, targets: others }; }
+      scheduleApply(state);
+    }
+    renderReview(state);
+  }
+
+  function reviewToggle(state, index) {
+    var it = state.items[index];
+    if (!it) { return; }
+    state.prompt = null;
+    var word = state.text.slice(it.start, it.end);
+    if (it.on && it.manual) {
+      state.items.splice(index, 1);        // what the user added is simply taken back
+    } else {
+      it.on = !it.on;
+    }
+    if (!it.on || it.manual) {
+      var same = state.items.filter(function (other) {
+        return other !== it && other.on && state.text.slice(other.start, other.end) === word;
+      });
+      if (same.length) { state.prompt = { kind: 'remove', word: word, targets: same }; }
+    }
+    renderReview(state);
+    scheduleApply(state);
+  }
+
+  function reviewAction(button) {
+    var state = REVIEWS[button.getAttribute('data-review-id')];
+    if (!state) { return; }
+    var action = button.getAttribute('data-review-action');
+    if (action === 'retry') { scheduleApply(state); renderReviewStatus(state); return; }
+    if (action === 'reset') {
+      state.items = detectedItems(state);
+    } else if (action === 'all' && state.prompt) {
+      if (state.prompt.kind === 'add') {
+        state.prompt.targets.forEach(function (r) { insertManual(state, r[0], r[1]); });
+      } else {
+        state.prompt.targets.forEach(function (it) {
+          var at = state.items.indexOf(it);
+          if (at === -1) { return; }
+          if (it.manual) { state.items.splice(at, 1); } else { it.on = false; }
+        });
+      }
+    }
+    var changed = action !== 'dismiss';
+    state.prompt = null;
+    renderReview(state);
+    if (changed) { scheduleApply(state); }
+  }
+
+  function setBlockDownloads(state, disabled) {
+    var box = document.querySelector('[data-versions="' + state.id + '"]');
+    if (box) {
+      Array.prototype.forEach.call(box.querySelectorAll('.download'), function (b) { b.disabled = disabled; });
+    }
+    updateZipState();
+  }
+
+  // The ZIP holds every document, so it waits for every review.
+  function updateZipState() {
+    var zip = document.querySelector('[data-download-all-text]');
+    if (!zip) { return; }
+    zip.disabled = Object.keys(REVIEWS).some(function (id) { return REVIEWS[id].pending || REVIEWS[id].failed; });
+  }
+
+  // While a change is on its way to the server the downloads of this
+  // document are switched off, so an older version cannot be saved by
+  // mistake. They stay off if the update fails.
+  function scheduleApply(state) {
+    state.pending = true;
+    state.failed = false;
+    setBlockDownloads(state, true);
+    renderReviewStatus(state);
+    clearTimeout(state.timer);
+    state.timer = setTimeout(function () { applyReview(state); }, 250);
+  }
+
+  function applyReview(state) {
+    var seq = ++state.seq;
+    var redactions = state.items.filter(function (it) { return it.on; }).map(function (it) {
+      return { start: state.maps.u2cp[it.start], end: state.maps.u2cp[it.end],
+               entity_type: it.entity_type, score: it.score, source: it.source };
+    });
+    fetch('/api/apply-redactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: state.text, strategies: state.strategies, redactions: redactions })
+    }).then(function (resp) { return resp.json(); }).then(function (data) {
+      if (seq !== state.seq) { return; }               // a newer change is on its way
+      if (!data || !data.ok) { throw new Error((data && data.error) || 'the server refused the change'); }
+      var docs = currentData.text.docs, analyses = currentData.text.analyses;
+      analyses[state.idx].versions = data.versions;
+      var box = document.querySelector('[data-versions="' + state.id + '"]');
+      if (box) {
+        var open = box.querySelector('[role="tab"][aria-selected="true"]');
+        var selected = open ? open.getAttribute('data-tab').slice(state.id.length + 1) : null;
+        box.innerHTML = versionPanels(docs[state.idx], analyses[state.idx], state.idx, selected);
+      }
+      state.pending = false;
+      setBlockDownloads(state, false);
+      renderReviewStatus(state);
+    }).catch(function (err) {
+      if (seq !== state.seq) { return; }
+      state.pending = false;
+      state.failed = err.message || 'no answer from the local server';
+      updateZipState();
+      renderReviewStatus(state);
+    });
+  }
+
+  // Offset of a selection boundary in the review text: the length of the
+  // text between the start of the review and that boundary.
+  function reviewOffset(pre, node, offset) {
+    var range = document.createRange();
+    range.selectNodeContents(pre);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  }
+
+  document.addEventListener('mouseup', function () {
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { return; }
+    var range = sel.getRangeAt(0);
+    var anchor = range.commonAncestorContainer;
+    var pre = (anchor.nodeType === 1 ? anchor : anchor.parentNode).closest('pre.review');
+    if (!pre) { return; }
+    var state = REVIEWS[pre.getAttribute('data-review')];
+    if (!state) { return; }
+    var start = reviewOffset(pre, range.startContainer, range.startOffset);
+    var end = reviewOffset(pre, range.endContainer, range.endOffset);
+    sel.removeAllRanges();
+    reviewJustSelected = true;                      // the click that follows is not a toggle
+    setTimeout(function () { reviewJustSelected = false; }, 0);
+    reviewAddSelection(state, start, end);
+  });
+
+  function reviewMarkActivated(mark) {
+    var pre = mark.closest('pre.review');
+    var state = pre && REVIEWS[pre.getAttribute('data-review')];
+    if (!state) { return; }
+    var index = Number(mark.getAttribute('data-i'));
+    reviewToggle(state, index);
+    var again = pre.querySelector('mark.rv[data-i="' + index + '"]');
+    if (again) { again.focus({ preventScroll: true }); }
+  }
+
 
   function resetTrack(track) {
     var loaded = document.querySelector('[data-' + track + '-loaded]');
@@ -566,6 +907,14 @@
     var tab = event.target.closest('[role="tab"]');
     if (tab) { activateTab(tab); return; }
 
+    var reviewMark = event.target.closest('mark.rv');
+    if (reviewMark) {
+      if (!reviewJustSelected) { reviewMarkActivated(reviewMark); }
+      return;
+    }
+    var reviewButton = event.target.closest('[data-review-action]');
+    if (reviewButton) { reviewAction(reviewButton); return; }
+
     var downloadAllText = event.target.closest('[data-download-all-text]');
     if (downloadAllText) { downloadAllTextVersions(downloadAllText); return; }
 
@@ -595,8 +944,14 @@
     }
   });
 
-  /* Arrow-key navigation for tabs */
+  /* Arrow-key navigation for tabs; Enter or Space on a review highlight */
   document.addEventListener('keydown', function (event) {
+    var mark = event.target.closest && event.target.closest('mark.rv');
+    if (mark && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      reviewMarkActivated(mark);
+      return;
+    }
     var tab = event.target.closest && event.target.closest('[role="tab"]');
     if (!tab) { return; }
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') { return; }
