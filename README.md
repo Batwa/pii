@@ -6,6 +6,10 @@ Detect and redact personally identifiable information (PII) from CSV files, text
 
 - **CSV files**: finds names, emails, phones, and SSNs in spreadsheet columns
 - **Text files** (`.txt`, `.json`, `.md`): uses NLP + regex to find and redact PII
+- **PDF and Word files** (`.pdf`, `.docx`): read as plain text and scanned like text files.
+  The redacted versions are text files; the layout of the original is not kept. A scanned
+  PDF (pictures of pages, no text layer) is refused with a message; use the image track
+  for those. Old `.doc` files must be saved as `.docx` first.
   - **Review before download**: the results page shows the original text with every
     detection highlighted. Click a highlight to keep that text visible; select any other
     text to redact it. A change applies to that one place, and the page offers the other
@@ -68,6 +72,7 @@ server.py              Local website and processing API
 design/                 Website HTML, CSS, and JavaScript
 pii_detector.py        CSV / tabular PII detection
 text_pii_detector.py   Text file PII detection
+document_text.py       Plain text from PDF and Word files
 image_detector.py      Image PII detection
 config.py              Shared settings and paths
 recognizers.py         Presidio recognizer registry and score thresholds

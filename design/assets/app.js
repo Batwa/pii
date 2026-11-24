@@ -484,6 +484,9 @@
       '<div class="card card--flat"><h3>By type</h3><ul class="chips">' + byType + '</ul></div>' +
       '<div class="card card--flat"><h3>By detection source</h3><ul class="chips">' + bySource + '</ul></div>' +
       '</div>' +
+      (a.converted_from ? '<p class="small muted mt-2">This ' + (a.converted_from === '.pdf' ? 'PDF' : 'Word file') +
+        ' was read as plain text. The redacted versions are text files; the layout of the original is not kept. ' +
+        'Check below that the text came through complete.</p>' : '') +
       (typeof a.original === 'string' ?
         '<h3 class="mt-3">Review before you download</h3>' +
         '<p class="small muted">Highlighted text will be redacted. Click a highlight to keep that text visible. ' +
@@ -1010,7 +1013,7 @@
     /* ----- local file handling + client-side PII scan ----- */
   var currentFiles = { csv: [], text: [], image: [] };
   var currentData  = { csv: null, text: null, image: null };
-  var ACCEPT = { csv: '.csv', text: '.txt,.json,.md', image: '.jpg,.jpeg,.png,.bmp' };
+  var ACCEPT = { csv: '.csv', text: '.txt,.json,.md,.pdf,.docx', image: '.jpg,.jpeg,.png,.bmp' };
 
   var DOWNLOADS = {};
   function baseName(name) { return String(name).replace(/\.[^.]+$/, ''); }
@@ -1021,6 +1024,8 @@
   function readFilesAsText(files) {
     return Promise.all(Array.prototype.map.call(files, function (f) {
       return new Promise(function (resolve, reject) {
+        // A PDF or a Word file is not text: the server reads it.
+        if (/\.(pdf|docx)$/i.test(f.name)) { resolve({ file: f, text: '' }); return; }
         var r = new FileReader();
         r.onload = function () { resolve({ file: f, text: r.result }); };
         r.onerror = reject;

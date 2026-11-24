@@ -1383,6 +1383,11 @@ def table_column_spans(text):
                     emit(line.start(), zip(cells, kinds))
             elif kinds is not None:
                 aligned = [(cell, offsets[cell[0]]) for cell in cells if cell[0] in offsets]
+                # A row with one cell for every header column is read by
+                # position: text taken from a PDF keeps the gaps between the
+                # columns but not their exact starts.
+                if not piped and len(cells) == width and len(aligned) < width:
+                    aligned = list(zip(cells, kinds))
                 if piped or len(aligned) < 2:
                     kinds = None
                 else:

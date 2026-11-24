@@ -194,7 +194,7 @@
         <div class="card">
           <div class="card__icon" aria-hidden="true">📝</div>
           <h3>Text documents</h3>
-          <p class="track__ext">.txt &nbsp;.json &nbsp;.md</p>
+          <p class="track__ext">.txt &nbsp;.json &nbsp;.md &nbsp;.pdf &nbsp;.docx</p>
           <p>NLP-based detection across free-form writing — emails, notes, transcripts, support tickets.</p>
         </div>
         <div class="card">
@@ -263,7 +263,7 @@
         <button class="track" data-track="text" aria-pressed="false">
           <span class="track__icon" aria-hidden="true">📝</span>
           <h3>Text documents</h3>
-          <p class="track__ext">.txt &nbsp;.json &nbsp;.md</p>
+          <p class="track__ext">.txt &nbsp;.json &nbsp;.md &nbsp;.pdf &nbsp;.docx</p>
           <p>Emails, notes, transcripts, tickets and any other free-form writing.</p>
           <ul class="track__list">
             <li>Multiple files at once</li>
@@ -506,7 +506,7 @@
             <div>
               <p class="eyebrow">Step 2 of 4 — Text documents</p>
               <h2 tabindex="-1" id="text-title">Upload your documents</h2>
-              <p class="panel__hint">Multiple files allowed. Accepted extensions: <code>.txt</code> <code>.json</code> <code>.md</code></p>
+              <p class="panel__hint">Multiple files allowed. Accepted extensions: <code>.txt</code> <code>.json</code> <code>.md</code> <code>.pdf</code> <code>.docx</code>. PDF and Word files are read as plain text and the redacted versions are text files: the layout of the original is not kept.</p>
             </div>
             <button class="btn btn--ghost btn--sm" data-goto="select">← Change file type</button>
           </div>
@@ -515,13 +515,13 @@
             <span class="dropzone__icon" aria-hidden="true">📤</span>
             <span class="dropzone__title">Drag documents here, or click to browse</span>
             <p class="dropzone__hint">Select as many files as you like — each is scanned separately</p>
-            <span class="dropzone__ext">.txt &nbsp;.json &nbsp;.md</span>
+            <span class="dropzone__ext">.txt &nbsp;.json &nbsp;.md &nbsp;.pdf &nbsp;.docx</span>
           </button>
-          <input type="file" id="text-input" accept=".txt,.json,.md" multiple class="sr-only" tabindex="-1">
+          <input type="file" id="text-input" accept=".txt,.json,.md,.pdf,.docx" multiple class="sr-only" tabindex="-1">
 
           <div class="callout callout--warn mt-1" data-upload-error="text" hidden>
             <span aria-hidden="true">⚠️</span>
-            <p>Please choose text files only (extensions: <code>.txt</code> <code>.json</code> <code>.md</code>).</p>
+            <p>Please choose text, PDF or Word files only (extensions: <code>.txt</code> <code>.json</code> <code>.md</code> <code>.pdf</code> <code>.docx</code>).</p>
           </div>
 
           <div data-text-loaded hidden>
@@ -1000,7 +1000,7 @@ Thanks,
         <h4>Supported files</h4>
         <ul>
           <li>CSV — .csv</li>
-          <li>Text — .txt, .json, .md</li>
+          <li>Text — .txt, .json, .md, .pdf, .docx</li>
           <li>Images — .jpg, .jpeg, .png, .bmp</li>
         </ul>
       </div>

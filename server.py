@@ -62,6 +62,7 @@ import uvicorn
 from image_detector import ImagePIIDetector
 from pii_detector import PIIDetector
 from text_pii_detector import TextPIIDetector
+from document_text import DocumentTextError
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DESIGN = os.path.join(ROOT, "design")
@@ -486,7 +487,10 @@ async def _process_text(receive):
         return False, {"error": "Empty file."}, 400
 
     ext = os.path.splitext(filename)[1].lower()
-    if ext not in (".txt", ".json", ".md"):
+    if ext == ".doc":
+        return False, {"error": "Old Word files (.doc) cannot be read. Save the document "
+                                "as .docx or PDF and try again."}, 400
+    if ext not in (".txt", ".json", ".md", ".pdf", ".docx"):
         ext = ".txt"
 
     detector = get_text_detector(threshold)
@@ -494,13 +498,18 @@ async def _process_text(receive):
     try:
         tmp.write(data)
         tmp.close()
-        analysis = detector.process_text_file(tmp.name, redaction_strategies=strategies)
-        # The text exactly as the detector read it: the offsets of the
-        # detections count in this string, and the review step in the
-        # browser sends it back with the corrected list.
-        original, _ = detector.read_text_file(tmp.name) if analysis else ("", None)
+        # The text exactly as the detector reads it. A PDF or a Word file is
+        # turned into plain text here. The offsets of the detections count in
+        # this string, and the review step in the browser sends it back with
+        # the corrected list.
+        original, _ = detector.read_text_file(tmp.name)
+        analysis = detector.process_text(original, filename, redaction_strategies=strategies)
+    except DocumentTextError as e:
+        return False, {"error": str(e)}, 400
     except Exception as e:
-        return False, {"error": str(e)}, 500
+        return False, {"error": "The file could not be read as text."
+                       if isinstance(e, UnicodeDecodeError) or "Error reading file" in str(e)
+                       else str(e)}, 500
     finally:
         try:
             os.unlink(tmp.name)
@@ -525,6 +534,8 @@ async def _process_text(receive):
         "pii_by_source": analysis["pii_by_source"],
         "detection_details": analysis["detection_details"],
         "original": original,
+        # A PDF or a Word file comes back as plain text; the page says so.
+        "converted_from": ext if ext in (".pdf", ".docx") else None,
         "versions": versions,
     }, 200
 

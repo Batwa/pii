@@ -15,6 +15,7 @@ from config import (
     PRESIDIO_SCORE_FLOOR,
 )
 from recognizers import build_analyzer_registry, passes_entity_threshold
+from document_text import extract_document_text
 import policy_rules
 
 
@@ -70,7 +71,7 @@ class TextPIIDetector:
             self.custom_model_available = False
         
         # Supported file types
-        self.supported_extensions = {'.txt', '.json', '.md', '.rtf', '.log'}
+        self.supported_extensions = {'.txt', '.json', '.md', '.rtf', '.log', '.pdf', '.docx'}
         
         # Pseudonymization mappings (consistent fake names for same person)
         self.pseudonym_cache = {}
@@ -91,6 +92,11 @@ class TextPIIDetector:
         
         if ext not in self.supported_extensions:
             raise ValueError(f"Unsupported file type: {ext}")
+
+        if ext in ('.pdf', '.docx'):
+            # Read into plain text; a DocumentTextError carries a message for
+            # the user (a scanned PDF, a password, a broken file).
+            return extract_document_text(file_path), None
         
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
@@ -366,14 +372,18 @@ class TextPIIDetector:
         except Exception as e:
             print(f"❌ Error reading file: {e}")
             return None
-        
+
+        return self.process_text(content, os.path.basename(file_path), redaction_strategies)
+
+    def process_text(self, content, filename, redaction_strategies=['mask', 'pseudonymize', 'partial_mask']):
+        """Detect and redact PII in a text that has already been read."""
         # Detect PII
         print("🔍 Detecting PII...")
         pii_results = self.comprehensive_pii_detection(content)
         
         # Analyze results
         analysis = {
-            'filename': os.path.basename(file_path),
+            'filename': filename,
             'file_size': len(content),
             'total_pii_found': len(pii_results),
             'pii_by_type': {},
