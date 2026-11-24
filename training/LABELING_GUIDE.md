@@ -381,6 +381,21 @@ One JSON object per line (JSONL):
     offered for viewing, a place of birth, a floor and a middle initial in
     a table cell.
 
+26. Settled in the test11 fix round (2026-11-23). The facility that wrote
+    a document stays visible at every mention, not only on its letterhead
+    or in its heading: the heading has already named it, and masking the
+    later mentions hides nothing. A heading such as "Welcome to ..." or
+    "About ..." names the author like a letterhead does. In a table that
+    lists people, the town they live in redacts like the postcode beside
+    it; a town column without a name column stays. A town from a table of
+    the firm's own sites is that site wherever the document names it. A
+    relative named by the kin word alone ("Nan", "Grandad") is not a
+    person, and that relative's journeys and stays redact like anyone
+    else's. A family name in the title of a chat group is a person when a
+    word for a family follows it ("Okafor family"); with any other word
+    ("Tremayne lot") the detector cannot tell it from a thing and misses
+    it. The name of a service or a job in a log is not a person.
+
 ## Workflow for scaling the corpus (LLM pre-labeling)
 
 1. Generate or collect raw documents (see the generation prompt in the

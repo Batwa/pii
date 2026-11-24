@@ -199,8 +199,8 @@ and was not promoted, so candidate 3 stays live. After its fix round
 (2026-11-19) test10 is at 100% / 99.5% and test9 at 99.4% / 99.0%. Test11
 scored 83.3% / 93.5% blind (2026-11-23). Candidate 6 was measured on it
 once the same day (83.3% / 93.3%) and was not promoted, so candidate 3
-stays live. Nothing has been fixed against test11, so it is the only set
-that still measures anything.
+stays live. After its fix round (2026-11-23) test11 is at 99.0% / 99.1%
+and every older set is unchanged; no set is held out any more.
 
 ### test3 blind run (2026-11-04)
 
@@ -1639,6 +1639,169 @@ masked name), an IP address (masked today), a property offered for viewing
 (masked today as an address) and the town a person works in when no depot
 is meant.
 
+### test11 fixes (2026-11-23)
+
+The round started from the blind run: 170/204, keep 431/461, 4 strays,
+which is 68 findings. Fifty-eight were fixed, all in `policy_rules.py`,
+with candidate 3 live and unchanged; test11 is semi-dev from here.
+Candidates 5 and 6 had been measured on test11 before the round started,
+so those comparisons are not affected.
+
+Tables and exports:
+
+- Name headers in Dutch, German, French, Spanish and Italian
+  ("Achternaam;Voornaam", "Nachname", "Prénom", "Apellidos", "Cognome"),
+  with the birth-date, street and postcode headers of those languages.
+- A column headed by what its people are is a name column ("Engineer",
+  "Applicant", "Patient", "Volunteer"). Only nouns for natural persons:
+  "Customer" and "Client" hold companies as often and are left out.
+- The town a person lives in is a column kind of its own ("Woonplaats",
+  "Ort", "Ville", and also "Town" and "City"). Like the postcode it counts
+  only beside a name column.
+- "Home postcode" is a postcode header. A surname-first cell may end in
+  an initial ("Illingworth, Hyacinth M."), and its forename is echoed in
+  the prose ("Blessing has asked ..." after the cell "Phiri, Blessing").
+- A vehicle column is a thing column ("Van: Vivaro, NK21 RZO"): the model
+  name is not a person, the plate is still a plate.
+- A column of the firm's own sites ("Depot") makes its cells things, and
+  the same town elsewhere in the document is that site, not an employer
+  ("on lates at Brampton", "works at the Egremont depot"). A header that
+  labels only thing or site columns opens a table only where none is
+  open: inside a table "Warehouse" or "Office" is a cell.
+
+Logs and chats:
+
+- key=value pairs of a log line are read like the pairs of a JSON record
+  (`logfmt_field_spans`): "dob=1984-02-11", and a full name under a key
+  that names a person ("actor", "onBehalfOf", "patient", "name"). A bare
+  "name" counts only on a line with another personal key, and a value
+  with a service word is not a person ("Nightly Export").
+- The event name after the level of a log line is not a person ("WARN
+  RateLimit").
+- The dated chat layout names its speaker with one word ("22/11/2026,
+  08:12 - Piran:", "- Jowan T:"). Role speakers and system lines are not
+  names.
+
+Journeys:
+
+- A relative is the subject of a journey: "Dad drives to Ullapool", "my
+  sister-in-law moved to ...". A bare kin word counts only with its
+  capital.
+- A stay is a journey ("Is Nan still staying in Porthmadog till Sunday?"),
+  so is the way back ("Grandad comes back from Aberaeron", "she returns
+  from ..."), and so is where a move starts ("is relocating from Riga").
+  A stay may end with "from the 5th to the 19th".
+- A kin word alone is not a person ("Nan", "Grandad"), by labeling-guide
+  decision 25.
+
+Labels and wording:
+
+- A single first name after a label only a person fills: "second checker:
+  Kristaps", "Checked by: ...". "Witness:" is left out, because in a
+  transcript it is a speaker label and what follows is the reply.
+- The value of a role label that ends in a desk or role word is not a
+  name ("Page owner: Rota Admin").
+- A possessive ends a name ("Mr Erskine's Ivabradine").
+- "at number 31, Comfrey Avenue" is an address: "at number" allows the
+  comma after the house number.
+
+Facilities:
+
+- The facility that presents itself in the heading ("Welcome to
+  Birchgarth Hospice", "About ...", "Your stay at ...") is the author,
+  like a letterhead. The author now stays visible at every mention, not
+  only in the heading, and its first word alone is not a person
+  ("Birchgarth is a charity"). This closes the limit noted in the test10
+  round.
+- A full stop after a whole word ends a sentence, so a facility name does
+  not start before it ("Visiting. Birchgarth Hospice is open ...").
+- A span the NER layers call a person and that ends in a facility word is
+  left to the facility rules.
+- "the residents have complained" is not residence wording, so a street
+  nobody lives on stays ("Bobbin Street").
+
+False persons:
+
+- Medicines are known by the stems of their international names
+  ("-histine", "-azine", "-bradine", "-nafine", "-pril", "-statin" and
+  about forty-five more), by the form that follows ("cream", "tablets",
+  "given.") and by a longer list with brand names ("Zapain"). Stems that
+  end given names are left out: "-ine" alone would take Catherine.
+- Greeting and sign-off words of Dutch, German, French, Spanish and
+  Italian in front of a name are cut off ("Hoi Marrit", "Groet, Wouter",
+  "Bonjour ..."), and prepositions and determiners that open a sentence in
+  those languages are not persons ("Pour", "Votre").
+- An office title in front of a name is not part of it ("Sr", "Revd"),
+  also behind an article ("the Revd Osian Colquitt").
+- In a record of interview the marker is not an initial and a one-word
+  question is not a name ("Q. Occupation?").
+- A lowercase span from the model with three words besides particles is a
+  phrase ("ledenlijst van de jeugd voor de").
+
+Side effects were checked as in the earlier rounds. Every detection on the
+451 gold, international, private and generated dev documents was dumped
+before and after. Outside test11 fifteen documents change. Three older gold
+documents change only the source of a span (two chats, one Dutch letter).
+Nothing changes on the private documents or on the international set. On
+the 238 generated dev documents twelve change: four names lose a greeting
+word; "Votre" and a lowercase French phrase stop being persons; two
+schools that spaCy read as persons on their own letterhead stay visible; a
+pair of facilities is split at the full stop between them; one chat
+speaker is newly found; two address spans of the model that ran across
+table cells are dropped. Then the rule layer alone was run, old against
+new, over the 2,380 generated training documents. Fifty-five differ: 204
+new person spans, every one a labelled person (the speakers of the dated
+chat layout); four more facility pairs split at the full stop; and one
+facility that is no longer masked, because the template put the same name
+on the letterhead and in the body. That check also found two faults, which
+were fixed before the final run: a group title "Allotment lot" was read
+like "Tremayne lot", and a data row with the cell "Office" would have been
+read as a new header.
+
+Result: test11 170/204 → 202/204 (99.0%), keep 431/461 → 457/461 (99.1%),
+strays 4 → 4. Every other set is unchanged: dev 123/123 and 135/135 (4
+strays), test, test2 and test3 100% / 100%, test4 61/63 and 81/83, test5
+71/72 and 87/89, test6 110/111 and 160/164, test7 141/141 and 220/223,
+test8 139/139 and 235/238 (1 stray), test9 167/168 and 298/301 (1 stray),
+test10 179/179 and 415/417 (1 stray). Both regression suites and the 25
+unit tests pass.
+
+Left on test11:
+
+- "Tremayne" in the chat title "Tremayne lot": nothing tells it from
+  "Allotment lot". A rule for family words ('group "Okafor family"') was
+  added and has no occurrence in the gold.
+- "elowen", a lowercase name in the middle of a chat line.
+- "They" for the pallets and for the boots (the plural-pronoun class).
+- "Pasty", the dog, and "Contributie", a Dutch noun that opens a
+  sentence: both spans of the custom model.
+- The four strays are the open policy questions: the IP address twice,
+  and the two properties offered for viewing.
+
+Read the 99% as a fitted score; the measurement was the blind 83.3%. The
+limits of this round:
+
+- The log reader, the dated chat layout, the site column, the town
+  column, the author headings and the interview marker have no occurrence
+  outside test11 and their unit test. Only a new blind set can say how
+  often they fire wrongly.
+- "Town" and "City" beside a name column are now masked. That goes
+  beyond the finding ("Woonplaats"), and a table that lists people with
+  the town of their employer would lose it.
+- The author rule now keeps the author visible everywhere. A document
+  that is headed by one facility and names another with the same name is
+  not told apart.
+- The kin words are a list, and "Nan" on it is also a first name. The
+  medicine stems would drop a one-word person whose name ends like a
+  medicine; brands are still a list.
+- "He is in Leeds from Monday" is read as a stay and masks the town.
+
+Candidates 5 and 6 were scored once more on test11 under the new rules,
+for the open question in "Next steps": 202/204, keep 452/461, 6 strays
+with candidate 5 and 201/204, 453/461, 6 strays with candidate 6, against
+202, 457 and 4 with candidate 3. The rules were fitted with candidate 3
+live.
+
 ## NER candidates and the custom-model gate (2026-11-04)
 
 Two candidates were trained with `train.py` (20 epochs, seed 42, 2.5 to 3.5
@@ -2069,20 +2232,17 @@ What the round showed:
 
 ### Next steps
 
-Test11 has been run blind once (see "test11 blind run" above), two
-candidates have been measured on it, and nothing is fixed against it.
+Test11 has been run blind, two candidates have been measured on it, and
+its fix round is done (see "test11 fixes" above). No set is held out any
+more.
 
-1. The test11 fix round for the rules. In order of size: header words in
-   other languages in an export ("Achternaam", "Voornaam", "Woonplaats");
-   a home-postcode column in a table with pipes; names and "dob=" inside
-   key="value" pairs; journeys with a kin word as subject and in other
-   wording ("Dad drives to", "Nan still staying in", "comes back from",
-   "away in X from the 5th to the 19th"); the chat layout "date, time -
-   Name:"; a facility that heads its own document without a dash and is
-   named again in the body; the work-wording rule in front of the firm's
-   own depot; medicines outside the list; "I live at number 31, ..."; a
-   name cell that ends in an initial; the first word of a two-word Dutch
-   street.
+1. A blind test12, written like the others without running the detector.
+   It should probe what the test11 round assumed: exports with headers in
+   other languages and other column orders; a table that lists people
+   with a town that is not their home; log lines in other formats; a chat
+   export from another app; journeys of relatives in other wording; a
+   leaflet or newsletter whose author names itself in the body; medicines
+   and brands outside the stems and the list.
 2. The model. Three rounds of new data (template rounds 4 and 5, the
    hand-written documents) have not moved held-out recall, so another
    round of data for this model is not the next step. What is left is a
@@ -2114,7 +2274,8 @@ candidates have been measured on it, and nothing is fixed against it.
    is meant; a complaint reference from a call centre; an age.
 6. The remaining over-redactions outside the pronoun class: "Pallet" and
    "Meter" on dev, and foreign words that open a sentence ("Bezwaar",
-   "Klopt" on test10), all spans of the custom model.
+   "Klopt" on test10, "Contributie" on test11), all spans of the custom
+   model.
 7. Rounds 2 to 5 of the generated corpus have not been through an
    adjudication round.
 
